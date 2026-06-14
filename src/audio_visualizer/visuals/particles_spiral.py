@@ -22,8 +22,15 @@ from audio_visualizer.config import (
     SPIRAL_MAX_REDUCED,
 )
 from audio_visualizer.visuals._helpers import clamp, scale_color, themed_color
-from audio_visualizer.visuals.base import BaseVisualizer
+from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
+
+_SWIRL = ModeOption(
+    "swirl",
+    "Swirl",
+    (OptionChoice("Gentle", 1.4), OptionChoice("Normal", 2.6), OptionChoice("Wild", 4.5)),
+    default_index=1,
+)
 
 
 @dataclass
@@ -44,6 +51,7 @@ class ParticlesSpiral(BaseVisualizer):
     """Energy/onset spawn rate; per-band hue; reduce-motion calms and caps it."""
 
     STROBES = True
+    OPTIONS = (_SWIRL,)
 
     def __init__(self, reduce_motion: bool = False, seed: int = 4321) -> None:
         super().__init__(reduce_motion)
@@ -74,7 +82,7 @@ class ParticlesSpiral(BaseVisualizer):
             return
         base = SPIRAL_BURST // 3 if self.reduce_motion else SPIRAL_BURST
         n_spawn = int(base * clamp(frame.rms * 1.5 + frame.onset))
-        swirl = 1.0 if self.reduce_motion else 2.6
+        swirl = 1.0 if self.reduce_motion else self.option("swirl")
         for _ in range(n_spawn):
             if len(self._sparks) >= self._cap:
                 break
@@ -108,11 +116,12 @@ class ParticlesSpiral(BaseVisualizer):
         cx, cy = w / 2.0, h / 2.0
         scale = min(w, h) * 0.5
         scheme = self.theme.color_scheme
+        phase = self.theme.color_phase
         for s in self._sparks:
             t = clamp(s.life / s.max_life)
             px = int(cx + math.cos(s.theta) * s.r * scale)
             py = int(cy + math.sin(s.theta) * s.r * scale)
             radius = max(1, int((1 + t * 3) * self.theme.size_scale))
             brightness = t if self.reduce_motion else 0.4 + t
-            color = scale_color(themed_color(scheme, s.hue, PALETTE), brightness)
+            color = scale_color(themed_color(scheme, s.hue, PALETTE, phase), brightness)
             pygame.draw.circle(surface, color, (px, py), radius)

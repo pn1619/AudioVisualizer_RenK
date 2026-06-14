@@ -1,4 +1,9 @@
-"""Top control bar: builds buttons + a mode dropdown, lays them out, routes clicks."""
+"""Top control bar: two rows of controls + dropdowns, laid out and click-routed.
+
+Row 1 holds global controls (capture, mode picker, sensitivity/smoothing/size/
+speed with inline value chips). Row 2 holds the color-scheme dropdown plus one
+dropdown per option exposed by the active visual mode.
+"""
 
 from __future__ import annotations
 
@@ -7,8 +12,9 @@ from dataclasses import dataclass
 
 import pygame
 
-from audio_visualizer.config import COLOR_PANEL
+from audio_visualizer.config import COLOR_PANEL, COLOR_SCHEME_LABELS, COLOR_SCHEMES
 from audio_visualizer.ui.button import Button
+from audio_visualizer.ui.chip import Chip
 from audio_visualizer.ui.dropdown import Dropdown
 
 
@@ -29,13 +35,25 @@ class ControlActions:
     speed_down: Callable[[], None]
     speed_up: Callable[[], None]
     cycle_color_scheme: Callable[[], None]
+    select_color: Callable[[str], None]
+    option_change: Callable[[str, int], None]
     toggle_reduce_motion: Callable[[], None]
     toggle_fullscreen: Callable[[], None]
     quit: Callable[[], None]
 
 
+@dataclass(frozen=True)
+class OptionSpec:
+    """A per-mode option to render as a dropdown (label + choices + selection)."""
+
+    key: str
+    label: str
+    choice_labels: tuple[str, ...]
+    current_index: int
+
+
 class ControlBar:
-    """Lays out and renders the buttons + mode dropdown in the control bar."""
+    """Lays out and renders the two-row control bar and routes input."""
 
     def __init__(self, actions: ControlActions, mode_options: list[tuple[str, str]]) -> None:
         self._actions = actions
@@ -44,71 +62,142 @@ class ControlBar:
         self._dropdown = Dropdown(actions.select_mode)
         self._dropdown.set_options(mode_options)
         self._next = Button(">", actions.next_mode)
+
         self._sens_down = Button("Sens -", actions.sensitivity_down)
+        self._sens_chip = Chip()
         self._sens_up = Button("Sens +", actions.sensitivity_up)
         self._smooth_down = Button("Smooth -", actions.smoothing_down)
+        self._smooth_chip = Chip()
         self._smooth_up = Button("Smooth +", actions.smoothing_up)
         self._size_down = Button("Size -", actions.size_down)
+        self._size_chip = Chip()
         self._size_up = Button("Size +", actions.size_up)
         self._speed_down = Button("Speed -", actions.speed_down)
+        self._speed_chip = Chip()
         self._speed_up = Button("Speed +", actions.speed_up)
-        self._color = Button("Classic", actions.cycle_color_scheme)
+
         self._reduce = Button("Motion+", actions.toggle_reduce_motion)
         self._full = Button("Full", actions.toggle_fullscreen)
         self._quit = Button("Quit", actions.quit)
-        # (widget, width) in display order; the dropdown is interleaved with buttons.
-        self._items: list[tuple[Button | Dropdown, int]] = [
-            (self._start, 60),
-            (self._prev, 30),
-            (self._dropdown, 140),
-            (self._next, 30),
-            (self._sens_down, 54),
-            (self._sens_up, 54),
-            (self._smooth_down, 74),
-            (self._smooth_up, 74),
-            (self._size_down, 54),
-            (self._size_up, 54),
-            (self._speed_down, 58),
-            (self._speed_up, 58),
-            (self._color, 96),
-            (self._reduce, 70),
-            (self._full, 48),
-            (self._quit, 48),
-        ]
-        self._buttons = [w for w, _ in self._items if isinstance(w, Button)]
 
+        self._color = Dropdown(actions.select_color, title="Color")
+        self._color.set_options([(s, COLOR_SCHEME_LABELS.get(s, s)) for s in COLOR_SCHEMES])
+
+        # (widget, width) in display order for each row.
+        self._row1: list[tuple[Button | Dropdown | Chip, int]] = [
+            (self._start, 56),
+            (self._prev, 28),
+            (self._dropdown, 130),
+            (self._next, 28),
+            (self._sens_down, 52),
+            (self._sens_chip, 46),
+            (self._sens_up, 52),
+            (self._smooth_down, 64),
+            (self._smooth_chip, 46),
+            (self._smooth_up, 64),
+            (self._size_down, 52),
+            (self._size_chip, 46),
+            (self._size_up, 52),
+            (self._speed_down, 56),
+            (self._speed_chip, 46),
+            (self._speed_up, 56),
+            (self._reduce, 64),
+            (self._full, 44),
+            (self._quit, 44),
+        ]
+        self._option_dropdowns: list[Dropdown] = []
+        self._bar: pygame.Rect | None = None
+        self._buttons = [w for w, _ in self._row1 if isinstance(w, Button)]
+        self._chips = [w for w, _ in self._row1 if isinstance(w, Chip)]
+
+    # -- state / contents -----------------------------------------------------
     def set_state(
-        self, capturing: bool, mode_key: str, reduce_motion: bool, color_scheme: str
+        self,
+        capturing: bool,
+        mode_key: str,
+        reduce_motion: bool,
+        color_scheme: str,
+        sensitivity: float,
+        smoothing: float,
+        size_scale: float,
+        speed_scale: float,
     ) -> None:
         self._start.label = "Stop" if capturing else "Start"
         self._dropdown.set_selected(mode_key)
         self._reduce.label = "Motion-" if reduce_motion else "Motion+"
-        self._color.label = color_scheme.capitalize()
+        self._color.set_selected(color_scheme)
+        self._sens_chip.text = f"{sensitivity:.2f}"
+        self._smooth_chip.text = f"{smoothing:.2f}"
+        self._size_chip.text = f"{size_scale:.2f}"
+        self._speed_chip.text = f"{speed_scale:.2f}"
+
+    def set_mode_options(self, specs: list[OptionSpec]) -> None:
+        """Rebuild the per-mode option dropdowns for the active visual mode."""
+        self._option_dropdowns = []
+        for spec in specs:
+            dd = Dropdown(self._make_option_callback(spec.key), title=spec.label)
+            dd.set_options([(str(i), label) for i, label in enumerate(spec.choice_labels)])
+            dd.set_selected(str(spec.current_index))
+            self._option_dropdowns.append(dd)
+        if self._bar is not None:
+            self.relayout(self._bar)
+
+    def _make_option_callback(self, key: str) -> Callable[[str], None]:
+        return lambda index_str: self._actions.option_change(key, int(index_str))
 
     def toggle_mode_dropdown(self) -> None:
         self._dropdown.toggle()
 
+    # -- layout ---------------------------------------------------------------
     def relayout(self, bar: pygame.Rect) -> None:
+        self._bar = bar
         pad = 6
-        h = bar.height - pad * 2
-        y = bar.y + pad
+        row_h = max(1, (bar.height - pad * 3) // 2)
+        row1_y = bar.y + pad
+        row2_y = row1_y + row_h + pad
+
         x = bar.x + pad
-        for widget, w in self._items:
-            widget.set_rect(pygame.Rect(x, y, w, h))
+        for widget, w in self._row1:
+            widget.set_rect(pygame.Rect(x, row1_y, w, row_h))
             x += w + pad
 
+        x = bar.x + pad
+        self._color.set_rect(pygame.Rect(x, row2_y, 150, row_h))
+        x += 150 + pad
+        for dd in self._option_dropdowns:
+            dd.set_rect(pygame.Rect(x, row2_y, 150, row_h))
+            x += 150 + pad
+
+    # -- input ----------------------------------------------------------------
+    def _all_dropdowns(self) -> list[Dropdown]:
+        return [self._dropdown, self._color, *self._option_dropdowns]
+
     def handle_event(self, event: pygame.event.Event) -> bool:
-        if self._dropdown.handle_event(event):
-            return True
+        for dd in self._all_dropdowns():
+            if dd.handle_event(event):
+                if dd.open:  # keep only the just-opened dropdown expanded
+                    for other in self._all_dropdowns():
+                        if other is not dd:
+                            other.open = False
+                return True
         clicked = False
         for btn in self._buttons:
             if btn.handle_event(event):
                 clicked = True
         return clicked
 
+    # -- draw -----------------------------------------------------------------
     def draw(self, surface: pygame.Surface, bar: pygame.Rect, font: pygame.font.Font) -> None:
         pygame.draw.rect(surface, COLOR_PANEL, bar)
         for btn in self._buttons:
             btn.draw(surface, font)
-        # Draw the dropdown last so its open list overlays the canvas + neighbors.
-        self._dropdown.draw(surface, font)
+        for chip in self._chips:
+            chip.draw(surface, font)
+        # Draw closed dropdowns first, then the open one last so its list is on top.
+        dropdowns = self._all_dropdowns()
+        open_dd = next((dd for dd in dropdowns if dd.open), None)
+        for dd in dropdowns:
+            if dd is not open_dd:
+                dd.draw(surface, font)
+        if open_dd is not None:
+            open_dd.draw(surface, font)

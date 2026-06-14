@@ -9,11 +9,17 @@ import pygame
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
 from audio_visualizer.visuals._helpers import scale_color, themed_color
-from audio_visualizer.visuals.base import BaseVisualizer
+from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
-_BEAMS = 8
 _LISSAJOUS_POINTS = 96
+
+_BEAMS_OPT = ModeOption(
+    "beams",
+    "Beams",
+    (OptionChoice("4", 4), OptionChoice("8", 8), OptionChoice("12", 12)),
+    default_index=1,
+)
 
 
 @register(key="laser", display_name="Laser", order=50)
@@ -21,9 +27,10 @@ class Laser(BaseVisualizer):
     """Beams sweep around the center; a Lissajous curve traces the spectrum."""
 
     STROBES = True
+    OPTIONS = (_BEAMS_OPT,)
 
-    def __init__(self, reduce_motion: bool = False) -> None:
-        super().__init__(reduce_motion)
+    def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
+        super().__init__(reduce_motion, theme)
         self._phase = 0.0
 
     def on_enter(self) -> None:
@@ -54,15 +61,17 @@ class Laser(BaseVisualizer):
         frame: AnalysisFrame,
     ) -> None:
         bands = frame.band_energies
-        for i in range(_BEAMS):
-            energy = float(bands[i * bands.size // _BEAMS])
-            angle = self._phase + (math.pi * i / _BEAMS)
+        beams = int(self.option("beams"))
+        phase = self.theme.color_phase
+        for i in range(beams):
+            energy = float(bands[i * bands.size // beams])
+            angle = self._phase + (math.pi * i / beams)
             length = radius * (0.3 + energy)
             for direction in (1.0, -1.0):
                 ex = cx + math.cos(angle) * length * direction
                 ey = cy + math.sin(angle) * length * direction
                 color = scale_color(
-                    themed_color(self.theme.color_scheme, i / _BEAMS, PALETTE), 0.5 + energy
+                    themed_color(self.theme.color_scheme, i / beams, PALETTE, phase), 0.5 + energy
                 )
                 width = 1 if self.reduce_motion else max(1, int(1 + energy * 4))
                 pygame.draw.line(surface, color, (cx, cy), (ex, ey), width)
@@ -81,7 +90,8 @@ class Laser(BaseVisualizer):
         a = 2.0 + frame.band_energies[: frame.band_energies.size // 2].mean() * 3.0
         b = 3.0 + frame.band_energies[frame.band_energies.size // 2 :].mean() * 3.0
         color = scale_color(
-            themed_color(self.theme.color_scheme, frame.peak, PALETTE), 0.6 + frame.rms
+            themed_color(self.theme.color_scheme, frame.peak, PALETTE, self.theme.color_phase),
+            0.6 + frame.rms,
         )
         points: list[tuple[float, float]] = []
         for k in range(_LISSAJOUS_POINTS + 1):

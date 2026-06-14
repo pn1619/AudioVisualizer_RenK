@@ -21,6 +21,7 @@ from audio_visualizer.config import (
     APP_NAME,
     APP_VERSION,
     COLOR_BG,
+    COLOR_CYCLE_RATE,
     COLOR_SCHEMES,
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
@@ -35,7 +36,7 @@ from audio_visualizer.config import (
     TARGET_FPS,
 )
 from audio_visualizer.settings import Settings
-from audio_visualizer.ui.controls import ControlActions, ControlBar
+from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
 from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
 from audio_visualizer.visuals import registry
@@ -116,6 +117,7 @@ class App:
             self._screen.get_size(), show_control_bar=not self._fullscreen
         )
         self._controls.relayout(self._layout.control_bar)
+        self._refresh_mode_options()
 
         self._running = False
 
@@ -148,6 +150,8 @@ class App:
             speed_down=lambda: self._adjust_speed(-SPEED_SCALE_STEP),
             speed_up=lambda: self._adjust_speed(SPEED_SCALE_STEP),
             cycle_color_scheme=self._cycle_color_scheme,
+            select_color=self._set_color_scheme,
+            option_change=self._set_mode_option,
             toggle_reduce_motion=self._toggle_reduce_motion,
             toggle_fullscreen=self._toggle_fullscreen,
             quit=self._request_quit,
@@ -219,6 +223,24 @@ class App:
         self._visual = self._make_visual()
         self._visual.on_resize(self._layout.canvas.size)
         self._visual.on_enter()
+        self._refresh_mode_options()
+
+    def _refresh_mode_options(self) -> None:
+        """Rebuild the control bar's per-mode option dropdowns for the active mode."""
+        specs = [
+            OptionSpec(
+                opt.key,
+                opt.label,
+                tuple(choice.label for choice in opt.choices),
+                self._visual.option_index(opt.key),
+            )
+            for opt in type(self._visual).OPTIONS
+        ]
+        self._controls.set_mode_options(specs)
+
+    def _set_mode_option(self, key: str, index: int) -> None:
+        self._visual.set_option_index(key, index)
+        logger.debug("Mode %s option %s = %d", self._visual.KEY, key, index)
 
     def _adjust_sensitivity(self, delta: float) -> None:
         self._sensitivity = float(np.clip(self._sensitivity + delta, _SENS_MIN, _SENS_MAX))
@@ -249,6 +271,11 @@ class App:
         )
         self._theme.color_scheme = COLOR_SCHEMES[(idx + 1) % len(COLOR_SCHEMES)]
         logger.debug("Color scheme = %s", self._theme.color_scheme)
+
+    def _set_color_scheme(self, key: str) -> None:
+        if key in COLOR_SCHEMES:
+            self._theme.color_scheme = key
+            logger.debug("Color scheme = %s", self._theme.color_scheme)
 
     def _toggle_reduce_motion(self) -> None:
         self._reduce_motion = not self._reduce_motion
@@ -369,6 +396,9 @@ class App:
         screen = self._screen
         screen.fill(COLOR_BG)
 
+        # Advance the shared hue phase so rainbow_plus cycles colors over time.
+        self._theme.color_phase = (self._theme.color_phase + dt * COLOR_CYCLE_RATE) % 1.0
+
         canvas = self._layout.canvas
         try:
             sub = screen.subsurface(canvas)
@@ -382,6 +412,10 @@ class App:
                 self._visual.KEY,
                 self._reduce_motion,
                 self._theme.color_scheme,
+                self._sensitivity,
+                self._smoothing,
+                self._theme.size_scale,
+                self._theme.speed_scale,
             )
             self._controls.draw(screen, self._layout.control_bar, self._font)
 

@@ -29,7 +29,7 @@ AudioVisualizer/
 │     │
 │     ├─ visuals/
 │     │  ├─ __init__.py
-│     │  ├─ base.py             # BaseVisualizer: draw(surface, frame, dt) + lifecycle hooks; shared Theme dataclass
+│     │  ├─ base.py             # BaseVisualizer + lifecycle hooks; Theme + ModeOption/OptionChoice (per-mode options)
 │     │  ├─ registry.py         # @register decorator + discover() auto-import; ordered mode list
 │     │  ├─ _helpers.py         # shared draw utils (glow, color lerp, normalized coords); skipped by discovery
 │     │  ├─ waveform.py         # @register("waveform", ...)
@@ -46,8 +46,9 @@ AudioVisualizer/
 │        ├─ __init__.py
 │        ├─ layout.py           # Layout: computes control-bar/canvas/HUD rects from current surface size
 │        ├─ button.py           # minimal clickable Button (rect + label + hover)
-│        ├─ dropdown.py         # minimal Dropdown widget (mode picker)
-│        ├─ controls.py         # top control bar: buttons + mode dropdown, routes clicks
+│        ├─ chip.py             # read-only value Chip (shows current Sens/Smooth/Size/Speed)
+│        ├─ dropdown.py         # minimal Dropdown widget (mode/color/per-mode options; optional title)
+│        ├─ controls.py         # two-row control bar: buttons + chips + color/option dropdowns
 │        └─ hud.py              # status line + debug overlay (F3)
 │
 ├─ tests/
@@ -121,7 +122,7 @@ Windows-specific shims, each **guarded** so the module imports cleanly off Windo
 `Analyzer` — pure DSP: apply **Hann window**, **numpy rfft**, magnitude → **log-spaced bands** (using the frame's real `sample_rate`), compute **RMS** and **peak**, normalize/smooth, return an `AnalysisFrame`. **Guards against silence** (no NaN/divide-by-zero on all-zero input). No pygame, no I/O → fully unit-testable.
 
 ### `visuals/base.py`
-`BaseVisualizer` — the one interface every mode subclasses. Required: `draw(surface, frame: AnalysisFrame | None, dt: float)`. Provided defaults (override only if needed): `on_enter()`, `on_exit()`, `on_resize(size)`, and a `reduce_motion` flag. Class attributes `KEY`, `DISPLAY_NAME`, `ORDER` are set by the `@register` decorator. Visualizers hold **only their own animation state**, read **size from the surface** (resize-safe), and never touch audio capture, other modes, or global state.
+`BaseVisualizer` — the one interface every mode subclasses. Required: `draw(surface, frame: AnalysisFrame | None, dt: float)`. Provided defaults (override only if needed): `on_enter()`, `on_exit()`, `on_resize(size)`, a `reduce_motion` flag, and the shared `theme`. Class attributes `KEY`, `DISPLAY_NAME`, `ORDER` are set by the `@register` decorator. **Per-mode options:** a mode declares `OPTIONS: tuple[ModeOption, ...]` (each a labelled set of `OptionChoice`s) and reads the current value via `self.option(key)`; the App renders these as dropdowns and calls `set_option_index`. Also defined here: the `Theme` dataclass (`size_scale`, `speed_scale`, `color_scheme`, `color_phase`). Visualizers hold **only their own animation state**, read **size from the surface** (resize-safe), and never touch audio capture, other modes, or global state.
 
 ### `visuals/registry.py`
 The plugin mechanism — **no central list to maintain**:
@@ -142,8 +143,14 @@ Each mode = **one file**: subclass `BaseVisualizer`, decorate with `@register`, 
 ### `ui/button.py`
 `Button` — rect, label, hover/press state, `handle_event(event) -> bool`, `draw(surface)`. No external UI lib.
 
+### `ui/chip.py`
+`Chip` — a non-interactive labelled value box; the control bar uses these to show the current Sensitivity/Smoothing/Size/Speed values.
+
+### `ui/dropdown.py`
+`Dropdown` — header + expandable option list; optional `title` prefixes the current label (e.g. `Fall: Normal`). Used for the mode picker, color scheme, and per-mode options.
+
 ### `ui/controls.py`
-Builds and lays out the control bar buttons; translates clicks into `App` actions (start/stop, next/prev mode, sensitivity, fullscreen).
+Builds and lays out the **two-row** control bar (global controls + value chips on top; color and per-mode option dropdowns on the bottom); translates clicks into `App` actions (start/stop, mode, sensitivity/smoothing/size/speed, color, per-mode option changes, fullscreen). `set_mode_options(specs)` rebuilds the per-mode dropdowns when the active mode changes; only one dropdown stays open at a time.
 
 ### `ui/hud.py`
 Status line (device, RMS/peak, FPS, mode) and the **F3 debug overlay**.

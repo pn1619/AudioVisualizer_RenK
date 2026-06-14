@@ -56,8 +56,14 @@ def rainbow_color(t: float) -> Color:
     return (int(r * 255), int(g * 255), int(b * 255))
 
 
-def themed_color(scheme: str, t: float, palette: tuple[Color, ...]) -> Color:
-    """Pick a color for position ``t`` honoring the active color scheme."""
+def themed_color(scheme: str, t: float, palette: tuple[Color, ...], phase: float = 0.0) -> Color:
+    """Pick a color for position ``t`` honoring the active color scheme.
+
+    ``phase`` (0..1) only matters for ``rainbow_plus``, where it shifts every hue
+    over time so colors cycle continuously.
+    """
     if scheme == "rainbow":
         return rainbow_color(t)
+    if scheme == "rainbow_plus":
+        return rainbow_color(t + phase)
     return palette_color(palette, t)

@@ -7,10 +7,11 @@ pyaudiowpatch.
 Visual modes: **waveform, waveform 2, spectrum, light show, particles, laser,
 snowfall, and particles spiral** — adding a mode is one drop-in file.
 
-> Status: **Phase 4 (v `00.04.00`)** — live, persisted **size / speed / color-scheme**
-> tunables, a **mode dropdown**, the new **Waveform 2** mode (8 total), on top of
-> Phase 3's settings persistence, device recovery, and version-stamped `.exe`.
-> See `plan/development-phases.md` for the roadmap.
+> Status: **Phase 5 (v `00.05.00`)** — **per-mode option dropdowns**, separate snowfall
+> **fall/wind/density**, **inline value chips** for Sensitivity/Smoothing/Size/Speed, and a
+> **color dropdown** with **Classic / Rainbow / Rainbow+** (time-animated hue), on top of
+> Phase 4's tunables, mode dropdown, and Waveform 2 (8 modes). See
+> `plan/development-phases.md` for the roadmap.
 
 ## Requirements
 
@@ -59,11 +60,12 @@ The exe bundles the PortAudio DLL and a Windows version resource. Drop an
 | Start/stop capture | Start/Stop button | `Space` |
 | Previous / next mode | `<` / `>` buttons | `Left`/`Right` or `[` / `]` |
 | Jump to mode | mode **dropdown** (click to choose) | `1`–`9` (`D` opens dropdown) |
-| Sensitivity down/up | `Sens -` / `Sens +` | `-` / `=` |
-| Smoothing down/up | `Smooth -` / `Smooth +` | `,` / `.` |
-| Particle size down/up | `Size -` / `Size +` | `F5` / `F6` |
-| Animation speed down/up | `Speed -` / `Speed +` | `F7` / `F8` |
-| Color scheme (classic/rainbow) | `Classic`/`Rainbow` button | `C` |
+| Sensitivity down/up | `Sens -` / `Sens +` (value shown between) | `-` / `=` |
+| Smoothing down/up | `Smooth -` / `Smooth +` (value shown between) | `,` / `.` |
+| Particle size down/up | `Size -` / `Size +` (value shown between) | `F5` / `F6` |
+| Animation speed down/up | `Speed -` / `Speed +` (value shown between) | `F7` / `F8` |
+| Per-mode options | bottom-row **option dropdowns** (one per option of the active mode) | — |
+| Color scheme | **Color** dropdown (Classic / Rainbow / Rainbow+) | `C` cycles |
 | Reduce motion (caps strobing) | `Motion` button | `M` |
 | Fullscreen | `Full` button | `F11` (exit with `Esc`) |
 | Debug overlay | — | `F3` |
