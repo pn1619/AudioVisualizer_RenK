@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run app",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "audio_visualizer",
+      "args": ["--debug"],
+      "console": "integratedTerminal",
+      "env": { "PYTHONPATH": "${workspaceFolder}/src" }
+    },
+    {
+      "name": "Self-test (headless)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "audio_visualizer",
+      "args": ["--selftest"],
+      "console": "integratedTerminal",
+      "env": { "PYTHONPATH": "${workspaceFolder}/src" }
+    },
+    {
+      "name": "Pytest (current file)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}"],
+      "console": "integratedTerminal",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy"
+      }
+    }
+  ]
+}

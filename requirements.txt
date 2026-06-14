@@ -1,0 +1,10 @@
+# Runtime dependencies for the Audio Visualizer (Windows-only).
+#
+# These are MINIMUM constraints to get a working environment. After the first
+# successful `tools\setup.ps1`, freeze exact versions for reproducibility:
+#     .\.venv\Scripts\python -m pip freeze > requirements.lock.txt
+# (see plan/audio-visualizer-plan.md §8 / repository-and-code-layout.md).
+
+numpy>=2.0            # FFT / DSP
+pygame>=2.6           # window + 2D rendering
+PyAudioWPatch>=0.2.12 # WASAPI loopback capture (import name: pyaudiowpatch)
