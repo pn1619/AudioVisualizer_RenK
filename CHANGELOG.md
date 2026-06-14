@@ -11,6 +11,37 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.03.00` — Phase 3: polish, persistence & ship + 2 modes
+
+**Delivered**
+- `settings.py` — JSON at `%APPDATA%\AudioVisualizer\settings.json` with
+  `schema_version`; load **migrates or falls back to defaults** on
+  missing/corrupt/unknown/bad-type files (never crashes). Persists mode,
+  sensitivity, smoothing, reduce-motion, fullscreen, window size, and the
+  first-run notice acknowledgement.
+- App wiring: load settings on startup (CLI `--mode` still wins), apply them, and
+  save on exit. Restores fullscreen + window size.
+- **Device-change resilience:** capture errors flip to a banner and the app
+  auto-reopens the stream on an interval (`DEVICE_RECOVER_INTERVAL`), recovering
+  without a crash.
+- **Two new visual modes** (by request): `snowfall.py` (bass-driven wind, mid-band
+  flake size, colorful, idle-friendly) and `particles_spiral.py` (per-band spiral
+  arms; energy/onset spawn rate). Total modes: **7**.
+- Packaging: `AudioVisualizer.spec` now stamps a **Windows version resource**
+  from `APP_VERSION` and uses `assets/icon.ico` if present.
+- CI: `.github/workflows/ci.yml` (setup → check-deps → lint → test → build-exe +
+  self-test → upload exe artifact).
+- Docs: `THIRD-PARTY-NOTICES.md` added; README updated (status, new modes,
+  controls, exe run, settings, license).
+
+**Tests / verification**
+- `tools\test.ps1` → **43 passed** (adds `test_settings.py`, device-recovery
+  smoke test, snowfall/spiral determinism + reduce-motion caps).
+- `tools\lint.ps1` → ruff **clean**, black **clean**, mypy **no issues**.
+- `python -m audio_visualizer --selftest` → exit **0**.
+
+---
+
 ## `00.01.00` — Phase 1: MVP capture + analysis + 3 modes
 
 **Delivered**

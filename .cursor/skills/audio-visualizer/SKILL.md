@@ -6,8 +6,8 @@ description: >-
   spectrum, light show, particles, and laser modes, packaged as a single .exe.
   Use when implementing or editing this repo, adding audio capture, FFT/DSP,
   visual modes, UI/buttons, tooling scripts, tests, or packaging; or when the
-  user mentions loopback, spectrum, waveform, light show, particles, or laser
-  visuals on Windows.
+  user mentions loopback, spectrum, waveform, light show, particles, laser,
+  snowfall, or spiral visuals on Windows.
 ---
 
 # Audio Visualizer — Agent Skill
@@ -45,7 +45,7 @@ description: >-
    - Wire start/stop, mode cycling, status line, **window resize** in `app.py`. Add `test_analysis.py`, `test_source.py`, `test_frame.py`, `test_ui_logic.py`.
    - **Package once now:** `build-exe.ps1` → `dist\AudioVisualizer.exe --selftest` exits 0 (validates PortAudio DLL bundling early).
 5. **Phase 2:** `particles.py`, `laser.py` (onset/spectral-flux detection lives in `analysis.py` → `AnalysisFrame.onset`), sensitivity/smoothing controls (`Analyzer.set_smoothing`), reduce-motion toggle, first-run safety notice (strobing modes set `BaseVisualizer.STROBES = True`; notice acknowledged in memory until Phase 3 settings).
-6. **Phase 3:** `settings.py` (JSON in `%APPDATA%`, `schema_version`, migrate-or-default), device-change handling, `build-exe.ps1` with icon/version, `--selftest` on the exe, `LICENSE` + `THIRD-PARTY-NOTICES.md`, README quickstart (incl. Python 3.12 install).
+6. **Phase 3 (done):** `settings.py` (JSON in `%APPDATA%`, `schema_version`, migrate-or-default; load on start / save on exit), device-change recovery (auto-reopen on capture error + banner), version-stamped spec (`+` optional `assets/icon.ico`), `--selftest` on the exe, CI (`.github/workflows/ci.yml`), `LICENSE` + `THIRD-PARTY-NOTICES.md`, README quickstart. Two added modes: `snowfall.py`, `particles_spiral.py` (7 modes total).
 
 ## Implementation checklist (rules that matter)
 

@@ -12,6 +12,7 @@ import logging
 import numpy as np
 import pygame
 
+from audio_visualizer import settings as settings_mod
 from audio_visualizer.audio.analysis import Analyzer
 from audio_visualizer.audio.capture import LoopbackSource
 from audio_visualizer.audio.frame import AnalysisFrame
@@ -20,13 +21,13 @@ from audio_visualizer.config import (
     APP_NAME,
     APP_VERSION,
     COLOR_BG,
-    DEFAULT_WINDOW_SIZE,
+    DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
     MIN_WINDOW_SIZE,
-    SMOOTHING_DEFAULT,
     SMOOTHING_STEP,
     TARGET_FPS,
 )
+from audio_visualizer.settings import Settings
 from audio_visualizer.ui.controls import ControlActions, ControlBar
 from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
@@ -52,27 +53,37 @@ def _smoothing_to_coeffs(level: float) -> tuple[float, float]:
 class App:
     """The application window and main loop."""
 
-    def __init__(self, start_mode: str | None = None) -> None:
+    def __init__(self, start_mode: str | None = None, load_settings: bool = True) -> None:
         pygame.init()
         pygame.display.set_caption(f"{APP_NAME} {APP_VERSION}")
+
+        self._settings: Settings = settings_mod.load() if load_settings else Settings()
+        self._persist = load_settings
 
         registry.discover()
         self._mode_keys = registry.keys()
         if not self._mode_keys:
             raise RuntimeError("No visual modes registered")
-        self._mode_index = self._resolve_start_index(start_mode)
+        self._mode_index = self._resolve_start_index(start_mode or self._settings.mode or None)
 
-        self._screen = pygame.display.set_mode(DEFAULT_WINDOW_SIZE, pygame.RESIZABLE)
+        self._sensitivity = float(np.clip(self._settings.sensitivity, _SENS_MIN, _SENS_MAX))
+        self._smoothing = float(np.clip(self._settings.smoothing, 0.0, 1.0))
+        self._reduce_motion = self._settings.reduce_motion
+        self._notice_acknowledged = self._settings.notice_acknowledged
+
+        self._fullscreen = self._settings.fullscreen
+        self._windowed_size = (
+            max(MIN_WINDOW_SIZE[0], self._settings.window_size[0]),
+            max(MIN_WINDOW_SIZE[1], self._settings.window_size[1]),
+        )
+        if self._fullscreen:
+            self._screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        else:
+            self._screen = pygame.display.set_mode(self._windowed_size, pygame.RESIZABLE)
+
         self._font = pygame.font.Font(None, 22)
         self._font_small = pygame.font.Font(None, 20)
         self._clock = pygame.time.Clock()
-
-        self._fullscreen = False
-        self._windowed_size = DEFAULT_WINDOW_SIZE
-        self._sensitivity = 1.0
-        self._reduce_motion = False
-        self._smoothing = SMOOTHING_DEFAULT
-        self._notice_acknowledged = False
 
         self._source: AudioSource = LoopbackSource()
         self._analyzer = Analyzer()
@@ -80,13 +91,16 @@ class App:
         self._frame: AnalysisFrame | None = None
         self._capturing = False
         self._error = False
+        self._recover_timer = 0.0
 
         self._visual: BaseVisualizer = self._make_visual()
         self._visual.on_enter()
 
         self._hud = Hud()
         self._controls = ControlBar(self._build_actions())
-        self._layout = Layout.compute(self._screen.get_size())
+        self._layout = Layout.compute(
+            self._screen.get_size(), show_control_bar=not self._fullscreen
+        )
         self._controls.relayout(self._layout.control_bar)
 
         self._running = False
@@ -126,7 +140,7 @@ class App:
             while self._running:
                 dt = self._clock.tick(TARGET_FPS) / 1000.0
                 self._handle_events()
-                self._update()
+                self._update(dt)
                 self._draw(dt)
                 pygame.display.flip()
         finally:
@@ -135,13 +149,14 @@ class App:
 
     def run_selftest(self, frames: int) -> int:
         """Headless: render ``frames`` with a synthetic tone, then exit 0."""
+        self._persist = False
         self._source = SyntheticSource(mode="sweep", sample_rate=48000)
         self._start_capture()
         try:
             for _ in range(max(1, frames)):
                 dt = self._clock.tick(TARGET_FPS) / 1000.0
                 pygame.event.pump()
-                self._update()
+                self._update(dt)
                 self._draw(dt)
                 pygame.display.flip()
         finally:
@@ -272,10 +287,15 @@ class App:
         self._controls.relayout(self._layout.control_bar)
         self._visual.on_resize(self._layout.canvas.size)
 
-    def _update(self) -> None:
+    def _update(self, dt: float = 0.0) -> None:
         if not self._capturing:
             return
         self._error = self._source.status is SourceStatus.ERROR
+        if self._error:
+            self._attempt_recovery(dt)
+            self._frame = None
+            return
+        self._recover_timer = 0.0
         samples = self._source.read_latest(FFT_SIZE)
         if samples is None:
             self._frame = None
@@ -320,8 +340,34 @@ class App:
             error=self._error,
         )
 
+    def _attempt_recovery(self, dt: float) -> None:
+        """After a capture/device error, periodically try to re-open the stream."""
+        self._recover_timer += dt
+        if self._recover_timer < DEVICE_RECOVER_INTERVAL:
+            return
+        self._recover_timer = 0.0
+        logger.info("Attempting capture recovery after device error")
+        self._source.stop()
+        self._source.start()
+        self._capturing = self._source.status is SourceStatus.RUNNING
+        self._error = self._source.status is SourceStatus.ERROR
+
+    def _current_settings(self) -> Settings:
+        size = self._windowed_size if self._fullscreen else self._screen.get_size()
+        return Settings(
+            mode=self._mode_keys[self._mode_index],
+            sensitivity=self._sensitivity,
+            smoothing=self._smoothing,
+            reduce_motion=self._reduce_motion,
+            fullscreen=self._fullscreen,
+            window_size=(int(size[0]), int(size[1])),
+            notice_acknowledged=self._notice_acknowledged,
+        )
+
     def _shutdown(self) -> None:
         try:
             self._source.stop()
+            if self._persist:
+                settings_mod.save(self._current_settings())
         finally:
             pygame.quit()

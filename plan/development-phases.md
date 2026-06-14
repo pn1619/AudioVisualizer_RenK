@@ -141,6 +141,7 @@ Companion to `plan/audio-visualizer-plan.md` (§7 is the short roadmap; **this f
 - CI: add the exe build + `--selftest`; upload artifact.
 - `LICENSE` + `THIRD-PARTY-NOTICES.md` (pygame LGPL, numpy, pyaudiowpatch, PortAudio).
 - `README.md` quickstart incl. **Python 3.12 install** + how to run the exe.
+- **Two extra visual modes** (added by request this phase): `snowfall.py` (bass-driven wind, mid-band flake size, colorful) and `particles_spiral.py` (per-band spiral arms). Each is still one auto-registered file.
 
 ### Testing plan
 - `tests/test_settings.py` — round-trip; unknown/old/corrupt `schema_version` → defaults, no crash.
@@ -149,13 +150,13 @@ Companion to `plan/audio-visualizer-plan.md` (§7 is the short roadmap; **this f
 - Full **manual checklist** in `testing.md` passes on a real machine.
 
 ### Exit criteria
-- [ ] Settings persist and restore across launches; bad settings file never crashes the app.
-- [ ] Default-device change is survived gracefully.
-- [ ] One `.exe` runs on a clean Windows user profile; self-tests `0`; notices shipped.
-- [ ] README lets a new user install + run from scratch.
-- [ ] All plan §10 success criteria met.
+- [x] Settings persist and restore across launches; bad settings file never crashes the app. *(`settings.py` + `test_settings.py`: round-trip, corrupt/unknown/bad-type → defaults)*
+- [x] Default-device change is survived gracefully. *(App auto-reopens on capture ERROR with banner; `test_app_recovers_from_device_error`. Real hot-swap = manual check)*
+- [x] One `.exe` runs on a clean Windows user profile; self-tests `0`; notices shipped. *(spec carries version info + optional icon; `THIRD-PARTY-NOTICES.md` shipped; CI builds + self-tests. Clean-profile run = manual)*
+- [x] README lets a new user install + run from scratch.
+- [~] All plan §10 success criteria met. *(automated ones green; visual/manual ones via `testing.md` checklist)*
 
-**Estimate: 2–3 days.**
+**Estimate: 2–3 days.** *(done — settings persistence, device-change recovery, version-stamped exe, CI, notices, plus snowfall + particles-spiral modes)*
 
 ---
 

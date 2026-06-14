@@ -1,11 +1,15 @@
 # AudioVisualizer
 
 A Windows desktop app that captures **what you hear** (system playback via WASAPI
-loopback) and renders it in real time — waveform, spectrum, and light-show modes —
-built with Python + pygame + numpy + pyaudiowpatch.
+loopback) and renders it in real time — built with Python + pygame + numpy +
+pyaudiowpatch.
 
-> Status: **Phase 1 (v `00.01.00`)** — capture + analysis + 3 modes, packaged to a
-> single `.exe`. See `plan/development-phases.md` for the roadmap.
+Visual modes: **waveform, spectrum, light show, particles, laser, snowfall, and
+particles spiral** — adding a mode is one drop-in file.
+
+> Status: **Phase 3 (v `00.03.00`)** — settings persistence, device-change recovery,
+> a version-stamped single `.exe`, and 7 visual modes. See `plan/development-phases.md`
+> for the roadmap.
 
 ## Requirements
 
@@ -34,6 +38,19 @@ Useful variants:
 .\tools\run.ps1 --selftest      # headless: render a few frames, exit 0
 ```
 
+## Run the packaged app (no Python needed)
+
+Build a single executable, then run it:
+
+```powershell
+.\tools\build-exe.ps1            # produces dist\AudioVisualizer.exe (+ self-test)
+.\dist\AudioVisualizer.exe       # launch
+.\dist\AudioVisualizer.exe --selftest   # headless check, exits 0
+```
+
+The exe bundles the PortAudio DLL and a Windows version resource. Drop an
+`assets\icon.ico` into the repo before building to brand the exe.
+
 ## Controls
 
 | Action | Mouse | Keyboard |
@@ -42,9 +59,16 @@ Useful variants:
 | Previous / next mode | `<` / `>` buttons | `Left`/`Right` or `[` / `]` |
 | Jump to mode | click mode name | `1`–`9` |
 | Sensitivity down/up | `Sens -` / `Sens +` | `-` / `=` |
+| Smoothing down/up | `Smooth -` / `Smooth +` | `,` / `.` |
+| Reduce motion (caps strobing) | `Motion` button | `M` |
 | Fullscreen | `Full` button | `F11` (exit with `Esc`) |
 | Debug overlay | — | `F3` |
 | Quit | `Quit` button | `Esc` / `Ctrl+Q` |
+
+A one-time **photosensitivity notice** appears before strobing modes; reduce-motion
+caps flashing. Your mode, sensitivity, smoothing, reduce-motion, fullscreen, and
+window size are saved to `%APPDATA%\AudioVisualizer\settings.json` and restored next
+launch (a corrupt file safely falls back to defaults).
 
 ## Developing
 
@@ -66,3 +90,9 @@ auto-discovered, no other edits required.
   detected" idle state. DRM-protected / exclusive-mode audio may not be captured.
 - The single-file exe starts a little slower on first launch and can trip
   antivirus false-positives (a `-OneDir` build is a future option).
+
+## License
+
+AudioVisualizer is released under the MIT License (see `LICENSE`). Bundled
+third-party components and their licenses are listed in `THIRD-PARTY-NOTICES.md`
+(pygame is LGPL; numpy, pyaudiowpatch, and PortAudio are BSD/MIT-style).

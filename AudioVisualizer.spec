@@ -9,9 +9,20 @@ import os
 import sys
 
 from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
+from PyInstaller.utils.win32.versioninfo import (
+    FixedFileInfo,
+    StringFileInfo,
+    StringStruct,
+    StringTable,
+    VarFileInfo,
+    VarStruct,
+    VSVersionInfo,
+)
 
 # Make the src/ package importable while this spec is evaluated.
 sys.path.insert(0, os.path.abspath("src"))
+
+from audio_visualizer.config import APP_NAME, APP_VERSION  # noqa: E402
 
 # Pull in pyaudiowpatch's bundled PortAudio DLL.
 binaries = collect_dynamic_libs("pyaudiowpatch")
@@ -20,6 +31,32 @@ binaries = collect_dynamic_libs("pyaudiowpatch")
 # static analysis can't see them. Collect them explicitly so discovery finds them
 # inside the frozen bundle.
 hiddenimports = ["pyaudiowpatch", *collect_submodules("audio_visualizer.visuals")]
+
+# Windows version resource derived from the single APP_VERSION (PP.FF.BB).
+_parts = [int(p) for p in APP_VERSION.split(".")]
+_vtuple = tuple((_parts + [0, 0, 0, 0])[:4])
+version_info = VSVersionInfo(
+    ffi=FixedFileInfo(filevers=_vtuple, prodvers=_vtuple, mask=0x3F, flags=0x0, OS=0x40004,
+                      fileType=0x1, subtype=0x0),
+    kids=[
+        StringFileInfo([
+            StringTable("040904B0", [
+                StringStruct("CompanyName", APP_NAME),
+                StringStruct("FileDescription", "Windows system-audio visualizer"),
+                StringStruct("FileVersion", APP_VERSION),
+                StringStruct("InternalName", APP_NAME),
+                StringStruct("OriginalFilename", f"{APP_NAME}.exe"),
+                StringStruct("ProductName", APP_NAME),
+                StringStruct("ProductVersion", APP_VERSION),
+            ]),
+        ]),
+        VarFileInfo([VarStruct("Translation", [0x0409, 1200])]),
+    ],
+)
+
+# Optional icon: drop assets/icon.ico into the repo and it's picked up automatically.
+_icon = os.path.abspath(os.path.join("assets", "icon.ico"))
+icon_arg = _icon if os.path.exists(_icon) else None
 
 a = Analysis(
     ["src/audio_visualizer/__main__.py"],
@@ -50,4 +87,6 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
+    version=version_info,
+    icon=icon_arg,
 )
