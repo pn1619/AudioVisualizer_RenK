@@ -23,8 +23,9 @@ _ROW_H = 28
 class Dropdown:
     """Header + expandable option list; calls ``on_select(key)`` on choice."""
 
-    def __init__(self, on_select: Callable[[str], None]) -> None:
+    def __init__(self, on_select: Callable[[str], None], title: str = "") -> None:
         self._on_select = on_select
+        self._title = title
         self._options: list[tuple[str, str]] = []  # (key, label)
         self._selected_key = ""
         self.open = False
@@ -45,10 +46,12 @@ class Dropdown:
 
     @property
     def current_label(self) -> str:
+        selected = "Mode"
         for key, label in self._options:
             if key == self._selected_key:
-                return label
-        return "Mode"
+                selected = label
+                break
+        return f"{self._title}: {selected}" if self._title else selected
 
     def _option_rects(self) -> list[pygame.Rect]:
         return [

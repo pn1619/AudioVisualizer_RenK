@@ -21,13 +21,42 @@ from audio_visualizer.config import (
     SNOW_WIND_SCALE_REDUCED,
 )
 from audio_visualizer.visuals._helpers import scale_color, themed_color
-from audio_visualizer.visuals.base import BaseVisualizer
+from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
+
+_FALL_SPEED = ModeOption(
+    "fall_speed",
+    "Fall",
+    (OptionChoice("Slow", 0.5), OptionChoice("Normal", 1.0), OptionChoice("Fast", 2.0)),
+    default_index=1,
+)
+_WIND_SPEED = ModeOption(
+    "wind_speed",
+    "Wind",
+    (OptionChoice("Calm", 0.0), OptionChoice("Breezy", 1.0), OptionChoice("Windy", 2.5)),
+    default_index=1,
+)
+_DENSITY = ModeOption(
+    "density",
+    "Density",
+    (
+        OptionChoice("Low", SNOW_FLAKES_REDUCED),
+        OptionChoice("Medium", SNOW_FLAKES),
+        OptionChoice("High", 360),
+    ),
+    default_index=1,
+)
 
 
 @register(key="snowfall", display_name="Snowfall", order=60)
 class Snowfall(BaseVisualizer):
-    """A resolution-independent flake field; calm and idle-friendly."""
+    """A resolution-independent flake field; calm and idle-friendly.
+
+    Fall speed and wind speed are independent per-mode options (both still
+    scaled by the global speed control); density picks the flake count.
+    """
+
+    OPTIONS = (_FALL_SPEED, _WIND_SPEED, _DENSITY)
 
     def __init__(self, reduce_motion: bool = False, seed: int = 2024) -> None:
         super().__init__(reduce_motion)
@@ -37,7 +66,8 @@ class Snowfall(BaseVisualizer):
 
     @property
     def _count(self) -> int:
-        return SNOW_FLAKES_REDUCED if self.reduce_motion else SNOW_FLAKES
+        base = int(self.option("density"))
+        return min(base, SNOW_FLAKES_REDUCED) if self.reduce_motion else base
 
     def _init_pool(self) -> None:
         rng = np.random.default_rng(self._seed)
@@ -58,26 +88,32 @@ class Snowfall(BaseVisualizer):
         w, h = surface.get_size()
         if w < 2 or h < 2:
             return
+        # Rebuild the pool if density (or reduce-motion) changed the flake count.
+        if self._x.size != self._count:
+            self._init_pool()
         self._t += dt
 
+        fall_speed = self.option("fall_speed")
+        wind_speed = self.option("wind_speed")
         low, size_energy = self._band_drivers(frame)
         wind_scale = SNOW_WIND_SCALE_REDUCED if self.reduce_motion else SNOW_WIND_SCALE
-        wind = low * wind_scale * float(np.sin(self._t * 0.3))
+        wind = low * wind_scale * float(np.sin(self._t * 0.3)) * wind_speed
 
         move_dt = dt * self.theme.speed_scale
-        self._y += self._fall * move_dt
-        self._x += (wind + self._sway * np.sin(self._t * 1.5 + self._phase)) * move_dt
+        self._y += self._fall * fall_speed * move_dt
+        self._x += (wind + self._sway * wind_speed * np.sin(self._t * 1.5 + self._phase)) * move_dt
         self._y = np.where(self._y > 1.0, self._y - 1.0, self._y)
         self._x = np.mod(self._x, 1.0)
 
         scheme = self.theme.color_scheme
+        phase = self.theme.color_phase
         min_side = min(w, h)
         radii = (
             self._size * min_side * (1.0 + size_energy * SNOW_SIZE_SCALE) * self.theme.size_scale
         )
         for i in range(self._x.size):
             radius = max(1, int(radii[i]))
-            color = scale_color(themed_color(scheme, float(self._hue[i]), PALETTE), 0.85)
+            color = scale_color(themed_color(scheme, float(self._hue[i]), PALETTE, phase), 0.85)
             pygame.draw.circle(surface, color, (int(self._x[i] * w), int(self._y[i] * h)), radius)
 
     @staticmethod

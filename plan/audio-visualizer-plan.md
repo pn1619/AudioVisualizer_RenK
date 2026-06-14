@@ -184,7 +184,8 @@ All modes implement one interface and **auto-register**, so **adding a mode = ad
 - **"No audio detected" state**: when capture is on but the signal is silent (very common with loopback — see §11), show a calm **idle animation** + hint, never a frozen black screen.
 - **Fail-soft banner** instead of a frozen or crashed window.
 - **Smoothing** (attack/release) on displayed values so visuals are fluid, not jittery.
-- **Shared theme tunables** (live, persisted): **particle/flake size**, **animation speed**, and **color scheme** (classic palette / rainbow). The App owns one `Theme` and every active mode reads the same reference, so adjustments apply instantly.
+- **Shared theme tunables** (live, persisted): **particle/flake size**, **animation speed**, and **color scheme** (classic palette / rainbow / **rainbow+**, the last cycling hue over time via a shared `Theme.color_phase`). The App owns one `Theme` and every active mode reads the same reference, so adjustments apply instantly.
+- **Per-mode options** (Phase 5): each mode declares its own discrete-choice tunables via `BaseVisualizer.OPTIONS` (`ModeOption`/`OptionChoice`), surfaced as bottom-row dropdowns rebuilt on mode switch (e.g. snowfall **Fall**/**Wind**/**Density**). Global tunables show their **current value inline** in the control bar.
 
 ### 3.5 Visual-mode framework (add `lightshow_2.py` / `newvisuals.py` in one file)
 
@@ -296,6 +297,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 - **Phase 2 — Particles & Laser:** particle system + laser mode, onset/energy reactivity, sensitivity & smoothing controls, reduce-motion.
 - **Phase 3 — Polish & ship:** settings persistence (JSON, §11.3), first-run safety notice, device-change handling, `build-exe.ps1` single-exe with icon/version, selftest on the exe, `LICENSE` + `THIRD-PARTY-NOTICES.md` (§12), README/quickstart.
 - **Phase 4 — Tunables & UX:** shared `Theme` (particle **size**, animation **speed**, **color scheme** incl. rainbow) applied live across modes and persisted; **mode-picker dropdown**; new **Waveform 2** mode (waveform + popping particles). 8 modes total.
+- **Phase 5 — Per-mode options & color picker:** per-mode option dropdowns (`BaseVisualizer.OPTIONS`); snowfall **Fall**/**Wind**/**Density** split; **inline value chips**; **color dropdown** with time-animated **Rainbow+**.
 
 ---
 
@@ -319,6 +321,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 14 | **Visual modes auto-register via `@register` + `discover()`** (one file, no central list) | Frictionless extension (`lightshow_2.py`, `newvisuals.py`) with zero coupling (§3.5) |
 | 15 | **Git flow + `PP.FF.BB` versioning + annotated per-phase tags** (`v<APP_VERSION>`, e.g. `v00.02.00`); feature branches → PR into a green `main` | Predictable history that maps 1:1 to the phased roadmap and the in-app version. Full convention in `plan/git-and-versioning.md` |
 | 16 | **Shared `Theme` (size / speed / color scheme)** passed live to every mode + a **mode-picker dropdown** | One small, persisted tunable surface that applies instantly across modes; dropdown scales past the `1`–`9` keys as modes grow (Phase 4) |
+| 17 | **Per-mode options** via `BaseVisualizer.OPTIONS` (discrete `ModeOption` choices) rendered as dropdowns; **inline value chips**; **color dropdown** with time-animated **rainbow+** (`Theme.color_phase`) | Each mode keeps its own knobs without a central list (still one file per mode); showing values makes Sensitivity/Smoothing/etc. self-explanatory; rainbow+ animates color over time per request (Phase 5) |
 
 **Open questions** (record answers as they're decided):
 

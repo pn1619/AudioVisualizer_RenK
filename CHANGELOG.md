@@ -11,6 +11,35 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.05.00` — Phase 5: per-mode options, color dropdown & Rainbow+
+
+**Delivered**
+- **Per-mode option dropdowns** — a small `ModeOption`/`OptionChoice` framework on
+  `BaseVisualizer` (`OPTIONS`, `option`, `option_index`, `set_option_index`). Each mode
+  exposes its own tunables as labelled, discrete-choice dropdowns that rebuild when the
+  active mode changes. New options: waveform/waveform-2 **Line** thickness; waveform-2
+  **Pops** rate; spectrum **Caps** + **Gap**; light show **Beam** width; laser **Beams**
+  count; particles **Burst** + **Gravity**; particles-spiral **Swirl**; snowfall **Fall**,
+  **Wind**, **Density**.
+- **Snowfall fall vs. wind** are now independent options (each still scaled by the global
+  speed control); **Density** picks the flake count (Low/Medium/High).
+- **Inline value display** — the control bar shows current **Sensitivity / Smoothing /
+  Size / Speed** values in read-only chips (`ui/chip.py`) between their −/+ buttons.
+- **Color scheme dropdown** (its own control) with **Classic**, **Rainbow**, and the new
+  **Rainbow+** — `rainbow_plus` adds a time-advanced hue phase so every colored element
+  (particles, beams, Lissajous, radial beams, bars, oscilloscope, flakes) cycles color
+  over time. Key `C` still cycles; `themed_color` gains a `phase` argument; the App owns
+  a shared `Theme.color_phase` advanced each frame.
+- **Two-row control bar** (`CONTROL_BAR_HEIGHT` 48 → 88): global controls on top, color +
+  per-mode option dropdowns on the bottom. Only one dropdown stays open at a time.
+
+**Tests / verification**
+- `tools\test.ps1` → **59 passed** (adds `test_visuals_phase5.py`).
+- `tools\lint.ps1` → ruff **clean**, black **clean**.
+- `python -m audio_visualizer --selftest` → exit **0**.
+
+---
+
 ## `00.04.00` — Phase 4: tunables, mode dropdown & Waveform 2
 
 **Delivered**

@@ -10,13 +10,14 @@ So ``00.01.00`` == "Phase 1, build 0". See plan/development-phases.md.
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.04.00"
+APP_VERSION = "00.05.00"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
 MIN_WINDOW_SIZE: tuple[int, int] = (640, 360)
 TARGET_FPS = 60
-CONTROL_BAR_HEIGHT = 48
+# Two stacked rows: global controls (top) + color/per-mode options (bottom).
+CONTROL_BAR_HEIGHT = 88
 
 # --- Colors (RGB) -------------------------------------------------------------
 COLOR_BG = (10, 10, 18)
@@ -69,9 +70,20 @@ SPEED_SCALE_MIN = 0.25
 SPEED_SCALE_MAX = 3.0
 SPEED_SCALE_STEP = 0.25
 
-# Color schemes selectable at runtime; "classic" uses PALETTE, "rainbow" cycles hue.
-COLOR_SCHEMES: tuple[str, ...] = ("classic", "rainbow")
+# Color schemes selectable at runtime:
+#   classic       -> PALETTE
+#   rainbow       -> hue by position (static)
+#   rainbow_plus  -> hue by position + a time offset, so colors cycle over time
+COLOR_SCHEMES: tuple[str, ...] = ("classic", "rainbow", "rainbow_plus")
 COLOR_SCHEME_DEFAULT = "classic"
+# Human-friendly labels for the color dropdown.
+COLOR_SCHEME_LABELS: dict[str, str] = {
+    "classic": "Classic",
+    "rainbow": "Rainbow",
+    "rainbow_plus": "Rainbow+",
+}
+# How fast rainbow_plus sweeps the hue wheel (cycles per second).
+COLOR_CYCLE_RATE = 0.15
 
 # Onset (beat) detection: spectral flux is normalized to 0..1 via this gain;
 # a frame is treated as an onset when its strength clears the threshold.

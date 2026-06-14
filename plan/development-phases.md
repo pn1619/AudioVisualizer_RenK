@@ -198,7 +198,45 @@ mode picker scale past `1`–`9`, and add a new waveform variant.
 
 ---
 
-## Future phases (5+) — improvements & growth
+## Phase 5 — Per-mode options, value display & color dropdown (v `00.05.00`)
+
+**Goal:** make controls self-explanatory (show current values) and give each mode its own
+tunables, plus a dedicated color picker with a time-animated scheme.
+
+### Scope
+- **Per-mode option framework** (`visuals/base.py`): `ModeOption`/`OptionChoice` dataclasses
+  and `BaseVisualizer.OPTIONS` + `option`/`option_index`/`set_option_index`/`on_option_change`.
+  Each mode declares discrete-choice options read in `draw`. Adding/declaring options is still
+  one file per mode — no central list.
+- **Per-mode option dropdowns** in the control bar's bottom row; rebuilt on mode switch
+  (`App._refresh_mode_options`). Options added: waveform/waveform-2 **Line**; waveform-2
+  **Pops**; spectrum **Caps**+**Gap**; lightshow **Beam**; laser **Beams**; particles
+  **Burst**+**Gravity**; spiral **Swirl**; snowfall **Fall**/**Wind**/**Density**.
+- **Snowfall fall vs. wind** as independent options (both still scaled by global speed);
+  **Density** rebuilds the flake pool.
+- **Inline value chips** (`ui/chip.py`): Sensitivity/Smoothing/Size/Speed values shown
+  between their −/+ buttons.
+- **Color dropdown** (Classic / Rainbow / **Rainbow+**). `rainbow_plus` advances a shared
+  `Theme.color_phase` each frame so colored elements cycle hue over time; `themed_color`
+  gains a `phase` arg. Key `C` still cycles.
+- **Two-row control bar** (`CONTROL_BAR_HEIGHT` 48 → 88); one dropdown open at a time.
+
+### Tests
+- `test_visuals_phase5.py`: option default/clamp, `rainbow_plus` phase offset, snowfall
+  fall/wind/density behavior, control-bar value chips + option-dropdown routing.
+
+### Exit criteria
+- [x] Each mode shows its own option dropdowns; switching modes rebuilds them.
+- [x] Snowfall fall and wind adjust independently; density changes flake count.
+- [x] Sensitivity/Smoothing/Size/Speed values are visible in the bar.
+- [x] Color dropdown selects Classic/Rainbow/Rainbow+; Rainbow+ animates over time.
+- [x] lint clean, `test.ps1` green (59), `--selftest` exit 0, exe builds + self-tests.
+
+**Estimate: 1–2 days.** *(done)*
+
+---
+
+## Future phases (6+) — improvements & growth
 
 Not scheduled; pull items in as priorities dictate. Each should still land behind tests and keep the "simple but works" bar.
 

@@ -17,13 +17,26 @@ import pygame
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import COLOR_ACCENT, PALETTE
 from audio_visualizer.visuals._helpers import clamp, rainbow_color, scale_color, themed_color
-from audio_visualizer.visuals.base import BaseVisualizer
+from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
 
 _POP_MAX = 260
 _POP_MAX_REDUCED = 80
 _POP_BURST = 10
 _POP_LIFETIME = 0.7
+
+_POP_RATE = ModeOption(
+    "pop_rate",
+    "Pops",
+    (OptionChoice("Few", 0.5), OptionChoice("Normal", 1.0), OptionChoice("Many", 2.0)),
+    default_index=1,
+)
+_THICKNESS = ModeOption(
+    "thickness",
+    "Line",
+    (OptionChoice("Thin", 1), OptionChoice("Normal", 2), OptionChoice("Thick", 4)),
+    default_index=1,
+)
 
 
 @dataclass
@@ -41,6 +54,8 @@ class _Pop:
 @register(key="waveform_2", display_name="Waveform 2", order=15)
 class Waveform2(BaseVisualizer):
     """Oscilloscope line plus onset/energy-driven popping particles."""
+
+    OPTIONS = (_POP_RATE, _THICKNESS)
 
     def __init__(self, reduce_motion: bool = False, seed: int = 777) -> None:
         super().__init__(reduce_motion)
@@ -70,10 +85,13 @@ class Waveform2(BaseVisualizer):
         self, surface: pygame.Surface, frame: AnalysisFrame | None, w: int, h: int
     ) -> None:
         mid = h // 2
-        rainbow = self.theme.color_scheme == "rainbow"
+        scheme = self.theme.color_scheme
+        phase = self.theme.color_phase
+        colored = scheme != "classic"
+        width = int(self.option("thickness"))
         if frame is None or frame.is_silent:
-            color = rainbow_color(0.5) if rainbow else COLOR_ACCENT
-            pygame.draw.line(surface, color, (0, mid), (w, mid), 2)
+            color = rainbow_color(0.5 + phase) if colored else COLOR_ACCENT
+            pygame.draw.line(surface, color, (0, mid), (w, mid), width)
             return
         samples = frame.waveform_mono
         if samples.size < 2:
@@ -84,11 +102,12 @@ class Waveform2(BaseVisualizer):
         xs = np.linspace(0, w, n)
         ys = mid - pts * (mid * 0.9)
         points = [(float(x), float(y)) for x, y in zip(xs, ys, strict=False)]
-        if rainbow:
+        if colored:
             for i in range(len(points) - 1):
-                pygame.draw.line(surface, rainbow_color(i / n), points[i], points[i + 1], 2)
+                col = themed_color(scheme, i / n, PALETTE, phase)
+                pygame.draw.line(surface, col, points[i], points[i + 1], width)
         else:
-            pygame.draw.lines(surface, COLOR_ACCENT, False, points, 2)
+            pygame.draw.lines(surface, COLOR_ACCENT, False, points, width)
 
     def _sample_at(self, samples: np.ndarray, x: float) -> float:
         idx = int(clamp(x) * (samples.size - 1))
@@ -99,7 +118,7 @@ class Waveform2(BaseVisualizer):
         if samples.size < 2:
             return
         base = _POP_BURST // 3 if self.reduce_motion else _POP_BURST
-        count = int(base * clamp(frame.rms * 1.2 + frame.onset))
+        count = int(base * self.option("pop_rate") * clamp(frame.rms * 1.2 + frame.onset))
         for _ in range(count):
             if len(self._pops) >= self._cap:
                 break
@@ -132,9 +151,10 @@ class Waveform2(BaseVisualizer):
 
     def _render(self, surface: pygame.Surface, w: int, h: int) -> None:
         scheme = self.theme.color_scheme
+        phase = self.theme.color_phase
         for p in self._pops:
             progress = clamp(1.0 - p.life / p.max_life)
             envelope = math.sin(math.pi * progress)  # 0 -> 1 -> 0 (pop in/out)
             radius = max(1, int((1 + envelope * 5) * self.theme.size_scale))
-            color = scale_color(themed_color(scheme, p.hue, PALETTE), 0.4 + envelope)
+            color = scale_color(themed_color(scheme, p.hue, PALETTE, phase), 0.4 + envelope)
             pygame.draw.circle(surface, color, (int(p.x * w), int(p.y * h)), radius)

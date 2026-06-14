@@ -9,8 +9,15 @@ import pygame
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
 from audio_visualizer.visuals._helpers import scale_color, themed_color
-from audio_visualizer.visuals.base import BaseVisualizer
+from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
+
+_BEAM_WIDTH = ModeOption(
+    "beam_width",
+    "Beam",
+    (OptionChoice("Thin", 1), OptionChoice("Normal", 3), OptionChoice("Thick", 6)),
+    default_index=1,
+)
 
 
 @register(key="lightshow", display_name="Light Show", order=30)
@@ -18,9 +25,10 @@ class LightShow(BaseVisualizer):
     """Beams radiate from the center; length/brightness follow band energy."""
 
     STROBES = True
+    OPTIONS = (_BEAM_WIDTH,)
 
-    def __init__(self, reduce_motion: bool = False) -> None:
-        super().__init__(reduce_motion)
+    def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
+        super().__init__(reduce_motion, theme)
         self._angle = 0.0
 
     def on_enter(self) -> None:
@@ -40,13 +48,15 @@ class LightShow(BaseVisualizer):
             return
 
         scheme = self.theme.color_scheme
+        phase = self.theme.color_phase
+        max_width = int(self.option("beam_width"))
         # Slow rotation for life; disabled when reduce-motion is on.
         if not self.reduce_motion:
             self._angle = (self._angle + dt * 0.3 * self.theme.speed_scale) % (2.0 * math.pi)
 
         # Pulsing core from overall level.
         core_r = max(2.0, frame.rms * max_len * 1.5)
-        core_color = scale_color(themed_color(scheme, frame.peak, PALETTE), 1.0)
+        core_color = scale_color(themed_color(scheme, frame.peak, PALETTE, phase), 1.0)
         pygame.draw.circle(surface, core_color, (int(cx), int(cy)), int(core_r))
 
         for i in range(count):
@@ -57,6 +67,8 @@ class LightShow(BaseVisualizer):
             length = energy * max_len
             ex = cx + math.cos(angle) * length
             ey = cy + math.sin(angle) * length
-            color = scale_color(themed_color(scheme, i / max(1, count - 1), PALETTE), 0.5 + energy)
-            width = 1 if self.reduce_motion else max(1, int(1 + energy * 3))
+            color = scale_color(
+                themed_color(scheme, i / max(1, count - 1), PALETTE, phase), 0.5 + energy
+            )
+            width = 1 if self.reduce_motion else max(1, int(1 + energy * max_width))
             pygame.draw.line(surface, color, (cx, cy), (ex, ey), width)
