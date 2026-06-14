@@ -21,10 +21,17 @@ from audio_visualizer.config import (
     APP_NAME,
     APP_VERSION,
     COLOR_BG,
+    COLOR_SCHEMES,
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
     MIN_WINDOW_SIZE,
+    SIZE_SCALE_MAX,
+    SIZE_SCALE_MIN,
+    SIZE_SCALE_STEP,
     SMOOTHING_STEP,
+    SPEED_SCALE_MAX,
+    SPEED_SCALE_MIN,
+    SPEED_SCALE_STEP,
     TARGET_FPS,
 )
 from audio_visualizer.settings import Settings
@@ -32,7 +39,7 @@ from audio_visualizer.ui.controls import ControlActions, ControlBar
 from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
 from audio_visualizer.visuals import registry
-from audio_visualizer.visuals.base import BaseVisualizer
+from audio_visualizer.visuals.base import BaseVisualizer, Theme
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +77,13 @@ class App:
         self._smoothing = float(np.clip(self._settings.smoothing, 0.0, 1.0))
         self._reduce_motion = self._settings.reduce_motion
         self._notice_acknowledged = self._settings.notice_acknowledged
+        self._theme = Theme(
+            size_scale=float(np.clip(self._settings.size_scale, SIZE_SCALE_MIN, SIZE_SCALE_MAX)),
+            speed_scale=float(
+                np.clip(self._settings.speed_scale, SPEED_SCALE_MIN, SPEED_SCALE_MAX)
+            ),
+            color_scheme=self._settings.color_scheme,
+        )
 
         self._fullscreen = self._settings.fullscreen
         self._windowed_size = (
@@ -97,7 +111,7 @@ class App:
         self._visual.on_enter()
 
         self._hud = Hud()
-        self._controls = ControlBar(self._build_actions())
+        self._controls = ControlBar(self._build_actions(), registry.options())
         self._layout = Layout.compute(
             self._screen.get_size(), show_control_bar=not self._fullscreen
         )
@@ -115,17 +129,25 @@ class App:
 
     def _make_visual(self) -> BaseVisualizer:
         key = self._mode_keys[self._mode_index]
-        return registry.create(key, reduce_motion=self._reduce_motion)
+        visual = registry.create(key, reduce_motion=self._reduce_motion)
+        visual.theme = self._theme  # share the one live theme so changes apply instantly
+        return visual
 
     def _build_actions(self) -> ControlActions:
         return ControlActions(
             toggle_capture=self._toggle_capture,
             prev_mode=lambda: self._cycle_mode(-1),
             next_mode=lambda: self._cycle_mode(1),
+            select_mode=self._set_mode_key,
             sensitivity_down=lambda: self._adjust_sensitivity(-_SENS_STEP),
             sensitivity_up=lambda: self._adjust_sensitivity(_SENS_STEP),
             smoothing_down=lambda: self._adjust_smoothing(-SMOOTHING_STEP),
             smoothing_up=lambda: self._adjust_smoothing(SMOOTHING_STEP),
+            size_down=lambda: self._adjust_size(-SIZE_SCALE_STEP),
+            size_up=lambda: self._adjust_size(SIZE_SCALE_STEP),
+            speed_down=lambda: self._adjust_speed(-SPEED_SCALE_STEP),
+            speed_up=lambda: self._adjust_speed(SPEED_SCALE_STEP),
+            cycle_color_scheme=self._cycle_color_scheme,
             toggle_reduce_motion=self._toggle_reduce_motion,
             toggle_fullscreen=self._toggle_fullscreen,
             quit=self._request_quit,
@@ -185,6 +207,10 @@ class App:
     def _cycle_mode(self, delta: int) -> None:
         self._set_mode_index((self._mode_index + delta) % len(self._mode_keys))
 
+    def _set_mode_key(self, key: str) -> None:
+        if key in self._mode_keys:
+            self._set_mode_index(self._mode_keys.index(key))
+
     def _set_mode_index(self, index: int) -> None:
         if index == self._mode_index:
             return
@@ -202,6 +228,27 @@ class App:
         self._smoothing = float(np.clip(self._smoothing + delta, 0.0, 1.0))
         self._analyzer.set_smoothing(*_smoothing_to_coeffs(self._smoothing))
         logger.debug("Smoothing = %.2f", self._smoothing)
+
+    def _adjust_size(self, delta: float) -> None:
+        self._theme.size_scale = float(
+            np.clip(self._theme.size_scale + delta, SIZE_SCALE_MIN, SIZE_SCALE_MAX)
+        )
+        logger.debug("Size scale = %.2f", self._theme.size_scale)
+
+    def _adjust_speed(self, delta: float) -> None:
+        self._theme.speed_scale = float(
+            np.clip(self._theme.speed_scale + delta, SPEED_SCALE_MIN, SPEED_SCALE_MAX)
+        )
+        logger.debug("Speed scale = %.2f", self._theme.speed_scale)
+
+    def _cycle_color_scheme(self) -> None:
+        idx = (
+            COLOR_SCHEMES.index(self._theme.color_scheme)
+            if (self._theme.color_scheme in COLOR_SCHEMES)
+            else 0
+        )
+        self._theme.color_scheme = COLOR_SCHEMES[(idx + 1) % len(COLOR_SCHEMES)]
+        logger.debug("Color scheme = %s", self._theme.color_scheme)
 
     def _toggle_reduce_motion(self) -> None:
         self._reduce_motion = not self._reduce_motion
@@ -277,6 +324,18 @@ class App:
             self._adjust_smoothing(-SMOOTHING_STEP)
         elif key == pygame.K_PERIOD:
             self._adjust_smoothing(SMOOTHING_STEP)
+        elif key == pygame.K_F5:
+            self._adjust_size(-SIZE_SCALE_STEP)
+        elif key == pygame.K_F6:
+            self._adjust_size(SIZE_SCALE_STEP)
+        elif key == pygame.K_F7:
+            self._adjust_speed(-SPEED_SCALE_STEP)
+        elif key == pygame.K_F8:
+            self._adjust_speed(SPEED_SCALE_STEP)
+        elif key == pygame.K_c:
+            self._cycle_color_scheme()
+        elif key == pygame.K_d:
+            self._controls.toggle_mode_dropdown()
         elif key == pygame.K_m:
             self._toggle_reduce_motion()
         elif pygame.K_1 <= key <= pygame.K_9:
@@ -319,7 +378,10 @@ class App:
 
         if self._layout.show_control_bar:
             self._controls.set_state(
-                self._capturing, self._visual.DISPLAY_NAME, self._reduce_motion
+                self._capturing,
+                self._visual.KEY,
+                self._reduce_motion,
+                self._theme.color_scheme,
             )
             self._controls.draw(screen, self._layout.control_bar, self._font)
 
@@ -362,6 +424,9 @@ class App:
             fullscreen=self._fullscreen,
             window_size=(int(size[0]), int(size[1])),
             notice_acknowledged=self._notice_acknowledged,
+            size_scale=self._theme.size_scale,
+            speed_scale=self._theme.speed_scale,
+            color_scheme=self._theme.color_scheme,
         )
 
     def _shutdown(self) -> None:

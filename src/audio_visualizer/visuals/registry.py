@@ -51,6 +51,11 @@ def keys() -> list[str]:
     return [cls.KEY for cls in available()]
 
 
+def options() -> list[tuple[str, str]]:
+    """``(key, display_name)`` pairs in display order (for the mode picker)."""
+    return [(cls.KEY, cls.DISPLAY_NAME) for cls in available()]
+
+
 def create(key: str, **kwargs) -> BaseVisualizer:
     """Instantiate the mode registered under ``key``."""
     return _REGISTRY[key](**kwargs)

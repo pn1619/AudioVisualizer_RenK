@@ -29,12 +29,13 @@ AudioVisualizer/
 │     │
 │     ├─ visuals/
 │     │  ├─ __init__.py
-│     │  ├─ base.py             # BaseVisualizer: draw(surface, frame, dt) + no-op lifecycle hooks
+│     │  ├─ base.py             # BaseVisualizer: draw(surface, frame, dt) + lifecycle hooks; shared Theme dataclass
 │     │  ├─ registry.py         # @register decorator + discover() auto-import; ordered mode list
 │     │  ├─ _helpers.py         # shared draw utils (glow, color lerp, normalized coords); skipped by discovery
 │     │  ├─ waveform.py         # @register("waveform", ...)
 │     │  ├─ spectrum.py         # @register("spectrum", ...)
 │     │  ├─ lightshow.py        # @register("lightshow", ...)
+│     │  ├─ waveform_2.py       # Phase 4 (waveform + popping particles)
 │     │  ├─ particles.py        # Phase 2
 │     │  ├─ laser.py            # Phase 2
 │     │  ├─ snowfall.py         # Phase 3 (bass wind, mid-band flake size)
@@ -45,7 +46,8 @@ AudioVisualizer/
 │        ├─ __init__.py
 │        ├─ layout.py           # Layout: computes control-bar/canvas/HUD rects from current surface size
 │        ├─ button.py           # minimal clickable Button (rect + label + hover)
-│        ├─ controls.py         # top control bar: lays out buttons, routes clicks
+│        ├─ dropdown.py         # minimal Dropdown widget (mode picker)
+│        ├─ controls.py         # top control bar: buttons + mode dropdown, routes clicks
 │        └─ hud.py              # status line + debug overlay (F3)
 │
 ├─ tests/

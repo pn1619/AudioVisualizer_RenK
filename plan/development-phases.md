@@ -160,7 +160,45 @@ Companion to `plan/audio-visualizer-plan.md` (§7 is the short roadmap; **this f
 
 ---
 
-## Future phases (4+) — improvements & growth
+## Phase 4 — Tunables & UX (v `00.04.00`)
+
+**Goal:** give the user live, persisted control over how visuals look/move, make the
+mode picker scale past `1`–`9`, and add a new waveform variant.
+
+### Scope
+- **Shared `Theme`** (`visuals/base.py`): `size_scale`, `speed_scale`, `color_scheme`.
+  The App owns one instance and passes the same reference to every mode (`_make_visual`),
+  so changes apply instantly. Persisted in settings (schema unchanged; new keys default).
+- **Particle/flake size control** and **animation-speed control** applied across the
+  motion/particle modes (snowfall, particles, particles-spiral, waveform-2; speed also
+  drives lightshow/laser rotation). Buttons `Size −/+`, `Speed −/+`; keys `F5/F6`, `F7/F8`.
+- **Color schemes** (`classic` palette / `rainbow` hue-sweep) via `themed_color`/`rainbow_color`
+  in `_helpers.py`, used by waveform(-2), spectrum, lightshow, laser, snowfall, spiral.
+  Button cycles; key `C`.
+- **Mode-picker dropdown** (`ui/dropdown.py`): replaces the click-to-cycle label; lists all
+  registered modes (`registry.options()`), opens over the canvas. Key `D` toggles it.
+- **New mode `waveform_2.py`** (Waveform 2): the trace plus particles that pop in/out of the
+  line (onset/energy-driven), honoring theme size/speed/color.
+
+### Tests
+- `test_dropdown.py`: header toggle, option select + close, click-outside closes.
+- `test_visuals_phase4.py`: color-helper behavior, waveform-2 determinism + reduce-motion cap,
+  speed-scale moves spiral particles further.
+- `test_settings.py`: new keys round-trip; invalid `color_scheme` → default.
+- `test_smoke.py`: App shares the one live `Theme` with the active visual across mode switches.
+
+### Exit criteria
+- [x] Size, speed, and color-scheme adjust live and persist across launches.
+- [x] Mode dropdown selects any registered mode; `1`–`9`/`</>` still work.
+- [x] New Waveform 2 mode renders and is auto-discovered (8 modes total).
+- [x] `plan/audio-visualizer-plan.md` §3.3 lists **all** modes (kept in sync).
+- [x] lint/mypy clean, `test.ps1` green, `--selftest` exit 0, exe builds + self-tests.
+
+**Estimate: 1–2 days.** *(done)*
+
+---
+
+## Future phases (5+) — improvements & growth
 
 Not scheduled; pull items in as priorities dictate. Each should still land behind tests and keep the "simple but works" bar.
 

@@ -17,7 +17,7 @@ This document is the **single source of truth** for the project. Companion docs:
 
 ## 0. Vision
 
-A **Windows desktop app** that captures **what you hear** (system playback / loopback) and renders **real-time visuals**: waveform, spectrum, light show, particles, and laser. Runs locally, no cloud. Ships as a **single `.exe`**.
+A **Windows desktop app** that captures **what you hear** (system playback / loopback) and renders **real-time visuals**: waveform, waveform 2, spectrum, light show, particles, laser, snowfall, and particles spiral (full list in §3.3). Runs locally, no cloud. Ships as a **single `.exe`**.
 
 **User story:** *"I play music or a game and get a responsive visualization on screen — fullscreen optional — without needing a microphone."*
 
@@ -141,8 +141,13 @@ This is a first-class requirement, not a nice-to-have. The rules:
 | Start/Stop capture | ▶ / ⏹ | `Space` | Toggle loopback capture |
 | Previous mode | ‹ | `Left` / `[` | Cycle visual mode back |
 | Next mode | › | `Right` / `]` | Cycle visual mode forward |
-| Mode picker | mode name (click to cycle) | `1`–`9` | Jump to a specific mode (by registry order) |
+| Mode picker | **dropdown** (click to choose) | `1`–`9`, `D` to open | Jump to a specific mode (by registry order) |
 | Sensitivity | − / + | `-` / `=` | Scale reactivity |
+| Smoothing | Smooth − / + | `,` / `.` | Attack/release smoothing |
+| Particle size | Size − / + | `F5` / `F6` | Scale particle/flake sizes |
+| Animation speed | Speed − / + | `F7` / `F8` | Scale motion (fall/wind/rotation) |
+| Color scheme | Classic/Rainbow | `C` | Cycle color scheme |
+| Reduce motion | Motion | `M` | Cap strobing/flash |
 | Fullscreen | ⛶ | `F11` | Toggle fullscreen |
 | Exit fullscreen | (overlay) | `Esc` | Leave fullscreen |
 | Debug overlay | — | `F3` | Toggle FPS/RMS overlay |
@@ -150,16 +155,24 @@ This is a first-class requirement, not a nice-to-have. The rules:
 
 Buttons are a **minimal custom `Button` widget** (clickable rect + label + hover state) — no extra UI dependency, keeps it simple. (`pygame_gui` is a documented future option if richer settings are wanted.)
 
-### 3.3 Visual modes (MVP → stretch)
+### 3.3 Visual modes (current registry)
 
-| Mode | Description | Driven by | Status target |
-|------|-------------|-----------|---------------|
-| **Waveform** | Oscilloscope; mono samples as a line | raw samples | MVP |
-| **Spectrum** | Log-spaced frequency bars + peak caps | FFT band energies | MVP |
-| **Light Show** | Radial beams from center + soft bloom | bands + RMS/peak | MVP |
-| **Particles** | Particles spawned/pushed by energy & beats | RMS, onset/flux | Phase 2 |
-| **Laser** | Rotating laser beams / Lissajous figures | bands + phase | Phase 2 |
-| **Shader-ish field** (stretch) | Fullscreen palette field reacting to spectrum | FFT texture | Stretch |
+All shipped modes, in registry/cycle order (`order`). Each is one auto-registered
+file in `visuals/`; all honor the shared **theme** (size, speed, color scheme) and
+**reduce-motion**. This table is the source of truth — keep it in sync when a mode
+is added or removed.
+
+| Mode | `key` | order | Description | Driven by | Since |
+|------|-------|-------|-------------|-----------|-------|
+| **Waveform** | `waveform` | 10 | Oscilloscope; mono samples as a line (rainbow-aware) | raw samples | Phase 1 |
+| **Waveform 2** | `waveform_2` | 15 | Waveform trace + particles popping in/out of the line | samples + RMS/onset | Phase 4 |
+| **Spectrum** | `spectrum` | 20 | Log-spaced frequency bars + falling peak caps | FFT band energies | Phase 1 |
+| **Light Show** | `lightshow` | 30 | Radial beams from center + pulsing core | bands + RMS/peak | Phase 1 |
+| **Particles** | `particles` | 40 | Bursts spawned by onsets, pushed outward by energy | RMS, onset/flux | Phase 2 |
+| **Laser** | `laser` | 50 | Rotating beams + Lissajous figure | bands + phase | Phase 2 |
+| **Snowfall** | `snowfall` | 60 | Colorful flakes; bass blows the wind, mids size them | bands (low + mid) | Phase 3 |
+| **Particles Spiral** | `particles_spiral` | 70 | Sparks blow out along spiral arms, one hue per band | bands + RMS/onset | Phase 3 |
+| *Shader-ish field* (stretch) | — | — | Fullscreen palette field reacting to spectrum | FFT texture | Stretch |
 
 All modes implement one interface and **auto-register**, so **adding a mode = adding one file** — see §3.5 and the layout doc.
 
@@ -171,6 +184,7 @@ All modes implement one interface and **auto-register**, so **adding a mode = ad
 - **"No audio detected" state**: when capture is on but the signal is silent (very common with loopback — see §11), show a calm **idle animation** + hint, never a frozen black screen.
 - **Fail-soft banner** instead of a frozen or crashed window.
 - **Smoothing** (attack/release) on displayed values so visuals are fluid, not jittery.
+- **Shared theme tunables** (live, persisted): **particle/flake size**, **animation speed**, and **color scheme** (classic palette / rainbow). The App owns one `Theme` and every active mode reads the same reference, so adjustments apply instantly.
 
 ### 3.5 Visual-mode framework (add `lightshow_2.py` / `newvisuals.py` in one file)
 
@@ -281,6 +295,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 - **Phase 1 — MVP capture + 3 modes:** `LoopbackSource` via `pyaudiowpatch`, `analysis.py` (FFT/RMS/bands), **Waveform + Spectrum + Light Show**, status line, fullscreen. Unit + smoke tests pass. **Also: package once** (`build-exe.ps1` → `dist\AudioVisualizer.exe --selftest` exits 0) to validate PyInstaller + PortAudio DLL bundling early.
 - **Phase 2 — Particles & Laser:** particle system + laser mode, onset/energy reactivity, sensitivity & smoothing controls, reduce-motion.
 - **Phase 3 — Polish & ship:** settings persistence (JSON, §11.3), first-run safety notice, device-change handling, `build-exe.ps1` single-exe with icon/version, selftest on the exe, `LICENSE` + `THIRD-PARTY-NOTICES.md` (§12), README/quickstart.
+- **Phase 4 — Tunables & UX:** shared `Theme` (particle **size**, animation **speed**, **color scheme** incl. rainbow) applied live across modes and persisted; **mode-picker dropdown**; new **Waveform 2** mode (waveform + popping particles). 8 modes total.
 
 ---
 
@@ -303,6 +318,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 13 | **Render at native window size; no `SCALED`/upscaled buffer.** Borderless desktop fullscreen by default | Crisp output on resize/fullscreen/high-DPI; instant toggle (§3.1.1) |
 | 14 | **Visual modes auto-register via `@register` + `discover()`** (one file, no central list) | Frictionless extension (`lightshow_2.py`, `newvisuals.py`) with zero coupling (§3.5) |
 | 15 | **Git flow + `PP.FF.BB` versioning + annotated per-phase tags** (`v<APP_VERSION>`, e.g. `v00.02.00`); feature branches → PR into a green `main` | Predictable history that maps 1:1 to the phased roadmap and the in-app version. Full convention in `plan/git-and-versioning.md` |
+| 16 | **Shared `Theme` (size / speed / color scheme)** passed live to every mode + a **mode-picker dropdown** | One small, persisted tunable surface that applies instantly across modes; dropdown scales past the `1`–`9` keys as modes grow (Phase 4) |
 
 **Open questions** (record answers as they're decided):
 

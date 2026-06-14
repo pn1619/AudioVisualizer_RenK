@@ -21,7 +21,7 @@ from audio_visualizer.config import (
     SPIRAL_MAX,
     SPIRAL_MAX_REDUCED,
 )
-from audio_visualizer.visuals._helpers import clamp, palette_color, scale_color
+from audio_visualizer.visuals._helpers import clamp, scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer
 from audio_visualizer.visuals.registry import register
 
@@ -93,24 +93,26 @@ class ParticlesSpiral(BaseVisualizer):
             )
 
     def _advance(self, dt: float) -> None:
+        move_dt = dt * self.theme.speed_scale
         alive: list[_Spark] = []
         for s in self._sparks:
-            s.life -= dt
+            s.life -= dt  # lifetime is wall-clock; only motion honors speed_scale
             if s.life <= 0.0 or s.r > 1.2:
                 continue
-            s.r += s.radial_speed * dt
-            s.theta += s.ang_speed * dt
+            s.r += s.radial_speed * move_dt
+            s.theta += s.ang_speed * move_dt
             alive.append(s)
         self._sparks = alive
 
     def _render(self, surface: pygame.Surface, w: int, h: int) -> None:
         cx, cy = w / 2.0, h / 2.0
         scale = min(w, h) * 0.5
+        scheme = self.theme.color_scheme
         for s in self._sparks:
             t = clamp(s.life / s.max_life)
             px = int(cx + math.cos(s.theta) * s.r * scale)
             py = int(cy + math.sin(s.theta) * s.r * scale)
-            radius = max(1, int(1 + t * 3))
+            radius = max(1, int((1 + t * 3) * self.theme.size_scale))
             brightness = t if self.reduce_motion else 0.4 + t
-            color = scale_color(palette_color(PALETTE, s.hue), brightness)
+            color = scale_color(themed_color(scheme, s.hue, PALETTE), brightness)
             pygame.draw.circle(surface, color, (px, py), radius)

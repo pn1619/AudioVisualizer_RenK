@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import colorsys
+
 Color = tuple[int, int, int]
 
 
@@ -46,3 +48,16 @@ def scale_color(color: Color, factor: float) -> Color:
         int(clamp(color[1] * factor, 0, 255)),
         int(clamp(color[2] * factor, 0, 255)),
     )
+
+
+def rainbow_color(t: float) -> Color:
+    """Full-saturation hue sweep: ``t`` in ``0..1`` maps around the color wheel."""
+    r, g, b = colorsys.hsv_to_rgb(clamp(t) % 1.0, 1.0, 1.0)
+    return (int(r * 255), int(g * 255), int(b * 255))
+
+
+def themed_color(scheme: str, t: float, palette: tuple[Color, ...]) -> Color:
+    """Pick a color for position ``t`` honoring the active color scheme."""
+    if scheme == "rainbow":
+        return rainbow_color(t)
+    return palette_color(palette, t)

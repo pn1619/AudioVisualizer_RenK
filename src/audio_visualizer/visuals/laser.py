@@ -8,7 +8,7 @@ import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
-from audio_visualizer.visuals._helpers import palette_color, scale_color
+from audio_visualizer.visuals._helpers import scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer
 from audio_visualizer.visuals.registry import register
 
@@ -40,7 +40,7 @@ class Laser(BaseVisualizer):
             return
 
         spin = 0.4 if self.reduce_motion else 1.2 + frame.rms * 3.0
-        self._phase = (self._phase + dt * spin) % (2.0 * math.pi)
+        self._phase = (self._phase + dt * spin * self.theme.speed_scale) % (2.0 * math.pi)
 
         self._draw_beams(surface, cx, cy, min(w, h) * 0.5, frame)
         self._draw_lissajous(surface, cx, cy, w, h, frame)
@@ -61,7 +61,9 @@ class Laser(BaseVisualizer):
             for direction in (1.0, -1.0):
                 ex = cx + math.cos(angle) * length * direction
                 ey = cy + math.sin(angle) * length * direction
-                color = scale_color(palette_color(PALETTE, i / _BEAMS), 0.5 + energy)
+                color = scale_color(
+                    themed_color(self.theme.color_scheme, i / _BEAMS, PALETTE), 0.5 + energy
+                )
                 width = 1 if self.reduce_motion else max(1, int(1 + energy * 4))
                 pygame.draw.line(surface, color, (cx, cy), (ex, ey), width)
 
@@ -78,7 +80,9 @@ class Laser(BaseVisualizer):
         ay = h * 0.35
         a = 2.0 + frame.band_energies[: frame.band_energies.size // 2].mean() * 3.0
         b = 3.0 + frame.band_energies[frame.band_energies.size // 2 :].mean() * 3.0
-        color = scale_color(palette_color(PALETTE, frame.peak), 0.6 + frame.rms)
+        color = scale_color(
+            themed_color(self.theme.color_scheme, frame.peak, PALETTE), 0.6 + frame.rms
+        )
         points: list[tuple[float, float]] = []
         for k in range(_LISSAJOUS_POINTS + 1):
             t = 2.0 * math.pi * k / _LISSAJOUS_POINTS

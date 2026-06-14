@@ -1,0 +1,140 @@
+"""Waveform 2: the oscilloscope trace with particles popping in/out of the line.
+
+Sparks spawn along the waveform (more where the signal is loud / on onsets),
+swell from nothing to full size and shrink back ("pop in and out") while drifting
+away from the center line. Honors the shared theme (size, speed, color scheme).
+"""
+
+from __future__ import annotations
+
+import math
+import random
+from dataclasses import dataclass
+
+import numpy as np
+import pygame
+
+from audio_visualizer.audio.frame import AnalysisFrame
+from audio_visualizer.config import COLOR_ACCENT, PALETTE
+from audio_visualizer.visuals._helpers import clamp, rainbow_color, scale_color, themed_color
+from audio_visualizer.visuals.base import BaseVisualizer
+from audio_visualizer.visuals.registry import register
+
+_POP_MAX = 260
+_POP_MAX_REDUCED = 80
+_POP_BURST = 10
+_POP_LIFETIME = 0.7
+
+
+@dataclass
+class _Pop:
+    """A spark in normalized (0..1) space that swells then fades."""
+
+    x: float
+    y: float
+    vy: float
+    life: float
+    max_life: float
+    hue: float
+
+
+@register(key="waveform_2", display_name="Waveform 2", order=15)
+class Waveform2(BaseVisualizer):
+    """Oscilloscope line plus onset/energy-driven popping particles."""
+
+    def __init__(self, reduce_motion: bool = False, seed: int = 777) -> None:
+        super().__init__(reduce_motion)
+        self._seed = seed
+        self._rng = random.Random(seed)
+        self._pops: list[_Pop] = []
+
+    def on_enter(self) -> None:
+        self._pops.clear()
+        self._rng.seed(self._seed)
+
+    @property
+    def _cap(self) -> int:
+        return _POP_MAX_REDUCED if self.reduce_motion else _POP_MAX
+
+    def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
+        w, h = surface.get_size()
+        if w < 2 or h < 2:
+            return
+        self._draw_trace(surface, frame, w, h)
+        if frame is not None and not frame.is_silent:
+            self._spawn(frame)
+        self._advance(dt)
+        self._render(surface, w, h)
+
+    def _draw_trace(
+        self, surface: pygame.Surface, frame: AnalysisFrame | None, w: int, h: int
+    ) -> None:
+        mid = h // 2
+        rainbow = self.theme.color_scheme == "rainbow"
+        if frame is None or frame.is_silent:
+            color = rainbow_color(0.5) if rainbow else COLOR_ACCENT
+            pygame.draw.line(surface, color, (0, mid), (w, mid), 2)
+            return
+        samples = frame.waveform_mono
+        if samples.size < 2:
+            return
+        step = max(1, samples.size // w)
+        pts = samples[::step]
+        n = pts.size
+        xs = np.linspace(0, w, n)
+        ys = mid - pts * (mid * 0.9)
+        points = [(float(x), float(y)) for x, y in zip(xs, ys, strict=False)]
+        if rainbow:
+            for i in range(len(points) - 1):
+                pygame.draw.line(surface, rainbow_color(i / n), points[i], points[i + 1], 2)
+        else:
+            pygame.draw.lines(surface, COLOR_ACCENT, False, points, 2)
+
+    def _sample_at(self, samples: np.ndarray, x: float) -> float:
+        idx = int(clamp(x) * (samples.size - 1))
+        return float(samples[idx])
+
+    def _spawn(self, frame: AnalysisFrame) -> None:
+        samples = frame.waveform_mono
+        if samples.size < 2:
+            return
+        base = _POP_BURST // 3 if self.reduce_motion else _POP_BURST
+        count = int(base * clamp(frame.rms * 1.2 + frame.onset))
+        for _ in range(count):
+            if len(self._pops) >= self._cap:
+                break
+            x = self._rng.random()
+            value = self._sample_at(samples, x)
+            y = 0.5 - value * 0.45
+            direction = -1.0 if value >= 0 else 1.0  # pop away from the center line
+            speed = 0.10 + frame.rms * 0.25
+            self._pops.append(
+                _Pop(
+                    x=x,
+                    y=y,
+                    vy=direction * speed * self._rng.uniform(0.5, 1.0),
+                    life=_POP_LIFETIME,
+                    max_life=_POP_LIFETIME,
+                    hue=x,
+                )
+            )
+
+    def _advance(self, dt: float) -> None:
+        move_dt = dt * self.theme.speed_scale
+        alive: list[_Pop] = []
+        for p in self._pops:
+            p.life -= dt
+            if p.life <= 0.0:
+                continue
+            p.y += p.vy * move_dt
+            alive.append(p)
+        self._pops = alive
+
+    def _render(self, surface: pygame.Surface, w: int, h: int) -> None:
+        scheme = self.theme.color_scheme
+        for p in self._pops:
+            progress = clamp(1.0 - p.life / p.max_life)
+            envelope = math.sin(math.pi * progress)  # 0 -> 1 -> 0 (pop in/out)
+            radius = max(1, int((1 + envelope * 5) * self.theme.size_scale))
+            color = scale_color(themed_color(scheme, p.hue, PALETTE), 0.4 + envelope)
+            pygame.draw.circle(surface, color, (int(p.x * w), int(p.y * h)), radius)

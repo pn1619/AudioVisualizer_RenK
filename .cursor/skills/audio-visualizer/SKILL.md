@@ -46,6 +46,7 @@ description: >-
    - **Package once now:** `build-exe.ps1` → `dist\AudioVisualizer.exe --selftest` exits 0 (validates PortAudio DLL bundling early).
 5. **Phase 2:** `particles.py`, `laser.py` (onset/spectral-flux detection lives in `analysis.py` → `AnalysisFrame.onset`), sensitivity/smoothing controls (`Analyzer.set_smoothing`), reduce-motion toggle, first-run safety notice (strobing modes set `BaseVisualizer.STROBES = True`; notice acknowledged in memory until Phase 3 settings).
 6. **Phase 3 (done):** `settings.py` (JSON in `%APPDATA%`, `schema_version`, migrate-or-default; load on start / save on exit), device-change recovery (auto-reopen on capture error + banner), version-stamped spec (`+` optional `assets/icon.ico`), `--selftest` on the exe, CI (`.github/workflows/ci.yml`), `LICENSE` + `THIRD-PARTY-NOTICES.md`, README quickstart. Two added modes: `snowfall.py`, `particles_spiral.py` (7 modes total).
+7. **Phase 4 (done):** shared `Theme` (`visuals/base.py`: `size_scale`/`speed_scale`/`color_scheme`) passed live to every mode + persisted; `themed_color`/`rainbow_color` in `_helpers.py`; **mode-picker dropdown** (`ui/dropdown.py`); new `waveform_2.py` (waveform + popping particles) → **8 modes total**. Controls: `Size −/+` (F5/F6), `Speed −/+` (F7/F8), color cycle (C), dropdown (D). Keep `plan` §3.3 modes table in sync when adding/removing a mode.
 
 ## Implementation checklist (rules that matter)
 
