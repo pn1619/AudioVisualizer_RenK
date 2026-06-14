@@ -19,6 +19,9 @@ def test_round_trip(tmp_path) -> None:
         fullscreen=True,
         window_size=(800, 600),
         notice_acknowledged=True,
+        size_scale=1.5,
+        speed_scale=0.5,
+        color_scheme="rainbow",
     )
     assert s.save(original, path) is True
     loaded = s.load(path)
@@ -29,6 +32,15 @@ def test_round_trip(tmp_path) -> None:
     assert loaded.fullscreen is True
     assert loaded.window_size == (800, 600)
     assert loaded.notice_acknowledged is True
+    assert loaded.size_scale == 1.5
+    assert loaded.speed_scale == 0.5
+    assert loaded.color_scheme == "rainbow"
+
+
+def test_invalid_color_scheme_falls_back(tmp_path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"color_scheme": "neon"}), encoding="utf-8")
+    assert s.load(path).color_scheme == "classic"
 
 
 def test_missing_file_returns_defaults(tmp_path) -> None:

@@ -13,10 +13,14 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from audio_visualizer.config import (
+    COLOR_SCHEME_DEFAULT,
+    COLOR_SCHEMES,
     DEFAULT_WINDOW_SIZE,
     SETTINGS_FILENAME,
     SETTINGS_SCHEMA_VERSION,
+    SIZE_SCALE_DEFAULT,
     SMOOTHING_DEFAULT,
+    SPEED_SCALE_DEFAULT,
 )
 from audio_visualizer.platform_win import get_appdata_dir
 
@@ -35,6 +39,9 @@ class Settings:
     fullscreen: bool = False
     window_size: tuple[int, int] = field(default_factory=lambda: DEFAULT_WINDOW_SIZE)
     notice_acknowledged: bool = False
+    size_scale: float = SIZE_SCALE_DEFAULT
+    speed_scale: float = SPEED_SCALE_DEFAULT
+    color_scheme: str = COLOR_SCHEME_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -104,6 +111,9 @@ def _from_dict(raw: dict) -> Settings:
         fullscreen=_bool(raw.get("fullscreen"), defaults.fullscreen),
         window_size=_size(raw.get("window_size"), defaults.window_size),
         notice_acknowledged=_bool(raw.get("notice_acknowledged"), defaults.notice_acknowledged),
+        size_scale=_float(raw.get("size_scale"), defaults.size_scale),
+        speed_scale=_float(raw.get("speed_scale"), defaults.speed_scale),
+        color_scheme=_choice(raw.get("color_scheme"), COLOR_SCHEMES, defaults.color_scheme),
     )
 
 
@@ -113,6 +123,10 @@ def _str(value: object, default: str) -> str:
 
 def _bool(value: object, default: bool) -> bool:
     return value if isinstance(value, bool) else default
+
+
+def _choice(value: object, allowed: tuple[str, ...], default: str) -> str:
+    return value if isinstance(value, str) and value in allowed else default
 
 
 def _float(value: object, default: float) -> float:

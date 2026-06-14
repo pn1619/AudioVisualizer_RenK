@@ -7,7 +7,7 @@ import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
-from audio_visualizer.visuals._helpers import palette_color
+from audio_visualizer.visuals._helpers import themed_color
 from audio_visualizer.visuals.base import BaseVisualizer
 from audio_visualizer.visuals.registry import register
 
@@ -45,7 +45,7 @@ class Spectrum(BaseVisualizer):
             x = gap + i * (bar_w + gap)
             energy = float(bands[i])
             bar_h = energy * (h - 4)
-            color = palette_color(PALETTE, i / max(1, count - 1))
+            color = themed_color(self.theme.color_scheme, i / max(1, count - 1), PALETTE)
             if bar_h >= 1:
                 pygame.draw.rect(surface, color, (x, h - bar_h, bar_w, bar_h))
             cap_y = h - float(self._peaks[i]) * (h - 4)

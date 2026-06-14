@@ -69,7 +69,7 @@ def test_app_cycles_all_modes() -> None:
     try:
         app._source = SyntheticSource(mode="sweep")
         app._start_capture()
-        assert len(app._mode_keys) >= 7
+        assert len(app._mode_keys) >= 8
         for _ in range(len(app._mode_keys)):
             _run_frames(app, 2)
             app._cycle_mode(1)
@@ -91,6 +91,23 @@ def test_app_recovers_from_device_error() -> None:
         assert src.start_calls >= 2
         assert app._capturing is True
         assert app._error is False
+    finally:
+        app._shutdown()
+
+
+def test_app_shares_live_theme_with_visual() -> None:
+    app = App(load_settings=False)
+    try:
+        assert app._visual.theme is app._theme
+        before = app._theme.size_scale
+        app._adjust_size(0.25)
+        assert app._theme.size_scale != before
+        scheme0 = app._theme.color_scheme
+        app._cycle_color_scheme()
+        assert app._theme.color_scheme != scheme0
+        # Switching modes keeps the same shared theme reference.
+        app._cycle_mode(1)
+        assert app._visual.theme is app._theme
     finally:
         app._shutdown()
 

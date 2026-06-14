@@ -8,7 +8,7 @@ import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
-from audio_visualizer.visuals._helpers import palette_color, scale_color
+from audio_visualizer.visuals._helpers import scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer
 from audio_visualizer.visuals.registry import register
 
@@ -39,13 +39,14 @@ class LightShow(BaseVisualizer):
         if count == 0:
             return
 
+        scheme = self.theme.color_scheme
         # Slow rotation for life; disabled when reduce-motion is on.
         if not self.reduce_motion:
-            self._angle = (self._angle + dt * 0.3) % (2.0 * math.pi)
+            self._angle = (self._angle + dt * 0.3 * self.theme.speed_scale) % (2.0 * math.pi)
 
         # Pulsing core from overall level.
         core_r = max(2.0, frame.rms * max_len * 1.5)
-        core_color = scale_color(palette_color(PALETTE, frame.peak), 1.0)
+        core_color = scale_color(themed_color(scheme, frame.peak, PALETTE), 1.0)
         pygame.draw.circle(surface, core_color, (int(cx), int(cy)), int(core_r))
 
         for i in range(count):
@@ -56,6 +57,6 @@ class LightShow(BaseVisualizer):
             length = energy * max_len
             ex = cx + math.cos(angle) * length
             ey = cy + math.sin(angle) * length
-            color = scale_color(palette_color(PALETTE, i / max(1, count - 1)), 0.5 + energy)
+            color = scale_color(themed_color(scheme, i / max(1, count - 1), PALETTE), 0.5 + energy)
             width = 1 if self.reduce_motion else max(1, int(1 + energy * 3))
             pygame.draw.line(surface, color, (cx, cy), (ex, ey), width)

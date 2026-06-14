@@ -17,7 +17,7 @@ from audio_visualizer.config import (
     PARTICLE_MAX,
     PARTICLE_MAX_REDUCED,
 )
-from audio_visualizer.visuals._helpers import clamp, palette_color, scale_color
+from audio_visualizer.visuals._helpers import clamp, scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer
 from audio_visualizer.visuals.registry import register
 
@@ -87,22 +87,23 @@ class Particles(BaseVisualizer):
             )
 
     def _advance(self, dt: float) -> None:
+        move_dt = dt * self.theme.speed_scale
         alive: list[_Particle] = []
         for p in self._particles:
-            p.life -= dt
+            p.life -= dt  # lifetime is wall-clock; only motion honors speed_scale
             if p.life <= 0.0:
                 continue
-            p.x += p.vx * dt
-            p.y += p.vy * dt
-            p.vy += 0.12 * dt  # gentle gravity
+            p.x += p.vx * move_dt
+            p.y += p.vy * move_dt
+            p.vy += 0.12 * move_dt  # gentle gravity
             alive.append(p)
         self._particles = alive
 
     def _render(self, surface: pygame.Surface, w: int, h: int) -> None:
         for p in self._particles:
             t = clamp(p.life / p.max_life)
-            radius = max(1, int(2 + t * 4))
-            base = palette_color(PALETTE, p.hue)
+            radius = max(1, int((2 + t * 4) * self.theme.size_scale))
+            base = themed_color(self.theme.color_scheme, p.hue, PALETTE)
             brightness = t if self.reduce_motion else 0.4 + t
             color = scale_color(base, brightness)
             px = int(p.x * w)

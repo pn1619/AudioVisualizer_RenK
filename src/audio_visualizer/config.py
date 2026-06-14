@@ -10,7 +10,7 @@ So ``00.01.00`` == "Phase 1, build 0". See plan/development-phases.md.
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.03.00"
+APP_VERSION = "00.04.00"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
@@ -55,6 +55,23 @@ SMOOTH_RELEASE = 0.15
 # attack/release coefficients (higher level -> slower release -> smoother).
 SMOOTHING_DEFAULT = 0.5
 SMOOTHING_STEP = 0.1
+
+# --- Visual theme tunables (shared across modes, adjustable at runtime) --------
+# Global multiplier on particle/flake sizes.
+SIZE_SCALE_DEFAULT = 1.0
+SIZE_SCALE_MIN = 0.3
+SIZE_SCALE_MAX = 3.0
+SIZE_SCALE_STEP = 0.25
+
+# Global multiplier on animation speed (fall/wind/rotation/particle motion).
+SPEED_SCALE_DEFAULT = 1.0
+SPEED_SCALE_MIN = 0.25
+SPEED_SCALE_MAX = 3.0
+SPEED_SCALE_STEP = 0.25
+
+# Color schemes selectable at runtime; "classic" uses PALETTE, "rainbow" cycles hue.
+COLOR_SCHEMES: tuple[str, ...] = ("classic", "rainbow")
+COLOR_SCHEME_DEFAULT = "classic"
 
 # Onset (beat) detection: spectral flux is normalized to 0..1 via this gain;
 # a frame is treated as an onset when its strength clears the threshold.

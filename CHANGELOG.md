@@ -11,6 +11,33 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.04.00` — Phase 4: tunables, mode dropdown & Waveform 2
+
+**Delivered**
+- **Shared `Theme`** (`visuals/base.py`): `size_scale`, `speed_scale`, `color_scheme`.
+  The App owns one instance and passes the same reference to every mode, so changes
+  apply instantly; all three are persisted in settings.
+- **Particle/flake size control** and **animation-speed control** applied across the
+  motion/particle modes (snowfall, particles, particles-spiral, waveform-2; speed also
+  drives lightshow/laser rotation). Buttons `Size −/+`, `Speed −/+`; keys `F5/F6`,
+  `F7/F8`.
+- **Color schemes** — `classic` palette and `rainbow` hue-sweep — via new
+  `rainbow_color`/`themed_color` helpers, used by waveform, waveform 2, spectrum,
+  light show, laser, snowfall, and particles spiral. Button cycles; key `C`.
+- **Mode-picker dropdown** (`ui/dropdown.py`) replacing the click-to-cycle label;
+  lists every registered mode and opens over the canvas. Key `D` toggles it.
+- **New mode `waveform_2.py`** (Waveform 2): the oscilloscope trace plus particles
+  that pop in/out of the line (onset/energy-driven). **8 modes total.**
+- `plan/audio-visualizer-plan.md` §3.3 now lists **all** visual modes (kept in sync).
+
+**Tests / verification**
+- `tools\test.ps1` → **53 passed** (adds `test_dropdown.py`, `test_visuals_phase4.py`,
+  extends `test_settings.py` + `test_smoke.py`).
+- `tools\lint.ps1` → ruff **clean**, black **clean**, mypy **no issues**.
+- `python -m audio_visualizer --selftest` → exit **0**.
+
+---
+
 ## `00.03.00` — Phase 3: polish, persistence & ship + 2 modes
 
 **Delivered**

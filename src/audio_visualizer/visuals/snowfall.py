@@ -20,7 +20,7 @@ from audio_visualizer.config import (
     SNOW_WIND_SCALE,
     SNOW_WIND_SCALE_REDUCED,
 )
-from audio_visualizer.visuals._helpers import palette_color, scale_color
+from audio_visualizer.visuals._helpers import scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer
 from audio_visualizer.visuals.registry import register
 
@@ -64,16 +64,20 @@ class Snowfall(BaseVisualizer):
         wind_scale = SNOW_WIND_SCALE_REDUCED if self.reduce_motion else SNOW_WIND_SCALE
         wind = low * wind_scale * float(np.sin(self._t * 0.3))
 
-        self._y += self._fall * dt
-        self._x += (wind + self._sway * np.sin(self._t * 1.5 + self._phase)) * dt
+        move_dt = dt * self.theme.speed_scale
+        self._y += self._fall * move_dt
+        self._x += (wind + self._sway * np.sin(self._t * 1.5 + self._phase)) * move_dt
         self._y = np.where(self._y > 1.0, self._y - 1.0, self._y)
         self._x = np.mod(self._x, 1.0)
 
+        scheme = self.theme.color_scheme
         min_side = min(w, h)
-        radii = self._size * min_side * (1.0 + size_energy * SNOW_SIZE_SCALE)
+        radii = (
+            self._size * min_side * (1.0 + size_energy * SNOW_SIZE_SCALE) * self.theme.size_scale
+        )
         for i in range(self._x.size):
             radius = max(1, int(radii[i]))
-            color = scale_color(palette_color(PALETTE, float(self._hue[i])), 0.85)
+            color = scale_color(themed_color(scheme, float(self._hue[i]), PALETTE), 0.85)
             pygame.draw.circle(surface, color, (int(self._x[i] * w), int(self._y[i] * h)), radius)
 
     @staticmethod
