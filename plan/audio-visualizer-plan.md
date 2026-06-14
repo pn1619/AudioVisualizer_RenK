@@ -8,6 +8,7 @@ This document is the **single source of truth** for the project. Companion docs:
 - `plan/development-phases.md` — **detailed per-phase build guide**: scope, tests, exit criteria, time estimates, and future work (expands §7 below).
 - `plan/repository-and-code-layout.md` — folder tree, module responsibilities, how pieces connect.
 - `plan/testing.md` — how we prove the code works and the window actually runs.
+- `plan/git-and-versioning.md` — branching model, commit style, `PP.FF.BB` versioning, and per-phase tagging.
 - `.cursor/rules/python-audio-visualizer.mdc` — enforced project conventions (always applied).
 - `.cursor/rules/python-coding-style.mdc` — enforced Python style.
 - `.cursor/skills/audio-visualizer/SKILL.md` — implementation checklist for the next agent.
@@ -301,6 +302,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 12 | **Capture spike (Phase 0.5) before UI**; build exe in Phase 1 | De-risk the two things that historically break late |
 | 13 | **Render at native window size; no `SCALED`/upscaled buffer.** Borderless desktop fullscreen by default | Crisp output on resize/fullscreen/high-DPI; instant toggle (§3.1.1) |
 | 14 | **Visual modes auto-register via `@register` + `discover()`** (one file, no central list) | Frictionless extension (`lightshow_2.py`, `newvisuals.py`) with zero coupling (§3.5) |
+| 15 | **Git flow + `PP.FF.BB` versioning + annotated per-phase tags** (`v<APP_VERSION>`, e.g. `v00.02.00`); feature branches → PR into a green `main` | Predictable history that maps 1:1 to the phased roadmap and the in-app version. Full convention in `plan/git-and-versioning.md` |
 
 **Open questions** (record answers as they're decided):
 

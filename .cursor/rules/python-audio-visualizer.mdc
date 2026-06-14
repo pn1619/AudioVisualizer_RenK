@@ -67,10 +67,19 @@ alwaysApply: true
 
 - New DSP/UI logic ships with **pytest** coverage. The app must pass the **headless smoke test** and **`--selftest`**. See `plan/testing.md`.
 
+## Version control & releases
+
+- **`main` stays releasable/green**; develop on `feature/<topic>` branches and merge via **PR** (green pytest + ruff + black + `--selftest`). Don't commit directly to `main`.
+- Commit messages: imperative with a conventional prefix (`feat:`/`fix:`/`chore:`/`docs:`/`test:`/`refactor:`/`build:`); the body says **why**.
+- **Single version string** `APP_VERSION` in `config.py`, format **`PP.FF.BB`** (`PP` pre-release marker, `FF` development phase, `BB` build within the phase). Bump it in the same change that advances the phase/build and add a `CHANGELOG.md` entry.
+- **Tag every completed phase** with an **annotated** tag `v<APP_VERSION>` (e.g. `v00.02.00`) on the green commit, then push it — the tag maps 1:1 to the in-app version.
+- **Never change global git config** in automated work: pass per-command flags (`git -c user.name=… -c user.email=…`); behind an SSL-inspecting proxy use `git -c http.sslBackend=schannel …` rather than disabling verification.
+- Full convention: **`plan/git-and-versioning.md`**.
+
 ## Style
 
 - Follow **`.cursor/rules/python-coding-style.mdc`** (PEP 8, ruff + black, type hints, docstrings, small single-purpose functions, comments explain *why*).
 
 ## Documentation hygiene
 
-- When code or a decision changes, update the matching doc in the same change: `plan/audio-visualizer-plan.md` (esp. §8 decisions), `plan/repository-and-code-layout.md`, `plan/testing.md`, and `.cursor/skills/audio-visualizer/SKILL.md`.
+- When code or a decision changes, update the matching doc in the same change: `plan/audio-visualizer-plan.md` (esp. §8 decisions), `plan/repository-and-code-layout.md`, `plan/testing.md`, `plan/git-and-versioning.md`, and `.cursor/skills/audio-visualizer/SKILL.md`.
