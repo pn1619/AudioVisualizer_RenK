@@ -22,6 +22,7 @@ description: >-
 | **Per-phase build guide** (scope, tests, exit criteria, estimates) | `plan/development-phases.md` |
 | Folder tree, module responsibilities, data flow | `plan/repository-and-code-layout.md` |
 | How to prove it works (tests, selftest, manual) | `plan/testing.md` |
+| Git flow, `PP.FF.BB` versioning, per-phase tags | `plan/git-and-versioning.md` |
 | Project conventions (always applied) | `.cursor/rules/python-audio-visualizer.mdc` |
 | Python style (always applied) | `.cursor/rules/python-coding-style.mdc` |
 
@@ -86,6 +87,11 @@ description: >-
 - Demo/acceptance: reference tone → expected band/RMS reaction (objective "it reacts").
 - Manual checklist: real audio → motion, **idle state when silent**, mode switching, fullscreen, **resize/high-DPI**, device change, F3 overlay.
 
+## Version control & releases
+
+- Develop on `feature/<topic>` branches → **PR into a green `main`** (pytest + ruff + black + `--selftest`). Conventional commit prefixes; body says *why*.
+- One version string `APP_VERSION` in `config.py` (`PP.FF.BB`); bump it + add a `CHANGELOG.md` entry when a phase/build advances. **Tag each completed phase** with an annotated `v<APP_VERSION>` (e.g. `v00.02.00`) and push it. Never edit global git config; use per-command flags (and `http.sslBackend=schannel` behind SSL-inspecting proxies). Full convention: `plan/git-and-versioning.md`.
+
 ## Documentation hygiene
 
-- Update `plan/*` (esp. decisions §8) and this skill whenever capture strategy, modes, tooling, or packaging change. Keep the layout doc's tree/diagram accurate.
+- Update `plan/*` (esp. decisions §8, and `git-and-versioning.md`) and this skill whenever capture strategy, modes, tooling, packaging, or the git/versioning flow change. Keep the layout doc's tree/diagram accurate.

@@ -4,7 +4,7 @@ Companion to `plan/audio-visualizer-plan.md` (§7 is the short roadmap; **this f
 
 > **Golden rule:** *every phase ends with something that runs.* Do **not** start the next phase until the current phase's **exit criteria** and **tests** are green. Update the docs in the same change (see "Documentation hygiene" in the rules).
 
-**Related docs:** `repository-and-code-layout.md` (where each file goes) · `testing.md` (test strategy + commands) · `.cursor/skills/audio-visualizer/SKILL.md` (implementation checklist).
+**Related docs:** `repository-and-code-layout.md` (where each file goes) · `testing.md` (test strategy + commands) · `git-and-versioning.md` (branching, `PP.FF.BB` versioning, per-phase tags) · `.cursor/skills/audio-visualizer/SKILL.md` (implementation checklist).
 
 ---
 
@@ -200,4 +200,5 @@ Not scheduled; pull items in as priorities dictate. Each should still land behin
 3. Write the phase's **tests** alongside the code (not after).
 4. Verify every **exit-criteria** checkbox.
 5. Update affected docs (plan §8 decisions, layout, testing, skill) in the same change.
-6. Only then start the next phase.
+6. **Bump `APP_VERSION`** (`config.py`) + add a `CHANGELOG.md` entry, then **tag the phase**: annotated `v<APP_VERSION>` (e.g. `v00.02.00`) on the green commit and push it. See `git-and-versioning.md`.
+7. Only then start the next phase.

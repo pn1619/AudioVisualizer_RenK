@@ -1,7 +1,10 @@
 # Changelog
 
 Version scheme `PP.FF.BB` — `PP` pre-release (`00` until ship), `FF` development
-phase, `BB` build within the phase. See `plan/development-phases.md`.
+phase, `BB` build within the phase. The string lives once as `APP_VERSION` in
+`config.py`. Each completed phase is tagged with an annotated git tag
+`v<APP_VERSION>` (e.g. `v00.02.00`), so entries below map 1:1 to tags. See
+`plan/development-phases.md` and `plan/git-and-versioning.md`.
 
 All three initial phases were implemented in one pass; the entries below record
 what each phase delivered and its verification results.
