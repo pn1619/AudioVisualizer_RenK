@@ -36,7 +36,9 @@ AudioVisualizer/
 │     │  ├─ spectrum.py         # @register("spectrum", ...)
 │     │  ├─ lightshow.py        # @register("lightshow", ...)
 │     │  ├─ particles.py        # Phase 2
-│     │  └─ laser.py            # Phase 2
+│     │  ├─ laser.py            # Phase 2
+│     │  ├─ snowfall.py         # Phase 3 (bass wind, mid-band flake size)
+│     │  └─ particles_spiral.py # Phase 3 (per-band spiral arms)
 │     │      # add a mode = drop one new file here (subclass + @register); no other edits
 │     │
 │     └─ ui/
@@ -69,6 +71,9 @@ AudioVisualizer/
 │  ├─ settings.json             # .venv interpreter, format-on-save, pytest headless
 │  └─ launch.json               # Run app / Self-test / Pytest debug targets
 │
+├─ .github/
+│  └─ workflows/
+│     └─ ci.yml                 # CI: setup, check-deps, lint, test, build-exe + selftest, upload artifact
 ├─ logs/                        # rotating app.log (gitignored)
 ├─ dist/                        # PyInstaller output (gitignored)
 ├─ build/                       # PyInstaller temp (gitignored)

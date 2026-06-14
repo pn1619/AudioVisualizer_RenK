@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create venv and install dependencies
+        shell: pwsh
+        run: .\tools\setup.ps1
+
+      - name: Verify environment
+        shell: pwsh
+        run: .\tools\check-deps.ps1
+
+      - name: Lint (ruff + black + mypy)
+        shell: pwsh
+        run: .\tools\lint.ps1
+
+      - name: Test (headless pytest)
+        shell: pwsh
+        run: .\tools\test.ps1
+
+      - name: Build single-file exe + self-test
+        shell: pwsh
+        run: .\tools\build-exe.ps1
+
+      - name: Upload exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioVisualizer-exe
+          path: dist/AudioVisualizer.exe
+          if-no-files-found: error

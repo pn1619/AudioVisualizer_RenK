@@ -10,7 +10,7 @@ So ``00.01.00`` == "Phase 1, build 0". See plan/development-phases.md.
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.02.00"
+APP_VERSION = "00.03.00"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
@@ -69,6 +69,26 @@ PARTICLE_MAX = 600
 PARTICLE_MAX_REDUCED = 120  # cap when reduce-motion is on
 PARTICLE_BURST = 24  # particles spawned per detected onset
 PARTICLE_LIFETIME = 1.6  # seconds
+
+# --- Spiral particles ---------------------------------------------------------
+SPIRAL_MAX = 700
+SPIRAL_MAX_REDUCED = 140
+SPIRAL_BURST = 18  # particles per spawn step (scaled by energy)
+SPIRAL_LIFETIME = 2.2
+
+# --- Snowfall -----------------------------------------------------------------
+SNOW_FLAKES = 220  # flake pool size (normalized-space, resolution-independent)
+SNOW_FLAKES_REDUCED = 120
+SNOW_WIND_SCALE = 0.9  # bass energy -> horizontal drift
+SNOW_WIND_SCALE_REDUCED = 0.25
+SNOW_SIZE_SCALE = 2.5  # mid-band energy -> flake radius growth
+
+# --- Settings persistence -----------------------------------------------------
+SETTINGS_FILENAME = "settings.json"
+SETTINGS_SCHEMA_VERSION = 1
+
+# --- Device-change recovery ---------------------------------------------------
+DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error
 
 # --- Self-test ----------------------------------------------------------------
 SELFTEST_FRAMES = 60
