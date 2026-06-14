@@ -1,0 +1,76 @@
+---
+description: Conventions for the Windows system-audio visualizer (Python, pygame, numpy, pyaudiowpatch).
+alwaysApply: true
+---
+
+# Audio Visualizer — Project Rules
+
+## Guiding principle
+
+- **Simple but works beats complicated but broken.** Prefer the approach that gets a reliable, audio-reactive window on screen. Do not add complexity (extra deps, threads, frameworks) without a clear, recorded reason.
+
+## Stack (locked)
+
+- **Python 3.12+** (3.12 or newer, 64-bit; `requires-python = ">=3.12"`), **pygame** (window/2D), **numpy** (FFT/DSP), **pyaudiowpatch** (WASAPI loopback), **PyInstaller** (single `.exe`).
+- Do **not** introduce a second UI/GPU framework or a different capture library without recording a decision in `plan/audio-visualizer-plan.md` §8.
+
+## Dev environment
+
+- Developed in **Cursor + VS Code**; shared config lives in committed **`.vscode/`** (`extensions.json`, `settings.json`, `launch.json`). Don't add editor-specific hacks elsewhere.
+- **`check-deps.ps1`** and the **README** must verify/announce **Python ≥ 3.12** and print install steps (winget / python.org) when missing.
+
+## Capture & audio
+
+- Use **WASAPI loopback** on the default render device via `pyaudiowpatch`. **Negotiate the device's native format** (sample rate, channels, dtype); **downmix to mono float32 `-1..1`**; carry the real `sample_rate` into `AnalysisFrame`.
+- Keep the audio **callback tiny and allocation-free**; push into a **bounded ring buffer**.
+- Treat **silence/no-data as a first-class idle state** ("No audio detected" + idle animation), distinct from an **error** state (banner). Loopback often delivers silence/no callback when nothing plays.
+- Capture failures (no device, open error, device change) must surface an **on-screen banner** and keep running — never crash to desktop.
+- Do not promise capture of **DRM-protected** or **exclusive-mode** audio; degrade gracefully.
+- All audio access goes through the **`AudioSource` interface** (`LoopbackSource` real, `SyntheticSource` for tests/CI/`--selftest`). Never make `App` or `Analyzer` depend on `pyaudiowpatch` directly.
+
+## DSP & visuals
+
+- DSP lives in `audio/analysis.py` and is **pure** (numpy in → `AnalysisFrame` out), no pygame/I/O, so it stays unit-testable.
+- Use **Hann window + rfft**, **log-spaced bands**, and **attack/release smoothing** on displayed values. Expose **sensitivity** and **smoothing** as tunables.
+- Every visual mode subclasses **`BaseVisualizer`** (`visuals/base.py`) and **auto-registers** with `@register(key, display_name, order)`; `registry.discover()` imports the package at startup. **Adding a mode = one new file, no other edits** — never reintroduce a hand-maintained central mode list. Shared draw helpers live in `visuals/_helpers.py` (underscore → skipped by discovery).
+- A visual's only input is the read-only `AnalysisFrame` + surface + `dt` (+ shared theme). Modes never touch capture, other modes, or global state. A mode that raises during `draw` must be caught (logged + fail-soft), never crash the app.
+- Respect a **reduce-motion** option; no seizure-risk strobing at default settings.
+
+## App structure
+
+- `app.py` is **wiring only** (window, loop, input, mode switch, `registry.discover()`). Business logic lives in `audio/`, `visuals/`, `ui/`.
+- **Visual-mode keys** are declared once on the class via `@register(key=...)` (the registry is the source of truth). **Other tunable parameter names** are **`UPPER_SNAKE_CASE` constants in `config.py`** — no scattered magic strings.
+
+## Platform & windowing
+
+- Set **DPI awareness** at startup (Windows, guarded for headless/non-Windows) so pygame isn't blurry on scaled displays.
+- **Render at the window's native pixel size.** Do **not** use pygame `SCALED` or upscale a fixed-size buffer for the main canvas (causes blur). On `VIDEORESIZE`, recreate the surface at the new size and recompute layout.
+- **No hard-coded pixel coordinates.** Layout and visuals derive from `surface.get_size()` each frame (via `ui/layout.py`); enforce a **minimum window size**.
+- **Fullscreen is a user choice:** borderless desktop fullscreen by default (instant toggle, native resolution), exclusive fullscreen optional via settings. Persist fullscreen mode + window size.
+- Settings persist as **JSON at `%APPDATA%\AudioVisualizer\settings.json`** with a `schema_version`; load **migrates or falls back to defaults**, never crashes on a bad file.
+
+## Debugging & logging
+
+- Use the **`logging`** module, never bare `print`. `--debug` sets level DEBUG; log to console **and** `logs/app.log` (rotating).
+- Install a global **`sys.excepthook`** that logs the traceback to `logs/app.log` before exit; close the audio stream in a `finally`/context manager.
+- Provide the **F3 on-screen debug overlay** (FPS, frame time, RMS, peak, device, mode).
+- Keep **`--selftest`** working (headless N-frame run, exit 0) — it is how tests/CI/the built exe prove the app runs.
+
+## Tooling
+
+- All dev actions are **`tools/*.ps1`** with **`*.cmd`** wrappers, each supporting **`-Help`**, a banner, and "next steps"; shared helpers in `tools/_Common.ps1`.
+- Keep `check-deps`, `setup`, `run`, `test`, `lint`, `format`, `build-exe` working. `test.ps1` sets `SDL_VIDEODRIVER=dummy` / `SDL_AUDIODRIVER=dummy` for headless runs.
+- **pre-commit (ruff + black)** is installed by `setup.ps1`; deps are **pinned** and `.python-version` pins 3.12.
+- **Packaging:** `build-exe.ps1` bundles the **PortAudio DLL** (`collect_dynamic_libs("pyaudiowpatch")`) + icon/version; validate every build with `--selftest`. Build the exe from **Phase 1**, not the end. Ship `LICENSE` + `THIRD-PARTY-NOTICES.md` (pygame is LGPL).
+
+## Testing
+
+- New DSP/UI logic ships with **pytest** coverage. The app must pass the **headless smoke test** and **`--selftest`**. See `plan/testing.md`.
+
+## Style
+
+- Follow **`.cursor/rules/python-coding-style.mdc`** (PEP 8, ruff + black, type hints, docstrings, small single-purpose functions, comments explain *why*).
+
+## Documentation hygiene
+
+- When code or a decision changes, update the matching doc in the same change: `plan/audio-visualizer-plan.md` (esp. §8 decisions), `plan/repository-and-code-layout.md`, `plan/testing.md`, and `.cursor/skills/audio-visualizer/SKILL.md`.

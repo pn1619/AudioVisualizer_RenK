@@ -1,0 +1,63 @@
+---
+description: Python coding style for the Audio Visualizer (single enforced standard).
+alwaysApply: true
+---
+
+# Python Coding Style (single standard)
+
+All contributors and agents follow this. Tools enforce it: **ruff** (lint) + **black** (format), optional **mypy** (types).
+
+## Target runtime
+
+- **Python 3.12+** (`requires-python = ">=3.12"`). Modern syntax is allowed and encouraged: `X | Y` unions, `list[int]`/`dict[str, float]` builtins, `match` where it reads clearly.
+
+## Formatting
+
+- **PEP 8** via **black**; line length **100**.
+- **ruff** for linting and import sorting; fix warnings before merge.
+- One statement per line; no wildcard imports.
+
+## Naming
+
+| Kind | Style | Example |
+|------|-------|---------|
+| Modules / files | `snake_case.py` | `light_show.py` |
+| Functions / methods / vars | `snake_case` | `compute_log_bands()` |
+| Classes | `PascalCase` | `LoopbackSource` |
+| Constants (incl. mode/param keys) | `UPPER_SNAKE_CASE` | `MODE_SPECTRUM`, `FFT_SIZE` |
+| Private members | leading underscore | `_ring_buffer` |
+
+## Types
+
+- **Type-hint every function** (params + return). Prefer concrete types; use `numpy.typing.NDArray` for arrays.
+- Use `dataclasses` for plain data; make snapshots **`frozen=True`** (e.g. `AnalysisFrame`).
+
+## Functions
+
+- **Small and single-purpose** (target ≤ ~30 lines). Split when it grows.
+- Names read as the action performed. No "god functions"; the main loop **delegates**.
+- DSP helpers are **pure** (no side effects) so they are easy to test.
+
+## Docstrings & comments
+
+- Every public module/class/function has a **docstring**: one-line summary; add `Args:`/`Returns:`/`Raises:` when non-obvious (Google style).
+- **Comments explain *why*, not *what*.** Delete comments that merely restate code.
+
+## Errors & logging
+
+- Use the **`logging`** module, never bare `print`. Module-level `logger = logging.getLogger(__name__)`.
+- Catch narrow exceptions; on capture/device errors, set an error state for the UI banner — do not crash.
+
+## Imports
+
+- Order: stdlib, third-party, local — separated by blank lines (ruff isort enforces).
+- Import the **interface**, not the concrete library, across module boundaries (e.g. depend on `AudioSource`, not `pyaudiowpatch`).
+
+## Files & tests
+
+- One primary class/role per file; filename matches it.
+- Public DSP/UI logic ships with a **pytest** test. Tests run **headless** (`SDL_VIDEODRIVER=dummy`).
+
+## Violations
+
+- Fix **ruff**/**black** issues before merge. If a third-party API forces an odd shape, wrap it behind a small clean interface in our own module.
