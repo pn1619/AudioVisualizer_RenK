@@ -258,6 +258,9 @@ primitives (importing it from a mode is fine; importing one mode from another is
   multi-ring files share one implementation).
 - **Circular waveforms:** `ring_points`, `draw_ring`, and the reusable `RingPops`
   pop-particle field (used by the `_2` circle modes).
+- **Free particles:** `SparkField` — a reusable particle system in normalized (0..1)
+  space with an optional fading "shadow" trail, plus the shared `TRAIL_OPTION`. Used by
+  the beam modes (`lightshow_2`, `laser_2`) for "shot out" / "emitted" particles.
 
 ### 6.6 The modes (12)
 
@@ -271,8 +274,10 @@ primitives (importing it from a mode is fine; importing one mode from another is
 | 19 | `waveform_circle_multiple_2` | Waveform Circle x N 2 | multi-ring + `RingPops` |
 | 20 | `spectrum` | Spectrum | log bars + peak-hold caps |
 | 30 | `lightshow` | Light Show | radial beams + pulsing core (strobes) |
+| 35 | `lightshow_2` | Light Show 2 | beams of pulsing particles, shapeable core, emitted sparks (strobes) |
 | 40 | `particles` | Particles | onset bursts pushed by energy (strobes) |
 | 50 | `laser` | Laser | rotating beams + Lissajous (strobes) |
+| 55 | `laser_2` | Laser 2 | beams + selectable figure (Lissajous/rose/star/spiral/heart), emitted sparks (strobes) |
 | 60 | `snowfall` | Snowfall | bass wind, mid-band flake size |
 | 70 | `particles_spiral` | Particles Spiral | per-band spiral arms |
 

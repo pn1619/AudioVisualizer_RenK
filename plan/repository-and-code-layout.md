@@ -35,6 +35,8 @@ AudioVisualizer/
 │     │  ├─ waveform.py         # @register("waveform", ...)
 │     │  ├─ spectrum.py         # @register("spectrum", ...)
 │     │  ├─ lightshow.py        # @register("lightshow", ...)
+│     │  ├─ lightshow_2.py      # Phase 8 (beams of pulsing particles + shapeable core + emit)
+│     │  ├─ laser_2.py          # Phase 8 (selectable figure: Lissajous/rose/star/spiral/heart + emit)
 │     │  ├─ waveform_2.py       # Phase 4 (waveform + popping particles)
 │     │  ├─ waveform_circle.py            # Phase 6 (oscilloscope ring)
 │     │  ├─ waveform_circle_2.py          # Phase 6 (ring + popping particles)
@@ -145,7 +147,7 @@ The plugin mechanism — **no central list to maintain**:
 `App` calls `discover()` once, then cycles/selects by key. **Adding a mode = add one file; the registry needs no edit.**
 
 ### `visuals/_helpers.py`
-Shared, reusable drawing utilities so new modes don't reinvent primitives: color helpers (`lerp_color`, `palette_color`, `scale_color`, `rainbow_color` — which wraps hue with `t % 1.0` so Rainbow+ is continuous, `themed_color(scheme, t, palette, phase)`), the spectrum-slicing helper `range_energies(bands, slices)` (shared by the multi-ring modes), and the circular-waveform helpers `ring_points`, `draw_ring`, and the reusable `RingPops` pop-particle field. Leading underscore → **skipped by `discover()`**.
+Shared, reusable drawing utilities so new modes don't reinvent primitives: color helpers (`lerp_color`, `palette_color`, `scale_color`, `rainbow_color` — which wraps hue with `t % 1.0` so Rainbow+ is continuous, `themed_color(scheme, t, palette, phase)`), the spectrum-slicing helper `range_energies(bands, slices)` (shared by the multi-ring modes), the circular-waveform helpers `ring_points`, `draw_ring`, and the reusable `RingPops` pop-particle field, plus the reusable `SparkField` (free particles in normalized space with an optional fading "shadow" trail) and the shared `TRAIL_OPTION` (used by `lightshow_2`/`laser_2`). Leading underscore → **skipped by `discover()`**.
 
 ### `visuals/*.py` (the modes)
 Each mode = **one file**: subclass `BaseVisualizer`, decorate with `@register`, implement `draw`. `waveform` draws the mono line; `spectrum` draws log bars + peak caps; `lightshow` draws radial beams + bloom; `particles` and `laser` are Phase 2. A mode that raises during `draw` is caught by `App` (logged + fail-soft), never crashing the app.

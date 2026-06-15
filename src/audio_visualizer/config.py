@@ -16,7 +16,7 @@ Magic-number policy (see .cursor/rules/python-coding-style.mdc):
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.07.00"
+APP_VERSION = "00.08.00"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
@@ -141,6 +141,13 @@ PARTICLE_MAX = 600
 PARTICLE_MAX_REDUCED = 120  # cap when reduce-motion is on
 PARTICLE_BURST = 24  # particles spawned per detected onset
 PARTICLE_LIFETIME = 1.6  # seconds
+
+# --- Spark field (shared free-particle system: lightshow_2 / laser_2) ---------
+# Free particles "shot out" / "emitted" by beam modes, with optional fading trails.
+SPARK_MAX = 500
+SPARK_MAX_REDUCED = 100  # cap when reduce-motion is on
+SPARK_LIFETIME = 1.1  # seconds
+SPARK_TRAIL_LEN = 6  # recent positions kept for the fading "shadow" trail
 
 # --- Spiral particles ---------------------------------------------------------
 SPIRAL_MAX = 700

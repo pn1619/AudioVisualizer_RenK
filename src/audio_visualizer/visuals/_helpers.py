@@ -11,7 +11,14 @@ import numpy as np
 import pygame
 from numpy.typing import NDArray
 
-from audio_visualizer.config import COLOR_ACCENT, PALETTE, PARTICLE_BRIGHTNESS_FLOOR
+from audio_visualizer.config import (
+    COLOR_ACCENT,
+    PALETTE,
+    PARTICLE_BRIGHTNESS_FLOOR,
+    SPARK_LIFETIME,
+    SPARK_TRAIL_LEN,
+)
+from audio_visualizer.visuals.base import ModeOption, OptionChoice
 
 Color = tuple[int, int, int]
 
@@ -21,6 +28,19 @@ _POP_SPEED_ENERGY_GAIN = 0.30
 # Pop radius (px) = base + envelope * growth, scaled by the size control.
 _POP_RADIUS_BASE = 1
 _POP_RADIUS_GROWTH = 5
+
+# SparkField head radius (px) = base + life-fraction * growth, then × per-spark size.
+_SPARK_RADIUS_BASE = 1.0
+_SPARK_RADIUS_GROWTH = 3.0
+
+# Shared per-mode option: give emitted particles a fading "shadow" trail (off/on).
+# Reused by any mode whose particles can leave trails (lightshow_2, laser_2, ...).
+TRAIL_OPTION = ModeOption(
+    "trails",
+    "Trail",
+    (OptionChoice("Off", 0), OptionChoice("On", 1)),
+    default_index=0,
+)
 
 
 def clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -234,3 +254,117 @@ class RingPops:
             x = int(cx + math.cos(p.theta) * p.r * scale)
             y = int(cy + math.sin(p.theta) * p.r * scale)
             pygame.draw.circle(surface, color, (x, y), radius)
+
+
+@dataclass
+class _Spark:
+    """A free-floating particle in normalized (0..1) space; ``trail`` is recent points."""
+
+    x: float
+    y: float
+    vx: float
+    vy: float
+    life: float
+    max_life: float
+    hue: float
+    size: float
+    trail: list[tuple[float, float]]
+
+
+class SparkField:
+    """Reusable free-particle field with an optional fading "shadow" trail.
+
+    Modes that "shoot out" / "emit" little particles (lightshow_2, laser_2) spawn
+    into this field and let it advance + render. Positions are normalized (0..1) so
+    it is resolution-independent; ``render`` maps to pixels. When ``trails`` is on,
+    each particle's recent positions are drawn dimmer and smaller behind its head.
+    """
+
+    def __init__(
+        self,
+        cap: int,
+        lifetime: float = SPARK_LIFETIME,
+        trail_len: int = SPARK_TRAIL_LEN,
+    ) -> None:
+        self._cap = cap
+        self._lifetime = lifetime
+        self._trail_len = trail_len
+        self._sparks: list[_Spark] = []
+
+    def clear(self) -> None:
+        self._sparks.clear()
+
+    @property
+    def count(self) -> int:
+        return len(self._sparks)
+
+    def spawn(
+        self,
+        x: float,
+        y: float,
+        vx: float,
+        vy: float,
+        hue: float,
+        size: float = 1.0,
+    ) -> None:
+        """Add one spark at normalized position ``(x, y)`` with normalized velocity."""
+        if len(self._sparks) >= self._cap:
+            return
+        self._sparks.append(_Spark(x, y, vx, vy, self._lifetime, self._lifetime, hue, size, []))
+
+    def advance(self, dt: float, speed_scale: float, gravity: float = 0.0) -> None:
+        """Move sparks (motion honors ``speed_scale``); lifetime is wall-clock."""
+        move_dt = dt * speed_scale
+        alive: list[_Spark] = []
+        for s in self._sparks:
+            s.life -= dt
+            if s.life <= 0.0:
+                continue
+            if self._trail_len > 0:
+                s.trail.append((s.x, s.y))
+                if len(s.trail) > self._trail_len:
+                    del s.trail[0]
+            s.x += s.vx * move_dt
+            s.y += s.vy * move_dt
+            s.vy += gravity * move_dt
+            alive.append(s)
+        self._sparks = alive
+
+    def render(
+        self,
+        surface: pygame.Surface,
+        scheme: str,
+        phase: float,
+        w: int,
+        h: int,
+        size_scale: float,
+        trails: bool,
+    ) -> None:
+        for s in self._sparks:
+            t = clamp(s.life / s.max_life)
+            base = themed_color(scheme, s.hue, PALETTE, phase)
+            head_r = max(
+                1, int((_SPARK_RADIUS_BASE + t * _SPARK_RADIUS_GROWTH) * s.size * size_scale)
+            )
+            if trails and s.trail:
+                self._render_trail(surface, base, s.trail, head_r, t, w, h)
+            color = scale_color(base, PARTICLE_BRIGHTNESS_FLOOR + t)
+            pygame.draw.circle(surface, color, (int(s.x * w), int(s.y * h)), head_r)
+
+    @staticmethod
+    def _render_trail(
+        surface: pygame.Surface,
+        base: Color,
+        trail: list[tuple[float, float]],
+        head_r: int,
+        life_t: float,
+        w: int,
+        h: int,
+    ) -> None:
+        """Draw the trail oldest→newest, fading and shrinking toward the tail."""
+        n = len(trail)
+        for j, (tx, ty) in enumerate(trail):
+            fade = (j + 1) / (n + 1)  # 0 (oldest) .. ~1 (nearest the head)
+            radius = max(1, int(head_r * fade))
+            color = scale_color(base, PARTICLE_BRIGHTNESS_FLOOR * fade * life_t)
+            pygame.draw.circle(surface, color, (int(tx * w), int(ty * h)), radius)

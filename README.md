@@ -4,17 +4,16 @@ A Windows desktop app that captures **what you hear** (system playback via WASAP
 loopback) and renders it in real time — built with Python + pygame + numpy +
 pyaudiowpatch.
 
-Visual modes: **waveform, waveform 2, waveform circle (x4), spectrum, light show,
-particles, laser, snowfall, and particles spiral** — 12 total; adding a mode is one
-drop-in file.
+Visual modes: **waveform, waveform 2, waveform circle (x4), spectrum, light show
+(x2), particles, laser (x2), snowfall, and particles spiral** — 14 total; adding a
+mode is one drop-in file.
 
-> Status: **Phase 7 (v `00.07.00`)** — a maintainability pass: a new
-> `plan/architecture-and-code-flow.md` (detailed runtime flows + framework diagrams),
-> magic numbers replaced by named constants (shared ones in `config.py`, mode-local ones
-> as commented module constants), and small refactors/docstrings — **no behavior change**.
-> Builds on Phase 6's continuous Rainbow+, debounced (5 s) "no audio" banner, Particles
-> Spiral size/spacing options, and **four circular waveform modes** (12 modes total). See
-> `plan/development-phases.md` for the roadmap and `plan/architecture-and-code-flow.md` for how it works.
+> Status: **Phase 8 (v `00.08.00`)** — two new modes: **Light Show 2** (radial beams
+> made of pulsing particles, a shapeable core, optional emitted sparks) and **Laser 2**
+> (selectable Lissajous/rose/star/spiral/heart figure + beams that emit particles), plus
+> a shared **particle Trail** option (fading "shadow" trails). **14 modes total.** Builds
+> on Phase 7's docs/maintainability pass. See `plan/development-phases.md` for the roadmap
+> and `plan/architecture-and-code-flow.md` for how it works.
 
 ## Requirements
 

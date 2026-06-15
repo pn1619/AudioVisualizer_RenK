@@ -172,8 +172,10 @@ is added or removed.
 | **Waveform Circle x N 2** | `waveform_circle_multiple_2` | 19 | Multi-ring + per-ring popping particles | samples + bands | Phase 6 |
 | **Spectrum** | `spectrum` | 20 | Log-spaced frequency bars + falling peak caps | FFT band energies | Phase 1 |
 | **Light Show** | `lightshow` | 30 | Radial beams from center + pulsing core | bands + RMS/peak | Phase 1 |
+| **Light Show 2** | `lightshow_2` | 35 | Radial beams of pulsing particles, shapeable core, emitted sparks | bands + RMS/onset | Phase 8 |
 | **Particles** | `particles` | 40 | Bursts spawned by onsets, pushed outward by energy | RMS, onset/flux | Phase 2 |
 | **Laser** | `laser` | 50 | Rotating beams + Lissajous figure | bands + phase | Phase 2 |
+| **Laser 2** | `laser_2` | 55 | Rotating beams + selectable figure (Lissajous/rose/star/spiral/heart), emitted sparks | bands + RMS/onset | Phase 8 |
 | **Snowfall** | `snowfall` | 60 | Colorful flakes; bass blows the wind, mids size them | bands (low + mid) | Phase 3 |
 | **Particles Spiral** | `particles_spiral` | 70 | Sparks blow out along spiral arms, one hue per band | bands + RMS/onset | Phase 3 |
 | *Shader-ish field* (stretch) | — | — | Fullscreen palette field reacting to spectrum | FFT texture | Stretch |
@@ -304,6 +306,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 - **Phase 5 — Per-mode options & color picker:** per-mode option dropdowns (`BaseVisualizer.OPTIONS`); snowfall **Fall**/**Wind**/**Density** split; **inline value chips**; **color dropdown** with time-animated **Rainbow+**.
 - **Phase 6 — Circular waveforms & polish:** **continuous Rainbow+** (seamless hue wrap); **debounced 5 s** "no audio" banner that never auto-quits; Particles Spiral **Size**/**Spacing**; four **circular waveform** modes (single / +particles / multi-ring / multi-ring +particles). **12 modes** total.
 - **Phase 7 — Docs & maintainability (no behavior change):** new `architecture-and-code-flow.md` (runtime flows + framework diagrams); magic numbers replaced by named constants under a documented two-tier policy; `_range_energies` deduped into `_helpers.range_energies`; docstrings/cleanups. Formatting stays black/ruff.
+- **Phase 8 — Light Show 2, Laser 2 & particle trails:** `lightshow_2` (beams of pulsing particles + shapeable Disc/Hollow/Waveform/Burst core + emitted sparks) and `laser_2` (selectable Lissajous/rose/star/spiral/heart figure + emitting beams). Shared `SparkField` + **Trail** option (fading "shadow" trails) in `_helpers.py`. **14 modes total.**
 
 ---
 
@@ -330,6 +333,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 17 | **Per-mode options** via `BaseVisualizer.OPTIONS` (discrete `ModeOption` choices) rendered as dropdowns; **inline value chips**; **color dropdown** with time-animated **rainbow+** (`Theme.color_phase`) | Each mode keeps its own knobs without a central list (still one file per mode); showing values makes Sensitivity/Smoothing/etc. self-explanatory; rainbow+ animates color over time per request (Phase 5) |
 | 18 | **Rainbow+ wraps hue before clamping** (`t % 1.0`); **idle banner debounced 5 s** and **never auto-quits**; **circular waveform** modes share `ring_points`/`draw_ring`/`RingPops` in `_helpers.py` | Pre-clamp modulo was sticking the sweep at red (discontinuous); brief track gaps shouldn't flash the banner and silence must not close the app; circular modes reuse shared helpers so each is still one small file (Phase 6) |
 | 19 | **Two-tier magic-number policy** (shared/cross-mode tunables `UPPER_SNAKE_CASE` in `config.py`; mode-local "feel" numbers as commented `_UPPER_SNAKE` module constants) + new **`architecture-and-code-flow.md`**; **kept black/ruff** and **declined the space-inside-brackets** style | Removes unexplained literals while keeping tunables both discoverable *and* close to use; the locked formatter (black/ruff-format) strips inside-bracket spacing (E201/E211) and no mainstream formatter supports it, so honoring the request would break pre-commit/CI (Phase 7) |
+| 20 | **Reusable `SparkField` + shared `TRAIL_OPTION`** in `_helpers.py` power the new beam modes' emitted particles and the optional fading "shadow" trail | One particle system (normalized space, optional trail) keeps `lightshow_2`/`laser_2` thin and lets any future mode opt into emitted particles + trails without duplicating logic (Phase 8) |
 
 **Open questions** (record answers as they're decided):
 

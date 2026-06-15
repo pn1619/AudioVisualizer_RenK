@@ -300,7 +300,39 @@ user-facing behavior change. Pure clarity/quality work.
 
 ---
 
-## Future phases (8+) — improvements & growth
+## Phase 8 — Light Show 2, Laser 2 & particle trails (v `00.08.00`)
+
+**Goal:** two new energetic beam modes plus a reusable, opt-in particle trail.
+
+### Scope
+- **`lightshow_2.py` (Light Show 2):** radial beams built from many **pulsing
+  particles** (per-beam **Beads** count option); beads swell/shrink with the music;
+  beams rotate and grow with energy. Selectable pulsing **Core** (Disc / Hollow /
+  Waveform / Burst). Optional **Emit**: beam tips shoot out small free particles.
+- **`laser_2.py` (Laser 2):** rotating beams + a selectable parametric **Shape**
+  (Lissajous / Rose / Star / Spiral / Heart), all energy-driven. Optional **Emit**.
+- **Reusable `SparkField` + shared `TRAIL_OPTION`** in `visuals/_helpers.py`: a free
+  particle system in normalized space with an optional fading "shadow" **Trail** option
+  (Off/On). Shared caps `SPARK_*` in `config.py`. Both new modes opt in.
+- Both modes are `STROBES = True`; reduce-motion disables rotation/emission.
+- **14 modes total**, each still one auto-registered file.
+
+### Tests
+- `test_visuals_phase8.py`: `SparkField` spawn/advance/decay/cap + trail length + render
+  (trails on/off); both modes render loud/idle/tiny + `rainbow_plus`; all 4 core shapes;
+  all 5 figure shapes; **Emit** spawns sparks; **reduce-motion disables emission**; the
+  shared `TRAIL_OPTION` is present on both modes.
+
+### Exit criteria
+- [x] Light Show 2 and Laser 2 render, auto-discover, and expose their options (14 total).
+- [x] Particle Trail option works and is shared (one `SparkField`/`TRAIL_OPTION`).
+- [x] lint/mypy clean, `test.ps1` green (90), `--selftest --mode {lightshow_2,laser_2}` exit 0, exe builds + self-tests.
+
+**Estimate: 1–2 days.** *(done)*
+
+---
+
+## Future phases (9+) — improvements & growth
 
 Not scheduled; pull items in as priorities dictate. Each should still land behind tests and keep the "simple but works" bar.
 
