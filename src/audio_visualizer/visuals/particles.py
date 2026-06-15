@@ -12,14 +12,25 @@ from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import (
     ONSET_THRESHOLD,
     PALETTE,
+    PARTICLE_BRIGHTNESS_FLOOR,
     PARTICLE_BURST,
     PARTICLE_LIFETIME,
     PARTICLE_MAX,
     PARTICLE_MAX_REDUCED,
+    REDUCE_MOTION_BURST_DIVISOR,
 )
 from audio_visualizer.visuals._helpers import clamp, scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
+
+# Initial outward speed of a spark = this base + rms * gain (normalized units/sec).
+_SPEED_BASE = 0.15
+_SPEED_RMS_GAIN = 0.6
+# Each spark gets a random fraction of that speed in this range.
+_SPEED_SPREAD = (0.3, 1.0)
+# Spark radius (px) = base + life-fraction * growth, then scaled by the size control.
+_RADIUS_BASE = 2
+_RADIUS_GROWTH = 4
 
 _BURST = ModeOption(
     "burst",
@@ -81,13 +92,13 @@ class Particles(BaseVisualizer):
             return
         burst = max(1, int(PARTICLE_BURST * self.option("burst")))
         if self.reduce_motion:
-            burst //= 3
-        speed = 0.15 + frame.rms * 0.6
+            burst //= REDUCE_MOTION_BURST_DIVISOR
+        speed = _SPEED_BASE + frame.rms * _SPEED_RMS_GAIN
         for _ in range(burst):
             if len(self._particles) >= self._cap:
                 break
             angle = self._rng.uniform(0.0, 2.0 * math.pi)
-            mag = speed * self._rng.uniform(0.3, 1.0)
+            mag = speed * self._rng.uniform(*_SPEED_SPREAD)
             self._particles.append(
                 _Particle(
                     x=0.5,
@@ -117,9 +128,9 @@ class Particles(BaseVisualizer):
     def _render(self, surface: pygame.Surface, w: int, h: int) -> None:
         for p in self._particles:
             t = clamp(p.life / p.max_life)
-            radius = max(1, int((2 + t * 4) * self.theme.size_scale))
+            radius = max(1, int((_RADIUS_BASE + t * _RADIUS_GROWTH) * self.theme.size_scale))
             base = themed_color(self.theme.color_scheme, p.hue, PALETTE, self.theme.color_phase)
-            brightness = t if self.reduce_motion else 0.4 + t
+            brightness = t if self.reduce_motion else PARTICLE_BRIGHTNESS_FLOOR + t
             color = scale_color(base, brightness)
             px = int(p.x * w)
             py = int(p.y * h)

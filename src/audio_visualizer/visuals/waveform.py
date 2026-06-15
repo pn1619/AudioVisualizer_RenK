@@ -6,10 +6,13 @@ import numpy as np
 import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
-from audio_visualizer.config import COLOR_ACCENT, PALETTE
+from audio_visualizer.config import COLOR_ACCENT, IDLE_LINE_HUE, PALETTE
 from audio_visualizer.visuals._helpers import rainbow_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
+
+# Peak trace height as a fraction of the half-canvas-height (leaves a small margin).
+_AMPLITUDE_FRACTION = 0.9
 
 _THICKNESS = ModeOption(
     "thickness",
@@ -33,7 +36,8 @@ class Waveform(BaseVisualizer):
         colored = scheme != "classic"
 
         if frame is None or frame.is_silent:
-            color = rainbow_color(0.5 + self.theme.color_phase) if colored else COLOR_ACCENT
+            idle_hue = IDLE_LINE_HUE + self.theme.color_phase
+            color = rainbow_color(idle_hue) if colored else COLOR_ACCENT
             pygame.draw.line(surface, color, (0, mid), (w, mid), width)
             return
 
@@ -45,7 +49,7 @@ class Waveform(BaseVisualizer):
         step = max(1, samples.size // w)
         pts = samples[::step]
         n = pts.size
-        amp = mid * 0.9
+        amp = mid * _AMPLITUDE_FRACTION
         xs = np.linspace(0, w, n)
         ys = mid - pts * amp
         points = [(float(x), float(y)) for x, y in zip(xs, ys, strict=False)]

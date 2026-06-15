@@ -16,6 +16,8 @@ import pygame
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import (
     PALETTE,
+    PARTICLE_BRIGHTNESS_FLOOR,
+    REDUCE_MOTION_BURST_DIVISOR,
     SPIRAL_BURST,
     SPIRAL_LIFETIME,
     SPIRAL_MAX,
@@ -24,6 +26,23 @@ from audio_visualizer.config import (
 from audio_visualizer.visuals._helpers import clamp, scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
+
+# Spark birth radius (fraction of the drawing scale) — just off the center.
+_BIRTH_RADIUS = 0.02
+# Sparks are recycled once they pass this radius (just past the canvas edge).
+_MAX_RADIUS = 1.2
+# Angular speed = swirl * (this base + band energy).
+_ANGULAR_BASE = 0.4
+# Radial speed = (this base + energy * gain) * the spacing option.
+_RADIAL_BASE = 0.15
+_RADIAL_ENERGY_GAIN = 0.5
+# Swirl is pinned to this calm value under reduce-motion.
+_SWIRL_REDUCED = 1.0
+# Spawn count scales with this * rms + onset (clamped to 0..1).
+_SPAWN_RMS_GAIN = 1.5
+# Spark radius (px) = base + life-fraction * growth, scaled by the size control.
+_RADIUS_BASE = 1
+_RADIUS_GROWTH = 3
 
 _SWIRL = ModeOption(
     "swirl",
@@ -92,9 +111,9 @@ class ParticlesSpiral(BaseVisualizer):
         bands = frame.band_energies
         if bands.size == 0:
             return
-        base = SPIRAL_BURST // 3 if self.reduce_motion else SPIRAL_BURST
-        n_spawn = int(base * clamp(frame.rms * 1.5 + frame.onset))
-        swirl = 1.0 if self.reduce_motion else self.option("swirl")
+        base = SPIRAL_BURST // REDUCE_MOTION_BURST_DIVISOR if self.reduce_motion else SPIRAL_BURST
+        n_spawn = int(base * clamp(frame.rms * _SPAWN_RMS_GAIN + frame.onset))
+        swirl = _SWIRL_REDUCED if self.reduce_motion else self.option("swirl")
         spacing = self.option("spacing")
         for _ in range(n_spawn):
             if len(self._sparks) >= self._cap:
@@ -103,10 +122,10 @@ class ParticlesSpiral(BaseVisualizer):
             energy = float(bands[bi])
             self._sparks.append(
                 _Spark(
-                    r=0.02,
+                    r=_BIRTH_RADIUS,
                     theta=self._rng.uniform(0.0, 2.0 * math.pi),
-                    ang_speed=swirl * (0.4 + energy),
-                    radial_speed=(0.15 + energy * 0.5) * spacing,
+                    ang_speed=swirl * (_ANGULAR_BASE + energy),
+                    radial_speed=(_RADIAL_BASE + energy * _RADIAL_ENERGY_GAIN) * spacing,
                     life=SPIRAL_LIFETIME,
                     max_life=SPIRAL_LIFETIME,
                     hue=bi / bands.size,
@@ -118,7 +137,7 @@ class ParticlesSpiral(BaseVisualizer):
         alive: list[_Spark] = []
         for s in self._sparks:
             s.life -= dt  # lifetime is wall-clock; only motion honors speed_scale
-            if s.life <= 0.0 or s.r > 1.2:
+            if s.life <= 0.0 or s.r > _MAX_RADIUS:
                 continue
             s.r += s.radial_speed * move_dt
             s.theta += s.ang_speed * move_dt
@@ -134,7 +153,7 @@ class ParticlesSpiral(BaseVisualizer):
             t = clamp(s.life / s.max_life)
             px = int(cx + math.cos(s.theta) * s.r * scale)
             py = int(cy + math.sin(s.theta) * s.r * scale)
-            radius = max(1, int((1 + t * 3) * self.theme.size_scale))
-            brightness = t if self.reduce_motion else 0.4 + t
+            radius = max(1, int((_RADIUS_BASE + t * _RADIUS_GROWTH) * self.theme.size_scale))
+            brightness = t if self.reduce_motion else PARTICLE_BRIGHTNESS_FLOOR + t
             color = scale_color(themed_color(scheme, s.hue, PALETTE, phase), brightness)
             pygame.draw.circle(surface, color, (px, py), radius)

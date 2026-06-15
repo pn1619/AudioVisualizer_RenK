@@ -2,8 +2,8 @@
 
 AudioVisualizer is distributed as a single `.exe` that bundles the third-party
 components below. Each remains under its own license; copies/links are provided
-here to satisfy their notice requirements. AudioVisualizer itself is MIT-licensed
-(see `LICENSE`).
+here to satisfy their notice requirements. AudioVisualizer itself is proprietary
+software — all rights reserved (see `LICENSE`).
 
 ---
 

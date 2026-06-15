@@ -15,6 +15,7 @@ from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import (
     CIRCLE_BASE_RADIUS,
     CIRCLE_WAVE_AMPLITUDE,
+    REDUCE_MOTION_BURST_DIVISOR,
 )
 from audio_visualizer.visuals._helpers import RingPops, clamp, draw_ring, ring_points
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
@@ -42,6 +43,8 @@ _RING_POINTS = 240
 _POP_MAX = 260
 _POP_MAX_REDUCED = 80
 _POP_BURST = 10
+# Spawn count scales with this * rms + onset (clamped to 0..1).
+_SPAWN_RMS_GAIN = 1.2
 
 
 @register(key="waveform_circle_2", display_name="Waveform Circle 2", order=17)
@@ -95,8 +98,10 @@ class WaveformCircle2(BaseVisualizer):
         )
 
     def _spawn(self, frame: AnalysisFrame) -> None:
-        base = _POP_BURST // 3 if self.reduce_motion else _POP_BURST
-        count = int(base * self.option("pop_rate") * clamp(frame.rms * 1.2 + frame.onset))
+        base = _POP_BURST // REDUCE_MOTION_BURST_DIVISOR if self.reduce_motion else _POP_BURST
+        count = int(
+            base * self.option("pop_rate") * clamp(frame.rms * _SPAWN_RMS_GAIN + frame.onset)
+        )
         if count <= 0:
             return
         size = self.option("size")

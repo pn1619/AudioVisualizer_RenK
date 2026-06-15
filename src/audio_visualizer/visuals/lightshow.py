@@ -12,6 +12,17 @@ from audio_visualizer.visuals._helpers import scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
+# Longest beam / core reach as a fraction of half the min canvas side.
+_MAX_LEN_FRACTION = 0.48
+# Beam rotation rate in radians/sec (scaled by the global speed control).
+_ROTATE_RATE = 0.3
+# Pulsing-core radius = rms * max_len * this.
+_CORE_SIZE_FACTOR = 1.5
+# Beams below this energy are skipped (avoids a hairball at the center).
+_ENERGY_GATE = 0.01
+# Baseline beam brightness before per-beam energy is added.
+_BEAM_BRIGHTNESS_BASE = 0.5
+
 _BEAM_WIDTH = ModeOption(
     "beam_width",
     "Beam",
@@ -37,7 +48,7 @@ class LightShow(BaseVisualizer):
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
         w, h = surface.get_size()
         cx, cy = w / 2.0, h / 2.0
-        max_len = min(w, h) * 0.48
+        max_len = min(w, h) * _MAX_LEN_FRACTION
 
         if frame is None:
             return
@@ -52,23 +63,26 @@ class LightShow(BaseVisualizer):
         max_width = int(self.option("beam_width"))
         # Slow rotation for life; disabled when reduce-motion is on.
         if not self.reduce_motion:
-            self._angle = (self._angle + dt * 0.3 * self.theme.speed_scale) % (2.0 * math.pi)
+            self._angle = (self._angle + dt * _ROTATE_RATE * self.theme.speed_scale) % (
+                2.0 * math.pi
+            )
 
         # Pulsing core from overall level.
-        core_r = max(2.0, frame.rms * max_len * 1.5)
+        core_r = max(2.0, frame.rms * max_len * _CORE_SIZE_FACTOR)
         core_color = scale_color(themed_color(scheme, frame.peak, PALETTE, phase), 1.0)
         pygame.draw.circle(surface, core_color, (int(cx), int(cy)), int(core_r))
 
         for i in range(count):
             energy = float(bands[i])
-            if energy <= 0.01:
+            if energy <= _ENERGY_GATE:
                 continue
             angle = self._angle + (2.0 * math.pi * i / count)
             length = energy * max_len
             ex = cx + math.cos(angle) * length
             ey = cy + math.sin(angle) * length
             color = scale_color(
-                themed_color(scheme, i / max(1, count - 1), PALETTE, phase), 0.5 + energy
+                themed_color(scheme, i / max(1, count - 1), PALETTE, phase),
+                _BEAM_BRIGHTNESS_BASE + energy,
             )
             width = 1 if self.reduce_motion else max(1, int(1 + energy * max_width))
             pygame.draw.line(surface, color, (cx, cy), (ex, ey), width)

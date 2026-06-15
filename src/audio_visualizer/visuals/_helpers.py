@@ -11,9 +11,16 @@ import numpy as np
 import pygame
 from numpy.typing import NDArray
 
-from audio_visualizer.config import COLOR_ACCENT, PALETTE
+from audio_visualizer.config import COLOR_ACCENT, PALETTE, PARTICLE_BRIGHTNESS_FLOOR
 
 Color = tuple[int, int, int]
+
+# RingPops tuning: initial outward speed = base + energy * gain (radius-fraction/sec).
+_POP_SPEED_BASE = 0.08
+_POP_SPEED_ENERGY_GAIN = 0.30
+# Pop radius (px) = base + envelope * growth, scaled by the size control.
+_POP_RADIUS_BASE = 1
+_POP_RADIUS_GROWTH = 5
 
 
 def clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -91,6 +98,21 @@ def resample_to(values: NDArray[np.float32], n: int) -> NDArray[np.float32]:
         return np.zeros(n, dtype=np.float32)
     idx = np.linspace(0, arr.size - 1, n).astype(np.int64)
     return arr[idx]
+
+
+def range_energies(bands: NDArray[np.float32], slices: int) -> NDArray[np.float32]:
+    """Mean energy of each of ``slices`` equal sub-ranges of the spectrum.
+
+    Used by the multi-ring circular modes to drive one ring per frequency range.
+    Empty input yields zeros so callers can render a quiescent shape.
+    """
+    if bands.size == 0:
+        return np.zeros(slices, dtype=np.float32)
+    edges = np.linspace(0, bands.size, slices + 1).astype(int)
+    return np.array(
+        [bands[edges[i] : max(edges[i] + 1, edges[i + 1])].mean() for i in range(slices)],
+        dtype=np.float32,
+    )
 
 
 def ring_points(
@@ -174,7 +196,7 @@ class RingPops:
                 _RingPop(
                     theta=theta,
                     r=base_r,
-                    vr=(0.08 + energy * 0.30) * rng.uniform(0.5, 1.0),
+                    vr=(_POP_SPEED_BASE + energy * _POP_SPEED_ENERGY_GAIN) * rng.uniform(0.5, 1.0),
                     life=self._lifetime,
                     max_life=self._lifetime,
                     hue=theta / (2.0 * math.pi),
@@ -205,8 +227,10 @@ class RingPops:
         for p in self._pops:
             progress = clamp(1.0 - p.life / p.max_life)
             envelope = math.sin(math.pi * progress)  # 0 -> 1 -> 0
-            radius = max(1, int((1 + envelope * 5) * size_scale))
-            color = scale_color(themed_color(scheme, p.hue, PALETTE, phase), 0.4 + envelope)
+            radius = max(1, int((_POP_RADIUS_BASE + envelope * _POP_RADIUS_GROWTH) * size_scale))
+            color = scale_color(
+                themed_color(scheme, p.hue, PALETTE, phase), PARTICLE_BRIGHTNESS_FLOOR + envelope
+            )
             x = int(cx + math.cos(p.theta) * p.r * scale)
             y = int(cy + math.sin(p.theta) * p.r * scale)
             pygame.draw.circle(surface, color, (x, y), radius)

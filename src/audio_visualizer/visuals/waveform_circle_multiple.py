@@ -12,8 +12,14 @@ import numpy as np
 import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
-from audio_visualizer.config import CIRCLE_WAVE_AMPLITUDE
-from audio_visualizer.visuals._helpers import draw_ring, ring_points
+from audio_visualizer.config import (
+    CIRCLE_INNER_FRACTION,
+    CIRCLE_OUTER_FRACTION,
+    CIRCLE_RING_AMP_BASE,
+    CIRCLE_RING_AMP_FACTOR,
+    CIRCLE_WAVE_AMPLITUDE,
+)
+from audio_visualizer.visuals._helpers import draw_ring, range_energies, ring_points
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
 
@@ -69,33 +75,21 @@ class WaveformCircleMultiple(BaseVisualizer):
         spacing = self.option("spacing")
         width = int(self.option("thickness"))
 
-        inner = half * 0.12 * size
-        gap = (half * 0.82 * size - inner) / max(1, rings)
-        gap *= spacing
-        amplitude = half * CIRCLE_WAVE_AMPLITUDE * 0.6 * size
+        inner = half * CIRCLE_INNER_FRACTION * size
+        gap = ((half * CIRCLE_OUTER_FRACTION * size - inner) / max(1, rings)) * spacing
+        amplitude = half * CIRCLE_WAVE_AMPLITUDE * CIRCLE_RING_AMP_FACTOR * size
 
         if frame is None or frame.is_silent:
             samples = np.zeros(_RING_POINTS, dtype=np.float32)
             energies = np.zeros(rings, dtype=np.float32)
         else:
             samples = frame.waveform_mono
-            energies = self._range_energies(frame.band_energies, rings)
+            energies = range_energies(frame.band_energies, rings)
 
         scheme = self.theme.color_scheme
         phase = self.theme.color_phase
         for i in range(rings):
             base_r = inner + (i + 1) * gap
-            amp_i = amplitude * (0.4 + float(energies[i]))
+            amp_i = amplitude * (CIRCLE_RING_AMP_BASE + float(energies[i]))
             points = ring_points(cx, cy, base_r, amp_i, samples, _RING_POINTS)
             draw_ring(surface, scheme, phase, points, width, hue_offset=i / max(1, rings))
-
-    @staticmethod
-    def _range_energies(bands: np.ndarray, rings: int) -> np.ndarray:
-        """Mean energy of each of ``rings`` equal slices of the spectrum."""
-        if bands.size == 0:
-            return np.zeros(rings, dtype=np.float32)
-        edges = np.linspace(0, bands.size, rings + 1).astype(int)
-        return np.array(
-            [bands[edges[i] : max(edges[i] + 1, edges[i + 1])].mean() for i in range(rings)],
-            dtype=np.float32,
-        )

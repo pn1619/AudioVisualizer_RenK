@@ -15,7 +15,13 @@ import numpy as np
 import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
-from audio_visualizer.config import COLOR_ACCENT, PALETTE
+from audio_visualizer.config import (
+    COLOR_ACCENT,
+    IDLE_LINE_HUE,
+    PALETTE,
+    PARTICLE_BRIGHTNESS_FLOOR,
+    REDUCE_MOTION_BURST_DIVISOR,
+)
 from audio_visualizer.visuals._helpers import clamp, rainbow_color, scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
@@ -24,6 +30,18 @@ _POP_MAX = 260
 _POP_MAX_REDUCED = 80
 _POP_BURST = 10
 _POP_LIFETIME = 0.7
+# Peak trace height as a fraction of the half-canvas-height.
+_AMPLITUDE_FRACTION = 0.9
+# Spawn count scales with this * rms + onset (clamped to 0..1).
+_SPAWN_RMS_GAIN = 1.2
+# Pop initial vertical speed = this base + rms * gain (normalized units/sec).
+_POP_SPEED_BASE = 0.10
+_POP_SPEED_RMS_GAIN = 0.25
+# A spark sits this far off the line (fraction) for a full-scale sample.
+_POP_OFFSET_FRACTION = 0.45
+# Pop radius (px) = base + envelope * growth, scaled by the size control.
+_POP_RADIUS_BASE = 1
+_POP_RADIUS_GROWTH = 5
 
 _POP_RATE = ModeOption(
     "pop_rate",
@@ -90,7 +108,7 @@ class Waveform2(BaseVisualizer):
         colored = scheme != "classic"
         width = int(self.option("thickness"))
         if frame is None or frame.is_silent:
-            color = rainbow_color(0.5 + phase) if colored else COLOR_ACCENT
+            color = rainbow_color(IDLE_LINE_HUE + phase) if colored else COLOR_ACCENT
             pygame.draw.line(surface, color, (0, mid), (w, mid), width)
             return
         samples = frame.waveform_mono
@@ -100,7 +118,7 @@ class Waveform2(BaseVisualizer):
         pts = samples[::step]
         n = pts.size
         xs = np.linspace(0, w, n)
-        ys = mid - pts * (mid * 0.9)
+        ys = mid - pts * (mid * _AMPLITUDE_FRACTION)
         points = [(float(x), float(y)) for x, y in zip(xs, ys, strict=False)]
         if colored:
             for i in range(len(points) - 1):
@@ -117,16 +135,18 @@ class Waveform2(BaseVisualizer):
         samples = frame.waveform_mono
         if samples.size < 2:
             return
-        base = _POP_BURST // 3 if self.reduce_motion else _POP_BURST
-        count = int(base * self.option("pop_rate") * clamp(frame.rms * 1.2 + frame.onset))
+        base = _POP_BURST // REDUCE_MOTION_BURST_DIVISOR if self.reduce_motion else _POP_BURST
+        count = int(
+            base * self.option("pop_rate") * clamp(frame.rms * _SPAWN_RMS_GAIN + frame.onset)
+        )
         for _ in range(count):
             if len(self._pops) >= self._cap:
                 break
             x = self._rng.random()
             value = self._sample_at(samples, x)
-            y = 0.5 - value * 0.45
+            y = 0.5 - value * _POP_OFFSET_FRACTION
             direction = -1.0 if value >= 0 else 1.0  # pop away from the center line
-            speed = 0.10 + frame.rms * 0.25
+            speed = _POP_SPEED_BASE + frame.rms * _POP_SPEED_RMS_GAIN
             self._pops.append(
                 _Pop(
                     x=x,
@@ -155,6 +175,10 @@ class Waveform2(BaseVisualizer):
         for p in self._pops:
             progress = clamp(1.0 - p.life / p.max_life)
             envelope = math.sin(math.pi * progress)  # 0 -> 1 -> 0 (pop in/out)
-            radius = max(1, int((1 + envelope * 5) * self.theme.size_scale))
-            color = scale_color(themed_color(scheme, p.hue, PALETTE, phase), 0.4 + envelope)
+            radius = max(
+                1, int((_POP_RADIUS_BASE + envelope * _POP_RADIUS_GROWTH) * self.theme.size_scale)
+            )
+            color = scale_color(
+                themed_color(scheme, p.hue, PALETTE, phase), PARTICLE_BRIGHTNESS_FLOOR + envelope
+            )
             pygame.draw.circle(surface, color, (int(p.x * w), int(p.y * h)), radius)

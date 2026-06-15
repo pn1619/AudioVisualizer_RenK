@@ -11,6 +11,34 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.07.00` — Phase 7: docs, maintainability & magic-number cleanup
+
+No user-facing behavior change — clarity and maintainability only.
+
+**Delivered**
+- **New doc `plan/architecture-and-code-flow.md`** — the detailed "how it works": startup
+  and per-frame flows, the threading model, the audio/DSP/visual/UI frameworks, mermaid
+  diagrams, conventions, and a "where to start reading" map. Linked from the layout doc.
+- **Magic numbers → named constants (a common, documented home).** A two-tier policy:
+  shared/cross-mode tunables as `UPPER_SNAKE_CASE` in `config.py` (new
+  `REDUCE_MOTION_BURST_DIVISOR`, `IDLE_LINE_HUE`, `PARTICLE_BRIGHTNESS_FLOOR`, `CIRCLE_*`
+  layout fractions, `SMOOTHING_*_AT_0/1`, `SENSITIVITY_MIN/MAX/STEP`); mode-local "feel"
+  numbers as commented `_UPPER_SNAKE` module constants. Inline literals removed across the
+  modes, `_helpers.py`, and `app.py`.
+- **Refactor:** deduplicated the per-band slicing into `_helpers.range_energies` (was copied
+  in both multi-ring modes); added/extended docstrings; small readability cleanups.
+- **Convention codified** in `.cursor/rules/python-coding-style.mdc`; docs/SKILL synced.
+- **Formatting decision:** kept the locked **black + ruff** toolchain (PEP 8). The requested
+  space-inside-brackets style is incompatible with black/ruff-format and was declined; the
+  readability effort went into names, docstrings, and structure instead.
+
+**Tests / verification**
+- `tools\test.ps1` → **69 passed** (value-preserving refactor; suite unchanged).
+- `tools\lint.ps1` → ruff **clean**, black **clean**, mypy **clean**.
+- `python -m audio_visualizer --selftest` → exit **0**.
+
+---
+
 ## `00.06.00` — Phase 6: continuous Rainbow+, idle delay & circular waveforms
 
 **Delivered**
