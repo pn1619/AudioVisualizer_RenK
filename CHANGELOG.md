@@ -11,6 +11,31 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.08.00` — Phase 8: Light Show 2, Laser 2 & particle trails
+
+**Delivered**
+- **New mode `lightshow_2` (Light Show 2)** — radial beams built from many pulsing
+  particles (per-beam **bead** count is an option); each bead swells/shrinks with the
+  music. Beams rotate and grow with energy. The pulsing **core** is selectable between
+  **Disc / Hollow / Waveform / Burst** shapes. When **Emit** is on, beam tips shoot out
+  smaller free particles.
+- **New mode `laser_2` (Laser 2)** — rotating beams plus a selectable parametric
+  **figure**: **Lissajous / Rose / Star / Spiral / Heart** (all energy-driven). When
+  **Emit** is on, the beams shoot out particles.
+- **Particle trails (shadow trails)** — a shared **Trail** option (Off/On). When on,
+  emitted particles leave a trail of fading, shrinking "shadows". Implemented once as
+  the reusable `SparkField` + `TRAIL_OPTION` in `visuals/_helpers.py`.
+- **14 modes total.**
+
+**Tests / verification**
+- `tools\test.ps1` → **90 passed** (adds `test_visuals_phase8.py`: `SparkField`
+  spawn/advance/decay/cap/trail + render paths, both modes render loud/idle/tiny, all
+  core shapes, all figure shapes, Emit spawns sparks, reduce-motion disables emission).
+- `tools\lint.ps1` → ruff **clean**, black **clean**, mypy **clean**.
+- `--selftest --mode lightshow_2` and `--mode laser_2` → exit **0**.
+
+---
+
 ## `00.07.00` — Phase 7: docs, maintainability & magic-number cleanup
 
 No user-facing behavior change — clarity and maintainability only.
