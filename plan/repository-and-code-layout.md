@@ -1,6 +1,6 @@
 # Repository & Code Layout
 
-Companion to `plan/audio-visualizer-plan.md`. Defines the **exact folder tree**, **each module's job**, and **how the pieces connect**. Keep this file in sync with the code.
+Companion to `plan/audio-visualizer-plan.md`. Defines the **exact folder tree**, **each module's job**, and **how the pieces connect**. Keep this file in sync with the code. For the detailed *runtime* flow (per-frame loop, threading, frameworks, diagrams) see **`plan/architecture-and-code-flow.md`**.
 
 > Principle: clear boundaries, small files, one responsibility each. Adding a visual mode should mean **adding one file**, not editing five.
 
@@ -55,11 +55,20 @@ AudioVisualizer/
 │        ├─ controls.py         # two-row control bar: buttons + chips + color/option dropdowns
 │        └─ hud.py              # status line + debug overlay (F3)
 │
-├─ tests/
+├─ tests/                       # headless (SDL dummy drivers); see plan/testing.md
+│  ├─ conftest.py               # shared fixtures + headless env setup
 │  ├─ test_analysis.py          # FFT/RMS/bands on synthetic signals
+│  ├─ test_onset.py             # spectral-flux onset triggering
 │  ├─ test_frame.py             # AnalysisFrame shape/immutability
+│  ├─ test_source.py            # int16/float32 + stereo→mono; SyntheticSource
+│  ├─ test_registry.py          # discover()/ordering/auto-register a drop-in
+│  ├─ test_visuals.py           # every mode draws at many sizes + frame=None
+│  ├─ test_particles.py         # deterministic particle update under a seed
+│  ├─ test_dropdown.py          # dropdown open/select/click-outside
 │  ├─ test_ui_logic.py          # button hit-test, mode cycling wrap
-│  └─ test_smoke.py             # headless App build + N ticks (dummy SDL drivers)
+│  ├─ test_settings.py          # round-trip + corrupt/old schema → defaults
+│  ├─ test_visuals_phase{3,4,5,6}.py  # per-phase visual/option/color coverage
+│  └─ test_smoke.py             # headless App build + N ticks (incl. idle/resize)
 │
 ├─ tools/
 │  ├─ _Common.ps1               # shared banner / next-steps helpers (dot-sourced)
@@ -104,7 +113,7 @@ AudioVisualizer/
 Entry point. Parse CLI args (`--debug`, `--mode`, `--selftest`, `--device`, `--version`), configure `logging`, **install a global `sys.excepthook`** that logs the traceback to `logs/app.log` before exit, set DPI awareness via `platform_win`, construct `App`, run it. No business logic.
 
 ### `config.py`
-Plain constants and defaults only (no logic): `APP_VERSION`, `SAMPLE_RATE_FALLBACK`, `FFT_SIZE`, `HOP`, `BAND_COUNT`, `MIN_HZ`, `MAX_HZ`, `TARGET_FPS`, color palette, smoothing factors, window size. Mode keys live here as `UPPER_SNAKE` constants (e.g. `MODE_WAVEFORM = "waveform"`).
+Plain constants and defaults only (no logic): `APP_VERSION`, `SAMPLE_RATE_FALLBACK`, `FFT_SIZE`, `HOP`, `BAND_COUNT`, `MIN_HZ`, `MAX_HZ`, `TARGET_FPS`, color palette, smoothing factors, sensitivity range, window size, and the **shared visual tunables** (theme ranges, particle/snow caps, `REDUCE_MOTION_BURST_DIVISOR`, `IDLE_LINE_HUE`, circle-layout fractions, …). **Magic-number policy:** shared/cross-mode tunables live here as `UPPER_SNAKE_CASE`; mode-local "feel" numbers live as commented `_UPPER_SNAKE` constants atop their mode file. **Mode keys do *not* live here** — they're declared on each class via `@register(key=...)` (the registry is the single source of truth).
 
 ### `settings.py`
 Load/save user settings as JSON at `%APPDATA%\AudioVisualizer\settings.json`. Includes `schema_version`; on load, **migrate or fall back to defaults** for unknown/corrupt files (never crash). Persists active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, and first-run-notice acknowledgement.
@@ -136,7 +145,7 @@ The plugin mechanism — **no central list to maintain**:
 `App` calls `discover()` once, then cycles/selects by key. **Adding a mode = add one file; the registry needs no edit.**
 
 ### `visuals/_helpers.py`
-Shared, reusable drawing utilities so new modes don't reinvent primitives: color helpers (`lerp_color`, `palette_color`, `scale_color`, `rainbow_color` — which wraps hue with `t % 1.0` so Rainbow+ is continuous, `themed_color(scheme, t, palette, phase)`) and the circular-waveform helpers `ring_points`, `draw_ring`, and the reusable `RingPops` pop-particle field. Leading underscore → **skipped by `discover()`**.
+Shared, reusable drawing utilities so new modes don't reinvent primitives: color helpers (`lerp_color`, `palette_color`, `scale_color`, `rainbow_color` — which wraps hue with `t % 1.0` so Rainbow+ is continuous, `themed_color(scheme, t, palette, phase)`), the spectrum-slicing helper `range_energies(bands, slices)` (shared by the multi-ring modes), and the circular-waveform helpers `ring_points`, `draw_ring`, and the reusable `RingPops` pop-particle field. Leading underscore → **skipped by `discover()`**.
 
 ### `visuals/*.py` (the modes)
 Each mode = **one file**: subclass `BaseVisualizer`, decorate with `@register`, implement `draw`. `waveform` draws the mono line; `spectrum` draws log bars + peak caps; `lightshow` draws radial beams + bloom; `particles` and `laser` are Phase 2. A mode that raises during `draw` is caught by `App` (logged + fail-soft), never crashing the app.
@@ -195,7 +204,7 @@ The **wiring**: owns the pygame window, the `AudioSource`, the `Analyzer`, the a
 ## 4. Naming & macros
 
 - **Visual-mode keys** are declared **once** on the mode class via `@register(key=...)` (single source of truth, referenced through the registry — not a scattered magic string). This is what makes "add a mode = one file" true (no `config.py` edit needed per mode).
-- **Other tunable parameter names** (FFT size, sensitivity, smoothing, colors, FPS) remain **`UPPER_SNAKE_CASE` constants in `config.py`** — never scatter magic strings (e.g. `FFT_SIZE`, `PARAM_SENSITIVITY`).
+- **Other tunable parameter names** (FFT size, sensitivity, smoothing, colors, FPS) remain **`UPPER_SNAKE_CASE` constants in `config.py`** — never scatter magic numbers/strings (e.g. `FFT_SIZE`, `SENSITIVITY_STEP`). *Mode-local* feel numbers may instead be commented `_UPPER_SNAKE` constants at the top of that mode's file (see the magic-number policy in `config.py` and the coding-style rule).
 - Files match their primary type/role (`button.py` → `Button`).
 
 ## 4.1 Recipe: add a visual mode (one file, zero wiring)

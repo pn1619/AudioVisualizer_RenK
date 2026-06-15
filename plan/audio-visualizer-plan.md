@@ -303,6 +303,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 - **Phase 4 — Tunables & UX:** shared `Theme` (particle **size**, animation **speed**, **color scheme** incl. rainbow) applied live across modes and persisted; **mode-picker dropdown**; new **Waveform 2** mode (waveform + popping particles). 8 modes total.
 - **Phase 5 — Per-mode options & color picker:** per-mode option dropdowns (`BaseVisualizer.OPTIONS`); snowfall **Fall**/**Wind**/**Density** split; **inline value chips**; **color dropdown** with time-animated **Rainbow+**.
 - **Phase 6 — Circular waveforms & polish:** **continuous Rainbow+** (seamless hue wrap); **debounced 5 s** "no audio" banner that never auto-quits; Particles Spiral **Size**/**Spacing**; four **circular waveform** modes (single / +particles / multi-ring / multi-ring +particles). **12 modes** total.
+- **Phase 7 — Docs & maintainability (no behavior change):** new `architecture-and-code-flow.md` (runtime flows + framework diagrams); magic numbers replaced by named constants under a documented two-tier policy; `_range_energies` deduped into `_helpers.range_energies`; docstrings/cleanups. Formatting stays black/ruff.
 
 ---
 
@@ -328,6 +329,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 16 | **Shared `Theme` (size / speed / color scheme)** passed live to every mode + a **mode-picker dropdown** | One small, persisted tunable surface that applies instantly across modes; dropdown scales past the `1`–`9` keys as modes grow (Phase 4) |
 | 17 | **Per-mode options** via `BaseVisualizer.OPTIONS` (discrete `ModeOption` choices) rendered as dropdowns; **inline value chips**; **color dropdown** with time-animated **rainbow+** (`Theme.color_phase`) | Each mode keeps its own knobs without a central list (still one file per mode); showing values makes Sensitivity/Smoothing/etc. self-explanatory; rainbow+ animates color over time per request (Phase 5) |
 | 18 | **Rainbow+ wraps hue before clamping** (`t % 1.0`); **idle banner debounced 5 s** and **never auto-quits**; **circular waveform** modes share `ring_points`/`draw_ring`/`RingPops` in `_helpers.py` | Pre-clamp modulo was sticking the sweep at red (discontinuous); brief track gaps shouldn't flash the banner and silence must not close the app; circular modes reuse shared helpers so each is still one small file (Phase 6) |
+| 19 | **Two-tier magic-number policy** (shared/cross-mode tunables `UPPER_SNAKE_CASE` in `config.py`; mode-local "feel" numbers as commented `_UPPER_SNAKE` module constants) + new **`architecture-and-code-flow.md`**; **kept black/ruff** and **declined the space-inside-brackets** style | Removes unexplained literals while keeping tunables both discoverable *and* close to use; the locked formatter (black/ruff-format) strips inside-bracket spacing (E201/E211) and no mainstream formatter supports it, so honoring the request would break pre-commit/CI (Phase 7) |
 
 **Open questions** (record answers as they're decided):
 

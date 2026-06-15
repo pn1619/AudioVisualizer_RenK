@@ -24,6 +24,20 @@ from audio_visualizer.visuals._helpers import scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
 
+# Per-flake random ranges (all as fractions of the min canvas side / per second).
+_SIZE_RANGE = (0.003, 0.010)  # base flake radius
+_FALL_RANGE = (0.05, 0.18)  # downward speed
+_SWAY_RANGE = (0.01, 0.05)  # gentle horizontal sway amplitude
+# Oscillation rates (Hz) for the global wind direction and per-flake sway.
+_WIND_DRIFT_HZ = 0.3
+_SWAY_HZ = 1.5
+# Flake count for the "High" density choice.
+_HIGH_DENSITY = 360
+# Fraction of the spectrum (lowest 1/Nth) treated as "bass" for the wind driver.
+_LOW_BAND_FRACTION = 12
+# Flake brightness multiplier (slightly dimmed so the field reads as soft snow).
+_FLAKE_BRIGHTNESS = 0.85
+
 _FALL_SPEED = ModeOption(
     "fall_speed",
     "Fall",
@@ -42,7 +56,7 @@ _DENSITY = ModeOption(
     (
         OptionChoice("Low", SNOW_FLAKES_REDUCED),
         OptionChoice("Medium", SNOW_FLAKES),
-        OptionChoice("High", 360),
+        OptionChoice("High", _HIGH_DENSITY),
     ),
     default_index=1,
 )
@@ -74,10 +88,10 @@ class Snowfall(BaseVisualizer):
         n = self._count
         self._x = rng.random(n).astype(np.float32)
         self._y = rng.random(n).astype(np.float32)
-        self._size = rng.uniform(0.003, 0.010, n).astype(np.float32)  # fraction of min side
+        self._size = rng.uniform(*_SIZE_RANGE, n).astype(np.float32)  # fraction of min side
         self._hue = rng.random(n).astype(np.float32)
-        self._fall = rng.uniform(0.05, 0.18, n).astype(np.float32)  # per second
-        self._sway = rng.uniform(0.01, 0.05, n).astype(np.float32)
+        self._fall = rng.uniform(*_FALL_RANGE, n).astype(np.float32)  # per second
+        self._sway = rng.uniform(*_SWAY_RANGE, n).astype(np.float32)
         self._phase = rng.uniform(0.0, 2.0 * np.pi, n).astype(np.float32)
 
     def on_enter(self) -> None:
@@ -97,11 +111,12 @@ class Snowfall(BaseVisualizer):
         wind_speed = self.option("wind_speed")
         low, size_energy = self._band_drivers(frame)
         wind_scale = SNOW_WIND_SCALE_REDUCED if self.reduce_motion else SNOW_WIND_SCALE
-        wind = low * wind_scale * float(np.sin(self._t * 0.3)) * wind_speed
+        wind = low * wind_scale * float(np.sin(self._t * _WIND_DRIFT_HZ)) * wind_speed
 
         move_dt = dt * self.theme.speed_scale
         self._y += self._fall * fall_speed * move_dt
-        self._x += (wind + self._sway * wind_speed * np.sin(self._t * 1.5 + self._phase)) * move_dt
+        sway = self._sway * wind_speed * np.sin(self._t * _SWAY_HZ + self._phase)
+        self._x += (wind + sway) * move_dt
         self._y = np.where(self._y > 1.0, self._y - 1.0, self._y)
         self._x = np.mod(self._x, 1.0)
 
@@ -113,7 +128,8 @@ class Snowfall(BaseVisualizer):
         )
         for i in range(self._x.size):
             radius = max(1, int(radii[i]))
-            color = scale_color(themed_color(scheme, float(self._hue[i]), PALETTE, phase), 0.85)
+            base = themed_color(scheme, float(self._hue[i]), PALETTE, phase)
+            color = scale_color(base, _FLAKE_BRIGHTNESS)
             pygame.draw.circle(surface, color, (int(self._x[i] * w), int(self._y[i] * h)), radius)
 
     @staticmethod
@@ -124,7 +140,7 @@ class Snowfall(BaseVisualizer):
         bands = frame.band_energies
         if bands.size == 0:
             return 0.0, 0.0
-        low = float(bands[: max(1, bands.size // 12)].mean())
+        low = float(bands[: max(1, bands.size // _LOW_BAND_FRACTION)].mean())
         lo, hi = bands.size // 3, 2 * bands.size // 3
         size_energy = float(bands[lo:hi].mean()) if hi > lo else 0.0
         return low, size_energy

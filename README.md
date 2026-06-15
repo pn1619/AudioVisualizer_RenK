@@ -8,11 +8,13 @@ Visual modes: **waveform, waveform 2, waveform circle (x4), spectrum, light show
 particles, laser, snowfall, and particles spiral** — 12 total; adding a mode is one
 drop-in file.
 
-> Status: **Phase 6 (v `00.06.00`)** — **continuous Rainbow+**, a debounced (5 s)
-> "no audio" banner that **never auto-quits**, Particles Spiral **size/spacing** options,
-> and **four circular waveform modes** (single, +particles, multi-ring, multi-ring +
-> particles). On top of Phase 5's per-mode option dropdowns, value chips, and color
-> dropdown. See `plan/development-phases.md` for the roadmap.
+> Status: **Phase 7 (v `00.07.00`)** — a maintainability pass: a new
+> `plan/architecture-and-code-flow.md` (detailed runtime flows + framework diagrams),
+> magic numbers replaced by named constants (shared ones in `config.py`, mode-local ones
+> as commented module constants), and small refactors/docstrings — **no behavior change**.
+> Builds on Phase 6's continuous Rainbow+, debounced (5 s) "no audio" banner, Particles
+> Spiral size/spacing options, and **four circular waveform modes** (12 modes total). See
+> `plan/development-phases.md` for the roadmap and `plan/architecture-and-code-flow.md` for how it works.
 
 ## Requirements
 
@@ -101,6 +103,8 @@ auto-discovered, no other edits required.
 
 ## License
 
-AudioVisualizer is released under the MIT License (see `LICENSE`). Bundled
-third-party components and their licenses are listed in `THIRD-PARTY-NOTICES.md`
-(pygame is LGPL; numpy, pyaudiowpatch, and PortAudio are BSD/MIT-style).
+AudioVisualizer is proprietary software — all rights reserved (see `LICENSE`).
+No use, copying, or distribution is permitted without the copyright holder's
+written consent. Bundled third-party components keep their own licenses and are
+listed in `THIRD-PARTY-NOTICES.md` (pygame is LGPL; numpy, pyaudiowpatch, and
+PortAudio are BSD/MIT-style).

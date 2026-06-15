@@ -5,12 +5,18 @@ Version scheme ``PP.FF.BB``:
     FF  development phase (``00`` = Phase 0/0.5, ``01`` = Phase 1, ...)
     BB  build/iteration within that phase
 So ``00.01.00`` == "Phase 1, build 0". See plan/development-phases.md.
+
+Magic-number policy (see .cursor/rules/python-coding-style.mdc):
+    - **Shared / global / cross-mode** tunables live here as ``UPPER_SNAKE_CASE``.
+    - **Mode-local "feel" numbers** live as commented ``_UPPER_SNAKE`` module
+      constants at the top of that mode's file (close to where they're used).
+    Either way, no unexplained literals sit inside logic.
 """
 
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.06.00"
+APP_VERSION = "00.07.00"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
@@ -56,6 +62,16 @@ SMOOTH_RELEASE = 0.15
 # attack/release coefficients (higher level -> slower release -> smoother).
 SMOOTHING_DEFAULT = 0.5
 SMOOTHING_STEP = 0.1
+# Endpoints the 0..1 smoothing level interpolates between (see App._smoothing_to_coeffs).
+SMOOTHING_ATTACK_AT_0 = 0.85  # snappy: fast attack at level 0
+SMOOTHING_ATTACK_AT_1 = 0.35  # smooth: slower attack at level 1
+SMOOTHING_RELEASE_AT_0 = 0.35
+SMOOTHING_RELEASE_AT_1 = 0.04  # very slow release -> calm decay at level 1
+
+# Sensitivity multiplies band energies before display (clamped to 0..1 after).
+SENSITIVITY_MIN = 0.25
+SENSITIVITY_MAX = 4.0
+SENSITIVITY_STEP = 0.25
 
 # --- Visual theme tunables (shared across modes, adjustable at runtime) --------
 # Global multiplier on particle/flake sizes.
@@ -92,6 +108,14 @@ ONSET_THRESHOLD = 0.35
 
 # Below this RMS we consider the signal "silent" (idle state).
 IDLE_RMS_THRESHOLD = 1e-3
+
+# --- Shared visual rendering constants (used across several modes) ------------
+# Onset bursts are divided by this when reduce-motion is on (calmer, fewer sparks).
+REDUCE_MOTION_BURST_DIVISOR = 3
+# Hue used for the idle (silent) line/ring under rainbow color schemes.
+IDLE_LINE_HUE = 0.5
+# Minimum brightness multiplier for a live particle (so sparks never go fully dark).
+PARTICLE_BRIGHTNESS_FLOOR = 0.4
 # Show the "No audio detected" banner only after the signal has been silent this
 # long (seconds). Brief gaps between tracks shouldn't flash the banner; the app
 # never auto-quits on silence — the user quits when they want.
@@ -104,6 +128,13 @@ CIRCLE_BASE_RADIUS = 0.32
 CIRCLE_WAVE_AMPLITUDE = 0.18
 # Multi-ring mode: how many concentric rings the user may stack.
 CIRCLE_RINGS_MAX = 10
+# Multi-ring layout (fractions of half the min side): innermost ring radius and the
+# outer bound that the rings are spread across before the Spacing option is applied.
+CIRCLE_INNER_FRACTION = 0.12
+CIRCLE_OUTER_FRACTION = 0.82
+# Per-ring wobble = (this base + ring energy) * the shared wave amplitude * this factor.
+CIRCLE_RING_AMP_BASE = 0.4
+CIRCLE_RING_AMP_FACTOR = 0.6
 
 # --- Particles ----------------------------------------------------------------
 PARTICLE_MAX = 600

@@ -11,7 +11,14 @@ from audio_visualizer.visuals._helpers import themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
+# How fast the peak-hold cap falls back down, in energy-fraction per second.
 _PEAK_FALL_PER_SEC = 0.6
+# Pixels of headroom kept above the tallest possible bar.
+_TOP_MARGIN_PX = 4
+# Thickness of the peak-hold cap line, in pixels.
+_CAP_HEIGHT_PX = 2
+# Near-white color for the peak-hold caps.
+_CAP_COLOR = (235, 235, 245)
 
 _CAPS = ModeOption("caps", "Caps", (OptionChoice("On", 1), OptionChoice("Off", 0)), default_index=0)
 _GAP = ModeOption(
@@ -54,13 +61,14 @@ class Spectrum(BaseVisualizer):
         show_caps = self.option("caps") >= 1
         gap = int(self.option("gap"))
         bar_w = max(1.0, (w - gap * (count + 1)) / count)
+        usable_h = h - _TOP_MARGIN_PX
         for i in range(count):
             x = gap + i * (bar_w + gap)
             energy = float(bands[i])
-            bar_h = energy * (h - 4)
+            bar_h = energy * usable_h
             color = themed_color(scheme, i / max(1, count - 1), PALETTE, phase)
             if bar_h >= 1:
                 pygame.draw.rect(surface, color, (x, h - bar_h, bar_w, bar_h))
             if show_caps:
-                cap_y = h - float(self._peaks[i]) * (h - 4)
-                pygame.draw.rect(surface, (235, 235, 245), (x, cap_y, bar_w, 2))
+                cap_y = h - float(self._peaks[i]) * usable_h
+                pygame.draw.rect(surface, _CAP_COLOR, (x, cap_y, bar_w, _CAP_HEIGHT_PX))

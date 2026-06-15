@@ -27,9 +27,16 @@ from audio_visualizer.config import (
     FFT_SIZE,
     IDLE_BANNER_DELAY,
     MIN_WINDOW_SIZE,
+    SENSITIVITY_MAX,
+    SENSITIVITY_MIN,
+    SENSITIVITY_STEP,
     SIZE_SCALE_MAX,
     SIZE_SCALE_MIN,
     SIZE_SCALE_STEP,
+    SMOOTHING_ATTACK_AT_0,
+    SMOOTHING_ATTACK_AT_1,
+    SMOOTHING_RELEASE_AT_0,
+    SMOOTHING_RELEASE_AT_1,
     SMOOTHING_STEP,
     SPEED_SCALE_MAX,
     SPEED_SCALE_MIN,
@@ -45,17 +52,16 @@ from audio_visualizer.visuals.base import BaseVisualizer, Theme
 
 logger = logging.getLogger(__name__)
 
-_SENS_MIN, _SENS_MAX, _SENS_STEP = 0.25, 4.0, 0.25
-
 
 def _smoothing_to_coeffs(level: float) -> tuple[float, float]:
     """Map a 0..1 smoothing level to (attack, release) coefficients.
 
-    Higher level -> slower release -> smoother, calmer visuals.
+    Linearly interpolates between the "snappy" endpoints (level 0) and the
+    "smooth" endpoints (level 1). Higher level -> slower release -> calmer visuals.
     """
     level = float(np.clip(level, 0.0, 1.0))
-    attack = 0.85 + (0.35 - 0.85) * level
-    release = 0.35 + (0.04 - 0.35) * level
+    attack = SMOOTHING_ATTACK_AT_0 + (SMOOTHING_ATTACK_AT_1 - SMOOTHING_ATTACK_AT_0) * level
+    release = SMOOTHING_RELEASE_AT_0 + (SMOOTHING_RELEASE_AT_1 - SMOOTHING_RELEASE_AT_0) * level
     return attack, release
 
 
@@ -75,7 +81,9 @@ class App:
             raise RuntimeError("No visual modes registered")
         self._mode_index = self._resolve_start_index(start_mode or self._settings.mode or None)
 
-        self._sensitivity = float(np.clip(self._settings.sensitivity, _SENS_MIN, _SENS_MAX))
+        self._sensitivity = float(
+            np.clip(self._settings.sensitivity, SENSITIVITY_MIN, SENSITIVITY_MAX)
+        )
         self._smoothing = float(np.clip(self._settings.smoothing, 0.0, 1.0))
         self._reduce_motion = self._settings.reduce_motion
         self._notice_acknowledged = self._settings.notice_acknowledged
@@ -143,8 +151,8 @@ class App:
             prev_mode=lambda: self._cycle_mode(-1),
             next_mode=lambda: self._cycle_mode(1),
             select_mode=self._set_mode_key,
-            sensitivity_down=lambda: self._adjust_sensitivity(-_SENS_STEP),
-            sensitivity_up=lambda: self._adjust_sensitivity(_SENS_STEP),
+            sensitivity_down=lambda: self._adjust_sensitivity(-SENSITIVITY_STEP),
+            sensitivity_up=lambda: self._adjust_sensitivity(SENSITIVITY_STEP),
             smoothing_down=lambda: self._adjust_smoothing(-SMOOTHING_STEP),
             smoothing_up=lambda: self._adjust_smoothing(SMOOTHING_STEP),
             size_down=lambda: self._adjust_size(-SIZE_SCALE_STEP),
@@ -245,7 +253,9 @@ class App:
         logger.debug("Mode %s option %s = %d", self._visual.KEY, key, index)
 
     def _adjust_sensitivity(self, delta: float) -> None:
-        self._sensitivity = float(np.clip(self._sensitivity + delta, _SENS_MIN, _SENS_MAX))
+        self._sensitivity = float(
+            np.clip(self._sensitivity + delta, SENSITIVITY_MIN, SENSITIVITY_MAX)
+        )
         logger.debug("Sensitivity = %.2f", self._sensitivity)
 
     def _adjust_smoothing(self, delta: float) -> None:
@@ -346,9 +356,9 @@ class App:
         elif key == pygame.K_F3:
             self._hud.toggle_debug()
         elif key in (pygame.K_MINUS, pygame.K_KP_MINUS):
-            self._adjust_sensitivity(-_SENS_STEP)
+            self._adjust_sensitivity(-SENSITIVITY_STEP)
         elif key in (pygame.K_EQUALS, pygame.K_PLUS, pygame.K_KP_PLUS):
-            self._adjust_sensitivity(_SENS_STEP)
+            self._adjust_sensitivity(SENSITIVITY_STEP)
         elif key == pygame.K_COMMA:
             self._adjust_smoothing(-SMOOTHING_STEP)
         elif key == pygame.K_PERIOD:

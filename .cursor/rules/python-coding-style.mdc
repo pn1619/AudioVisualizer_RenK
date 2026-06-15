@@ -38,6 +38,15 @@ All contributors and agents follow this. Tools enforce it: **ruff** (lint) + **b
 - Names read as the action performed. No "god functions"; the main loop **delegates**.
 - DSP helpers are **pure** (no side effects) so they are easy to test.
 
+## Constants & magic numbers
+
+- **No unexplained numeric/string literals in logic.** Give every "feel"/threshold/scale a name.
+- **Two-tier home (be consistent):**
+  - **Shared / global / cross-mode** tunables → `UPPER_SNAKE_CASE` in **`config.py`**, in a commented, grouped section (e.g. `REDUCE_MOTION_BURST_DIVISOR`, `IDLE_LINE_HUE`, `CIRCLE_INNER_FRACTION`).
+  - **Mode-local "feel" numbers** → commented `_UPPER_SNAKE` **module constants at the top of that mode's file**, close to where they're used (e.g. `_ROTATE_RATE`, `_LISSAJOUS_POINTS`).
+- Structural/math literals that are not tunable (e.g. `2.0 * math.pi`, a center `/ 2.0`, `+ 1` indices, `255`) may stay inline.
+- Each named constant gets a one-line comment saying **what it controls / its units**.
+
 ## Docstrings & comments
 
 - Every public module/class/function has a **docstring**: one-line summary; add `Args:`/`Returns:`/`Raises:` when non-obvious (Google style).

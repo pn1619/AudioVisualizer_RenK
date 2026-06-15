@@ -267,7 +267,40 @@ family of circular oscilloscope modes.
 
 ---
 
-## Future phases (7+) — improvements & growth
+## Phase 7 — Docs, maintainability & magic-number cleanup (v `00.07.00`)
+
+**Goal:** make the codebase and its docs easy to onboard into and maintain — no
+user-facing behavior change. Pure clarity/quality work.
+
+### Scope
+- **Documentation refresh + deep "how it works":** new **`plan/architecture-and-code-flow.md`**
+  (startup/per-frame/threading flows, the audio/DSP/visual/UI frameworks, mermaid diagrams,
+  "where to start reading"). Sync `repository-and-code-layout.md` (test list, `config.py`
+  role, `range_energies`), `README.md`, `CHANGELOG.md`, the SKILL, and this file.
+- **Magic-number cleanup (a common, well-defined home):** a documented **two-tier policy** —
+  shared/cross-mode tunables as `UPPER_SNAKE_CASE` in `config.py` (incl. new
+  `REDUCE_MOTION_BURST_DIVISOR`, `IDLE_LINE_HUE`, `PARTICLE_BRIGHTNESS_FLOOR`,
+  `CIRCLE_*` layout fractions, `SMOOTHING_*_AT_0/1`, `SENSITIVITY_*`); mode-local "feel"
+  numbers as commented `_UPPER_SNAKE` module constants. Inline literals removed across all
+  modes, `_helpers`, `app.py`. Codified in `.cursor/rules/python-coding-style.mdc`.
+- **Refactor / clarity:** dedup `_range_energies` into `_helpers.range_energies`; add/extend
+  docstrings; small readability cleanups. **Formatting stays black/ruff** (locked toolchain;
+  the requested space-inside-brackets style is incompatible with black and was declined).
+
+### Tests
+- No new behavior, so the existing suite (69) must stay green — the refactor is value-preserving
+  (named constants keep identical values; deterministic modes unchanged).
+
+### Exit criteria
+- [x] `architecture-and-code-flow.md` exists and is linked from the layout doc; docs/SKILL/rules current.
+- [x] No unexplained literals in mode/`_helpers`/`app` logic; constants policy documented.
+- [x] lint clean, `test.ps1` green (69), `--selftest` exit 0, exe builds + self-tests.
+
+**Estimate: 0.5–1 day.** *(done — docs, constants cleanup, dedup, docstrings)*
+
+---
+
+## Future phases (8+) — improvements & growth
 
 Not scheduled; pull items in as priorities dictate. Each should still land behind tests and keep the "simple but works" bar.
 
