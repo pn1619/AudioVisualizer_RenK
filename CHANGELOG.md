@@ -11,6 +11,32 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.06.00` — Phase 6: continuous Rainbow+, idle delay & circular waveforms
+
+**Delivered**
+- **Continuous Rainbow+** — `rainbow_color` now wraps the hue **before** clamping (`t % 1.0`),
+  so the sweep is seamless (0.0 == 1.0) instead of sticking at red and jumping back.
+- **Idle banner debounce** — the "No audio detected" banner only appears after the signal
+  has been silent for `IDLE_BANNER_DELAY` (5 s); brief track gaps no longer flash it. The
+  app **never auto-quits** on silence — the user quits when they want.
+- **Particles Spiral** gains **Size** (overall circle reach) and **Spacing** (gap between
+  sparks) options, alongside the existing Swirl.
+- **Four new circular waveform modes** (now **12 modes** total):
+  - `waveform_circle` — the oscilloscope wrapped around a ring (Size, Line options).
+  - `waveform_circle_2` — the ring plus popping particles (adds Pops).
+  - `waveform_circle_multiple` — up to **10 concentric rings**, one per equal spectrum slice;
+    Rings / Size / Spacing / Line options.
+  - `waveform_circle_multiple_2` — the multi-ring mode plus per-ring popping particles.
+- Shared circular helpers in `visuals/_helpers.py`: `ring_points`, `draw_ring`, and a reusable
+  `RingPops` pop-particle field.
+
+**Tests / verification**
+- `tools\test.ps1` → **69 passed** (adds `test_visuals_phase6.py`; idle test updated for the delay).
+- `tools\lint.ps1` → ruff **clean**, black **clean**.
+- `python -m audio_visualizer --selftest` → exit **0**.
+
+---
+
 ## `00.05.00` — Phase 5: per-mode options, color dropdown & Rainbow+
 
 **Delivered**

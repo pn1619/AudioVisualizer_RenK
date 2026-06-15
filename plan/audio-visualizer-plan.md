@@ -166,6 +166,10 @@ is added or removed.
 |------|-------|-------|-------------|-----------|-------|
 | **Waveform** | `waveform` | 10 | Oscilloscope; mono samples as a line (rainbow-aware) | raw samples | Phase 1 |
 | **Waveform 2** | `waveform_2` | 15 | Waveform trace + particles popping in/out of the line | samples + RMS/onset | Phase 4 |
+| **Waveform Circle** | `waveform_circle` | 16 | Oscilloscope wrapped around a ring (Size/Line options) | raw samples | Phase 6 |
+| **Waveform Circle 2** | `waveform_circle_2` | 17 | Ring + particles popping off it | samples + RMS/onset | Phase 6 |
+| **Waveform Circle x N** | `waveform_circle_multiple` | 18 | Up to 10 concentric rings, one per equal spectrum slice | samples + bands | Phase 6 |
+| **Waveform Circle x N 2** | `waveform_circle_multiple_2` | 19 | Multi-ring + per-ring popping particles | samples + bands | Phase 6 |
 | **Spectrum** | `spectrum` | 20 | Log-spaced frequency bars + falling peak caps | FFT band energies | Phase 1 |
 | **Light Show** | `lightshow` | 30 | Radial beams from center + pulsing core | bands + RMS/peak | Phase 1 |
 | **Particles** | `particles` | 40 | Bursts spawned by onsets, pushed outward by energy | RMS, onset/flux | Phase 2 |
@@ -298,6 +302,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 - **Phase 3 — Polish & ship:** settings persistence (JSON, §11.3), first-run safety notice, device-change handling, `build-exe.ps1` single-exe with icon/version, selftest on the exe, `LICENSE` + `THIRD-PARTY-NOTICES.md` (§12), README/quickstart.
 - **Phase 4 — Tunables & UX:** shared `Theme` (particle **size**, animation **speed**, **color scheme** incl. rainbow) applied live across modes and persisted; **mode-picker dropdown**; new **Waveform 2** mode (waveform + popping particles). 8 modes total.
 - **Phase 5 — Per-mode options & color picker:** per-mode option dropdowns (`BaseVisualizer.OPTIONS`); snowfall **Fall**/**Wind**/**Density** split; **inline value chips**; **color dropdown** with time-animated **Rainbow+**.
+- **Phase 6 — Circular waveforms & polish:** **continuous Rainbow+** (seamless hue wrap); **debounced 5 s** "no audio" banner that never auto-quits; Particles Spiral **Size**/**Spacing**; four **circular waveform** modes (single / +particles / multi-ring / multi-ring +particles). **12 modes** total.
 
 ---
 
@@ -322,6 +327,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 15 | **Git flow + `PP.FF.BB` versioning + annotated per-phase tags** (`v<APP_VERSION>`, e.g. `v00.02.00`); feature branches → PR into a green `main` | Predictable history that maps 1:1 to the phased roadmap and the in-app version. Full convention in `plan/git-and-versioning.md` |
 | 16 | **Shared `Theme` (size / speed / color scheme)** passed live to every mode + a **mode-picker dropdown** | One small, persisted tunable surface that applies instantly across modes; dropdown scales past the `1`–`9` keys as modes grow (Phase 4) |
 | 17 | **Per-mode options** via `BaseVisualizer.OPTIONS` (discrete `ModeOption` choices) rendered as dropdowns; **inline value chips**; **color dropdown** with time-animated **rainbow+** (`Theme.color_phase`) | Each mode keeps its own knobs without a central list (still one file per mode); showing values makes Sensitivity/Smoothing/etc. self-explanatory; rainbow+ animates color over time per request (Phase 5) |
+| 18 | **Rainbow+ wraps hue before clamping** (`t % 1.0`); **idle banner debounced 5 s** and **never auto-quits**; **circular waveform** modes share `ring_points`/`draw_ring`/`RingPops` in `_helpers.py` | Pre-clamp modulo was sticking the sweep at red (discontinuous); brief track gaps shouldn't flash the banner and silence must not close the app; circular modes reuse shared helpers so each is still one small file (Phase 6) |
 
 **Open questions** (record answers as they're decided):
 

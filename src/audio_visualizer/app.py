@@ -25,6 +25,7 @@ from audio_visualizer.config import (
     COLOR_SCHEMES,
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
+    IDLE_BANNER_DELAY,
     MIN_WINDOW_SIZE,
     SIZE_SCALE_MAX,
     SIZE_SCALE_MIN,
@@ -107,6 +108,7 @@ class App:
         self._capturing = False
         self._error = False
         self._recover_timer = 0.0
+        self._silent_seconds = 0.0  # how long the signal has been silent
 
         self._visual: BaseVisualizer = self._make_visual()
         self._visual.on_enter()
@@ -399,6 +401,13 @@ class App:
         # Advance the shared hue phase so rainbow_plus cycles colors over time.
         self._theme.color_phase = (self._theme.color_phase + dt * COLOR_CYCLE_RATE) % 1.0
 
+        # Track how long we've been silent so the idle banner only shows after a
+        # short delay (brief track gaps shouldn't flash it). Never auto-quits.
+        if self._capturing and (self._frame is None or self._frame.is_silent):
+            self._silent_seconds += dt
+        else:
+            self._silent_seconds = 0.0
+
         canvas = self._layout.canvas
         try:
             sub = screen.subsurface(canvas)
@@ -424,7 +433,7 @@ class App:
             self._hud.draw_notice(screen, canvas, self._font, self._font_small)
 
     def _hud_state(self) -> HudState:
-        idle = self._capturing and (self._frame is None or self._frame.is_silent)
+        idle = self._capturing and self._silent_seconds >= IDLE_BANNER_DELAY
         return HudState(
             device_name=self._source.device_name if self._capturing else "",
             mode_label=self._visual.DISPLAY_NAME,

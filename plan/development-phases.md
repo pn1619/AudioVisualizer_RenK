@@ -236,7 +236,38 @@ tunables, plus a dedicated color picker with a time-animated scheme.
 
 ---
 
-## Future phases (6+) — improvements & growth
+## Phase 6 — Circular waveforms & polish (v `00.06.00`)
+
+**Goal:** smoother color cycling, calmer idle behavior, richer spiral control, and a new
+family of circular oscilloscope modes.
+
+### Scope
+- **Continuous Rainbow+** — `rainbow_color` wraps the hue with `t % 1.0` **before** any clamp
+  so the sweep is seamless (no stick-at-red discontinuity).
+- **Idle banner debounce** — `App` tracks `_silent_seconds`; the HUD idle banner only shows
+  after `IDLE_BANNER_DELAY` (5 s). Silence never auto-quits the app.
+- **Particles Spiral** options **Size** (`reach`, render radius) + **Spacing** (radial gap).
+- **Four circular waveform modes** (one file each, auto-registered): `waveform_circle`,
+  `waveform_circle_2`, `waveform_circle_multiple` (up to 10 per-band rings), and
+  `waveform_circle_multiple_2`. Shared helpers `ring_points`, `draw_ring`, `RingPops` live in
+  `visuals/_helpers.py`. **12 modes total.**
+
+### Tests
+- `test_visuals_phase6.py`: rainbow wrap continuity, spiral size/spacing options, ring helpers
+  (`ring_points`/`RingPops`), all four circle modes render (loud + idle), ring-count option.
+- `test_smoke.py`: idle banner waits for the delay and the app doesn't auto-quit on silence.
+
+### Exit criteria
+- [x] Rainbow+ cycles smoothly with no red discontinuity.
+- [x] "No audio" banner waits ~5 s; app keeps running on silence.
+- [x] Spiral Size/Spacing adjust live; four circle modes render and auto-discover (12 total).
+- [x] lint clean, `test.ps1` green (69), `--selftest` exit 0, exe builds + self-tests.
+
+**Estimate: 1–2 days.** *(done)*
+
+---
+
+## Future phases (7+) — improvements & growth
 
 Not scheduled; pull items in as priorities dictate. Each should still land behind tests and keep the "simple but works" bar.
 

@@ -31,6 +31,18 @@ _SWIRL = ModeOption(
     (OptionChoice("Gentle", 1.4), OptionChoice("Normal", 2.6), OptionChoice("Wild", 4.5)),
     default_index=1,
 )
+_REACH = ModeOption(
+    "reach",
+    "Size",
+    (OptionChoice("Small", 0.6), OptionChoice("Normal", 1.0), OptionChoice("Large", 1.5)),
+    default_index=1,
+)
+_SPACING = ModeOption(
+    "spacing",
+    "Spacing",
+    (OptionChoice("Tight", 0.6), OptionChoice("Normal", 1.0), OptionChoice("Wide", 1.8)),
+    default_index=1,
+)
 
 
 @dataclass
@@ -51,7 +63,7 @@ class ParticlesSpiral(BaseVisualizer):
     """Energy/onset spawn rate; per-band hue; reduce-motion calms and caps it."""
 
     STROBES = True
-    OPTIONS = (_SWIRL,)
+    OPTIONS = (_SWIRL, _REACH, _SPACING)
 
     def __init__(self, reduce_motion: bool = False, seed: int = 4321) -> None:
         super().__init__(reduce_motion)
@@ -83,6 +95,7 @@ class ParticlesSpiral(BaseVisualizer):
         base = SPIRAL_BURST // 3 if self.reduce_motion else SPIRAL_BURST
         n_spawn = int(base * clamp(frame.rms * 1.5 + frame.onset))
         swirl = 1.0 if self.reduce_motion else self.option("swirl")
+        spacing = self.option("spacing")
         for _ in range(n_spawn):
             if len(self._sparks) >= self._cap:
                 break
@@ -93,7 +106,7 @@ class ParticlesSpiral(BaseVisualizer):
                     r=0.02,
                     theta=self._rng.uniform(0.0, 2.0 * math.pi),
                     ang_speed=swirl * (0.4 + energy),
-                    radial_speed=0.15 + energy * 0.5,
+                    radial_speed=(0.15 + energy * 0.5) * spacing,
                     life=SPIRAL_LIFETIME,
                     max_life=SPIRAL_LIFETIME,
                     hue=bi / bands.size,
@@ -114,7 +127,7 @@ class ParticlesSpiral(BaseVisualizer):
 
     def _render(self, surface: pygame.Surface, w: int, h: int) -> None:
         cx, cy = w / 2.0, h / 2.0
-        scale = min(w, h) * 0.5
+        scale = min(w, h) * 0.5 * self.option("reach")
         scheme = self.theme.color_scheme
         phase = self.theme.color_phase
         for s in self._sparks:

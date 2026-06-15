@@ -3,6 +3,15 @@
 from __future__ import annotations
 
 import colorsys
+import math
+import random
+from dataclasses import dataclass
+
+import numpy as np
+import pygame
+from numpy.typing import NDArray
+
+from audio_visualizer.config import COLOR_ACCENT, PALETTE
 
 Color = tuple[int, int, int]
 
@@ -51,8 +60,13 @@ def scale_color(color: Color, factor: float) -> Color:
 
 
 def rainbow_color(t: float) -> Color:
-    """Full-saturation hue sweep: ``t`` in ``0..1`` maps around the color wheel."""
-    r, g, b = colorsys.hsv_to_rgb(clamp(t) % 1.0, 1.0, 1.0)
+    """Full-saturation hue sweep around the wheel; ``t`` wraps continuously.
+
+    ``t`` is taken modulo 1.0 (so 0.0 and 1.0 are the same red and the sweep is
+    seamless). Crucially we wrap **before** any clamp, so a hue past the end rolls
+    smoothly back to the start instead of sticking at red.
+    """
+    r, g, b = colorsys.hsv_to_rgb(t % 1.0, 1.0, 1.0)
     return (int(r * 255), int(g * 255), int(b * 255))
 
 
@@ -67,3 +81,132 @@ def themed_color(scheme: str, t: float, palette: tuple[Color, ...], phase: float
     if scheme == "rainbow_plus":
         return rainbow_color(t + phase)
     return palette_color(palette, t)
+
+
+# --- Circular waveform helpers (shared by the waveform-circle modes) ----------
+def resample_to(values: NDArray[np.float32], n: int) -> NDArray[np.float32]:
+    """Resample ``values`` to exactly ``n`` points (nearest-index, allocation-light)."""
+    arr = np.asarray(values, dtype=np.float32)
+    if arr.size == 0:
+        return np.zeros(n, dtype=np.float32)
+    idx = np.linspace(0, arr.size - 1, n).astype(np.int64)
+    return arr[idx]
+
+
+def ring_points(
+    cx: float,
+    cy: float,
+    base_r: float,
+    amplitude: float,
+    values: NDArray[np.float32],
+    points: int = 240,
+) -> list[tuple[float, float]]:
+    """Map ``values`` around a circle: radius = ``base_r + value * amplitude``."""
+    vals = resample_to(values, points)
+    ang = np.linspace(0.0, 2.0 * np.pi, points, endpoint=False)
+    radii = base_r + vals * amplitude
+    xs = cx + np.cos(ang) * radii
+    ys = cy + np.sin(ang) * radii
+    return [(float(x), float(y)) for x, y in zip(xs, ys, strict=False)]
+
+
+def draw_ring(
+    surface: pygame.Surface,
+    scheme: str,
+    phase: float,
+    points_list: list[tuple[float, float]],
+    width: int,
+    hue_offset: float = 0.0,
+) -> None:
+    """Draw a closed ring; colored schemes hue each segment, classic is solid accent."""
+    if len(points_list) < 2:
+        return
+    if scheme == "classic":
+        pygame.draw.lines(surface, COLOR_ACCENT, True, points_list, width)
+        return
+    n = len(points_list)
+    for i in range(n):
+        a = points_list[i]
+        b = points_list[(i + 1) % n]
+        color = themed_color(scheme, i / n + hue_offset, PALETTE, phase)
+        pygame.draw.line(surface, color, a, b, width)
+
+
+@dataclass
+class _RingPop:
+    """A spark anchored in polar space (angle + normalized radius) that pops out."""
+
+    theta: float
+    r: float
+    vr: float
+    life: float
+    max_life: float
+    hue: float
+
+
+class RingPops:
+    """Reusable pop-particle field for the circular-waveform "2" modes.
+
+    Particles spawn on a ring and drift radially while swelling then fading, so a
+    mode just spawns on energy/onset and renders each frame. Polar coordinates keep
+    it resolution-independent (radius is a fraction of the drawing scale).
+    """
+
+    def __init__(self, cap: int, lifetime: float = 0.7) -> None:
+        self._cap = cap
+        self._lifetime = lifetime
+        self._pops: list[_RingPop] = []
+
+    def clear(self) -> None:
+        self._pops.clear()
+
+    @property
+    def count(self) -> int:
+        return len(self._pops)
+
+    def spawn(self, rng: random.Random, count: int, base_r: float, energy: float) -> None:
+        """Spawn ``count`` particles on the ring at normalized radius ``base_r``."""
+        for _ in range(count):
+            if len(self._pops) >= self._cap:
+                break
+            theta = rng.uniform(0.0, 2.0 * math.pi)
+            self._pops.append(
+                _RingPop(
+                    theta=theta,
+                    r=base_r,
+                    vr=(0.08 + energy * 0.30) * rng.uniform(0.5, 1.0),
+                    life=self._lifetime,
+                    max_life=self._lifetime,
+                    hue=theta / (2.0 * math.pi),
+                )
+            )
+
+    def advance(self, dt: float, speed_scale: float) -> None:
+        move_dt = dt * speed_scale
+        alive: list[_RingPop] = []
+        for p in self._pops:
+            p.life -= dt  # lifetime is wall-clock; only motion honors speed_scale
+            if p.life <= 0.0:
+                continue
+            p.r += p.vr * move_dt
+            alive.append(p)
+        self._pops = alive
+
+    def render(
+        self,
+        surface: pygame.Surface,
+        scheme: str,
+        phase: float,
+        cx: float,
+        cy: float,
+        scale: float,
+        size_scale: float,
+    ) -> None:
+        for p in self._pops:
+            progress = clamp(1.0 - p.life / p.max_life)
+            envelope = math.sin(math.pi * progress)  # 0 -> 1 -> 0
+            radius = max(1, int((1 + envelope * 5) * size_scale))
+            color = scale_color(themed_color(scheme, p.hue, PALETTE, phase), 0.4 + envelope)
+            x = int(cx + math.cos(p.theta) * p.r * scale)
+            y = int(cy + math.sin(p.theta) * p.r * scale)
+            pygame.draw.circle(surface, color, (x, y), radius)

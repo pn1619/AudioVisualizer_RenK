@@ -10,7 +10,7 @@ So ``00.01.00`` == "Phase 1, build 0". See plan/development-phases.md.
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.05.00"
+APP_VERSION = "00.06.00"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
@@ -92,6 +92,18 @@ ONSET_THRESHOLD = 0.35
 
 # Below this RMS we consider the signal "silent" (idle state).
 IDLE_RMS_THRESHOLD = 1e-3
+# Show the "No audio detected" banner only after the signal has been silent this
+# long (seconds). Brief gaps between tracks shouldn't flash the banner; the app
+# never auto-quits on silence — the user quits when they want.
+IDLE_BANNER_DELAY = 5.0
+
+# --- Circular waveform modes --------------------------------------------------
+# Base radius of the oscilloscope circle as a fraction of half the min side.
+CIRCLE_BASE_RADIUS = 0.32
+# How strongly waveform samples push the ring in/out (fraction of min side).
+CIRCLE_WAVE_AMPLITUDE = 0.18
+# Multi-ring mode: how many concentric rings the user may stack.
+CIRCLE_RINGS_MAX = 10
 
 # --- Particles ----------------------------------------------------------------
 PARTICLE_MAX = 600

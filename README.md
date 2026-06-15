@@ -4,14 +4,15 @@ A Windows desktop app that captures **what you hear** (system playback via WASAP
 loopback) and renders it in real time — built with Python + pygame + numpy +
 pyaudiowpatch.
 
-Visual modes: **waveform, waveform 2, spectrum, light show, particles, laser,
-snowfall, and particles spiral** — adding a mode is one drop-in file.
+Visual modes: **waveform, waveform 2, waveform circle (x4), spectrum, light show,
+particles, laser, snowfall, and particles spiral** — 12 total; adding a mode is one
+drop-in file.
 
-> Status: **Phase 5 (v `00.05.00`)** — **per-mode option dropdowns**, separate snowfall
-> **fall/wind/density**, **inline value chips** for Sensitivity/Smoothing/Size/Speed, and a
-> **color dropdown** with **Classic / Rainbow / Rainbow+** (time-animated hue), on top of
-> Phase 4's tunables, mode dropdown, and Waveform 2 (8 modes). See
-> `plan/development-phases.md` for the roadmap.
+> Status: **Phase 6 (v `00.06.00`)** — **continuous Rainbow+**, a debounced (5 s)
+> "no audio" banner that **never auto-quits**, Particles Spiral **size/spacing** options,
+> and **four circular waveform modes** (single, +particles, multi-ring, multi-ring +
+> particles). On top of Phase 5's per-mode option dropdowns, value chips, and color
+> dropdown. See `plan/development-phases.md` for the roadmap.
 
 ## Requirements
 
