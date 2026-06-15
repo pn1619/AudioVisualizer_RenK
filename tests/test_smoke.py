@@ -52,14 +52,23 @@ def test_app_constructs_and_renders() -> None:
         app._shutdown()
 
 
-def test_app_renders_idle_when_silent() -> None:
+def test_app_idle_banner_waits_for_delay() -> None:
+    from audio_visualizer.config import IDLE_BANNER_DELAY
+
     app = App(load_settings=False)
     try:
         app._source = SyntheticSource(mode="silence")
         app._start_capture()
+        app._running = True  # simulate being inside the run loop
         _run_frames(app, 5)
-        state = app._hud_state()
-        assert state.idle is True
+        # Brief silence shouldn't trip the banner yet (debounced by the delay).
+        assert app._hud_state().idle is False
+        # After the delay elapses, the idle banner activates...
+        app._update()
+        app._draw(IDLE_BANNER_DELAY + 0.1)
+        assert app._hud_state().idle is True
+        # ...but the app never auto-quits on silence.
+        assert app._running is True
     finally:
         app._shutdown()
 

@@ -31,15 +31,19 @@ AudioVisualizer/
 │     │  ├─ __init__.py
 │     │  ├─ base.py             # BaseVisualizer + lifecycle hooks; Theme + ModeOption/OptionChoice (per-mode options)
 │     │  ├─ registry.py         # @register decorator + discover() auto-import; ordered mode list
-│     │  ├─ _helpers.py         # shared draw utils (glow, color lerp, normalized coords); skipped by discovery
+│     │  ├─ _helpers.py         # shared draw utils (color lerp, ring_points/draw_ring, RingPops); skipped by discovery
 │     │  ├─ waveform.py         # @register("waveform", ...)
 │     │  ├─ spectrum.py         # @register("spectrum", ...)
 │     │  ├─ lightshow.py        # @register("lightshow", ...)
 │     │  ├─ waveform_2.py       # Phase 4 (waveform + popping particles)
+│     │  ├─ waveform_circle.py            # Phase 6 (oscilloscope ring)
+│     │  ├─ waveform_circle_2.py          # Phase 6 (ring + popping particles)
+│     │  ├─ waveform_circle_multiple.py   # Phase 6 (N per-band concentric rings)
+│     │  ├─ waveform_circle_multiple_2.py # Phase 6 (multi-ring + particles)
 │     │  ├─ particles.py        # Phase 2
 │     │  ├─ laser.py            # Phase 2
 │     │  ├─ snowfall.py         # Phase 3 (bass wind, mid-band flake size)
-│     │  └─ particles_spiral.py # Phase 3 (per-band spiral arms)
+│     │  └─ particles_spiral.py # Phase 3 (per-band spiral arms; Phase 6 size/spacing)
 │     │      # add a mode = drop one new file here (subclass + @register); no other edits
 │     │
 │     └─ ui/
@@ -132,7 +136,7 @@ The plugin mechanism — **no central list to maintain**:
 `App` calls `discover()` once, then cycles/selects by key. **Adding a mode = add one file; the registry needs no edit.**
 
 ### `visuals/_helpers.py`
-Shared, reusable drawing utilities (glow/bloom, color lerp, normalized→pixel coordinate helpers, smoothing) so new modes don't reinvent primitives. Leading underscore → **skipped by `discover()`**.
+Shared, reusable drawing utilities so new modes don't reinvent primitives: color helpers (`lerp_color`, `palette_color`, `scale_color`, `rainbow_color` — which wraps hue with `t % 1.0` so Rainbow+ is continuous, `themed_color(scheme, t, palette, phase)`) and the circular-waveform helpers `ring_points`, `draw_ring`, and the reusable `RingPops` pop-particle field. Leading underscore → **skipped by `discover()`**.
 
 ### `visuals/*.py` (the modes)
 Each mode = **one file**: subclass `BaseVisualizer`, decorate with `@register`, implement `draw`. `waveform` draws the mono line; `spectrum` draws log bars + peak caps; `lightshow` draws radial beams + bloom; `particles` and `laser` are Phase 2. A mode that raises during `draw` is caught by `App` (logged + fail-soft), never crashing the app.

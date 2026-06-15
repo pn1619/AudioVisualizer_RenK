@@ -1,0 +1,7 @@
+# Code owners for this repository.
+# Every pull request must be reviewed and approved by the owner(s) below.
+# Syntax: <path pattern>  <owner(s)>
+# Docs: https://docs.github.com/articles/about-code-owners
+
+# Default owner for everything in the repo.
+*       @pn1619
