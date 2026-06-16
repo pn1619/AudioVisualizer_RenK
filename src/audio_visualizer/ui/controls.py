@@ -38,6 +38,8 @@ class ControlActions:
     select_color: Callable[[str], None]
     option_change: Callable[[str, int], None]
     toggle_reduce_motion: Callable[[], None]
+    open_logo_panel: Callable[[], None]
+    open_about: Callable[[], None]
     toggle_fullscreen: Callable[[], None]
     quit: Callable[[], None]
 
@@ -77,6 +79,8 @@ class ControlBar:
         self._speed_up = Button("Speed +", actions.speed_up)
 
         self._reduce = Button("Motion+", actions.toggle_reduce_motion)
+        self._logo = Button("RenK", actions.open_logo_panel)
+        self._about = Button("About", actions.open_about)
         self._full = Button("Full", actions.toggle_fullscreen)
         self._quit = Button("Quit", actions.quit)
 
@@ -102,6 +106,8 @@ class ControlBar:
             (self._speed_chip, 46),
             (self._speed_up, 56),
             (self._reduce, 64),
+            (self._logo, 52),
+            (self._about, 56),
             (self._full, 44),
             (self._quit, 44),
         ]

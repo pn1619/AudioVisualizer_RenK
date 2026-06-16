@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+from typing import TypeVar
 
 import numpy as np
 import pygame
@@ -26,6 +27,13 @@ from audio_visualizer.config import (
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
     IDLE_BANNER_DELAY,
+    LOGO_COLOR_LABELS,
+    LOGO_COLOR_MODES,
+    LOGO_OPACITIES,
+    LOGO_POSITION_LABELS,
+    LOGO_POSITIONS,
+    LOGO_SIZE_LABELS,
+    LOGO_SIZES,
     MIN_WINDOW_SIZE,
     SENSITIVITY_MAX,
     SENSITIVITY_MIN,
@@ -44,13 +52,18 @@ from audio_visualizer.config import (
     TARGET_FPS,
 )
 from audio_visualizer.settings import Settings
+from audio_visualizer.ui.about import AboutDialog
 from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
 from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
+from audio_visualizer.ui.logo_panel import LogoPanel, LogoPanelActions
 from audio_visualizer.visuals import registry
 from audio_visualizer.visuals.base import BaseVisualizer, Theme
+from audio_visualizer.visuals.logo import RenkLogo
 
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
 
 
 def _smoothing_to_coeffs(level: float) -> tuple[float, float]:
@@ -121,6 +134,11 @@ class App:
         self._visual: BaseVisualizer = self._make_visual()
         self._visual.on_enter()
 
+        self._logo = RenkLogo(reduce_motion=self._reduce_motion, theme=self._theme)
+        self._apply_logo_settings()
+        self._logo_panel = LogoPanel(self._build_logo_panel_actions())
+        self._about = AboutDialog()
+
         self._hud = Hud()
         self._controls = ControlBar(self._build_actions(), registry.options())
         self._layout = Layout.compute(
@@ -163,9 +181,31 @@ class App:
             select_color=self._set_color_scheme,
             option_change=self._set_mode_option,
             toggle_reduce_motion=self._toggle_reduce_motion,
+            open_logo_panel=lambda: self._logo_panel.toggle(),
+            open_about=lambda: self._about.toggle(),
             toggle_fullscreen=self._toggle_fullscreen,
             quit=self._request_quit,
         )
+
+    def _build_logo_panel_actions(self) -> LogoPanelActions:
+        return LogoPanelActions(
+            toggle_enabled=self._toggle_logo_enabled,
+            cycle_color=self._cycle_logo_color,
+            cycle_opacity=self._cycle_logo_opacity,
+            cycle_size=self._cycle_logo_size,
+            cycle_position=self._cycle_logo_position,
+            toggle_emit=self._toggle_logo_emit,
+        )
+
+    def _apply_logo_settings(self) -> None:
+        """Copy the persisted logo preferences onto the live logo overlay."""
+        s = self._settings
+        self._logo.enabled = s.logo_enabled
+        self._logo.size_key = s.logo_size
+        self._logo.position = s.logo_position
+        self._logo.opacity = s.logo_opacity
+        self._logo.color_mode = s.logo_color
+        self._logo.emit = s.logo_emit
 
     # -- public entry points --------------------------------------------------
     def run(self) -> int:
@@ -292,7 +332,45 @@ class App:
     def _toggle_reduce_motion(self) -> None:
         self._reduce_motion = not self._reduce_motion
         self._visual.reduce_motion = self._reduce_motion
+        self._logo.reduce_motion = self._reduce_motion
         logger.debug("Reduce motion = %s", self._reduce_motion)
+
+    # -- RenK logo overlay ----------------------------------------------------
+    @staticmethod
+    def _cycle_next(seq: tuple[_T, ...], current: _T) -> _T:
+        """Return the value after ``current`` in ``seq`` (wrapping)."""
+        idx = seq.index(current) if current in seq else -1
+        return seq[(idx + 1) % len(seq)]
+
+    def _toggle_logo_enabled(self) -> None:
+        self._logo.enabled = not self._logo.enabled
+        logger.debug("Logo enabled = %s", self._logo.enabled)
+
+    def _cycle_logo_color(self) -> None:
+        self._logo.color_mode = self._cycle_next(LOGO_COLOR_MODES, self._logo.color_mode)
+
+    def _cycle_logo_opacity(self) -> None:
+        self._logo.opacity = self._cycle_next(LOGO_OPACITIES, self._logo.opacity)
+
+    def _cycle_logo_size(self) -> None:
+        self._logo.size_key = self._cycle_next(LOGO_SIZES, self._logo.size_key)
+
+    def _cycle_logo_position(self) -> None:
+        self._logo.position = self._cycle_next(LOGO_POSITIONS, self._logo.position)
+
+    def _toggle_logo_emit(self) -> None:
+        self._logo.emit = not self._logo.emit
+
+    def _logo_panel_values(self) -> dict[str, str]:
+        """Human-readable current values for the logo settings panel rows."""
+        return {
+            "enabled": "On" if self._logo.enabled else "Off",
+            "color": LOGO_COLOR_LABELS.get(self._logo.color_mode, self._logo.color_mode),
+            "opacity": f"{int(self._logo.opacity * 100)}%",
+            "size": LOGO_SIZE_LABELS.get(self._logo.size_key, self._logo.size_key),
+            "position": LOGO_POSITION_LABELS.get(self._logo.position, self._logo.position),
+            "emit": "On" if self._logo.emit else "Off",
+        }
 
     def _notice_visible(self) -> bool:
         """The one-time photosensitivity notice shows before strobing modes."""
@@ -313,6 +391,13 @@ class App:
     def _request_quit(self) -> None:
         self._running = False
 
+    def _modal_open(self) -> bool:
+        return self._logo_panel.open or self._about.open
+
+    def _close_modals(self) -> None:
+        self._logo_panel.open = False
+        self._about.open = False
+
     # -- loop body ------------------------------------------------------------
     def _handle_events(self) -> None:
         for event in pygame.event.get():
@@ -325,6 +410,15 @@ class App:
                 pygame.MOUSEBUTTONDOWN,
             ):
                 self._dismiss_notice()
+                continue
+            # A modal (logo settings / About) captures input while open.
+            if self._modal_open():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    self._close_modals()
+                else:
+                    canvas = self._layout.canvas
+                    self._logo_panel.handle_event(event, canvas)
+                    self._about.handle_event(event, canvas)
                 continue
             if event.type == pygame.VIDEORESIZE and not self._fullscreen:
                 size = (max(MIN_WINDOW_SIZE[0], event.w), max(MIN_WINDOW_SIZE[1], event.h))
@@ -341,10 +435,9 @@ class App:
         if key == pygame.K_q and (mods & pygame.KMOD_CTRL):
             self._running = False
         elif key == pygame.K_ESCAPE:
+            # ESC never quits: it only closes a modal or leaves fullscreen.
             if self._fullscreen:
                 self._toggle_fullscreen()
-            else:
-                self._running = False
         elif key == pygame.K_SPACE:
             self._toggle_capture()
         elif key in (pygame.K_LEFT, pygame.K_LEFTBRACKET):
@@ -422,6 +515,8 @@ class App:
         try:
             sub = screen.subsurface(canvas)
             self._visual.draw(sub, self._frame, dt)
+            # The RenK logo is a global overlay: drawn over every mode's output.
+            self._logo.draw(sub, self._frame, dt)
         except Exception:  # fail-soft: a broken mode must not crash the app
             logger.exception("Visual %r failed to draw", self._visual.KEY)
 
@@ -441,6 +536,11 @@ class App:
         self._hud.draw(screen, canvas, self._hud_state(), self._font_small)
         if self._notice_visible():
             self._hud.draw_notice(screen, canvas, self._font, self._font_small)
+
+        # Modals draw last so they sit above the canvas, controls, and HUD.
+        self._logo_panel.set_state(self._logo_panel_values())
+        self._logo_panel.draw(screen, canvas, self._font, self._font_small)
+        self._about.draw(screen, canvas, self._font, self._font_small)
 
     def _hud_state(self) -> HudState:
         idle = self._capturing and self._silent_seconds >= IDLE_BANNER_DELAY
@@ -480,6 +580,12 @@ class App:
             size_scale=self._theme.size_scale,
             speed_scale=self._theme.speed_scale,
             color_scheme=self._theme.color_scheme,
+            logo_enabled=self._logo.enabled,
+            logo_size=self._logo.size_key,
+            logo_position=self._logo.position,
+            logo_opacity=self._logo.opacity,
+            logo_color=self._logo.color_mode,
+            logo_emit=self._logo.emit,
         )
 
     def _shutdown(self) -> None:

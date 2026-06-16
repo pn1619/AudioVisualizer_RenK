@@ -111,11 +111,23 @@ pygame.display.flip()
 3. Update `_silent_seconds` (incremented while capturing + silent, else reset to 0).
    The idle banner shows only after `IDLE_BANNER_DELAY`, so brief track gaps don't
    flash it — and silence **never** auto-quits.
-4. Draw the active visual into a **subsurface** of the canvas rect. The whole
-   `visual.draw(...)` call is wrapped in `try/except` → a broken mode is logged and
-   fail-soft, never fatal.
+4. Draw the active visual into a **subsurface** of the canvas rect, then draw the
+   **RenK logo overlay** (`RenkLogo`) into the same subsurface so it sits over every
+   mode. The whole block is wrapped in `try/except` → a broken mode/overlay is logged
+   and fail-soft, never fatal.
 5. Draw the control bar (windowed only), the HUD status line, and — before strobing
    modes, until acknowledged — the one-time photosensitivity notice.
+6. Draw any open **modal** last (the `RenK` logo-settings panel or the `About` dialog)
+   so it sits above the canvas, controls, and HUD.
+
+> **RenK logo overlay (Phase 9).** `visuals/logo.py` `RenkLogo` is a global overlay, not
+> a `@register`ed mode: the App owns one instance and draws it after the active mode. It
+> reads the shared `Theme`/`AnalysisFrame`, spins (faster on bass), pulses with energy,
+> and optionally emits sparks via a `SparkField`. It composites **additively** so the
+> neon-on-black art glows with no bounding box; "Rainbow+" tints a luminance copy of the
+> art with the cycling hue. Show/color/transparency/size/position/emit are persisted
+> (`logo_*`, settings schema v2). **`Esc` closes a modal or exits fullscreen — it never
+> quits** (quit = `Quit` button / `Ctrl+Q`).
 
 ### 3.3 `dt`, speed, and lifetimes
 

@@ -332,7 +332,50 @@ user-facing behavior change. Pure clarity/quality work.
 
 ---
 
-## Future phases (9+) — improvements & growth
+## Phase 9 — RenK logo overlay, About dialog & ESC fix (v `00.09.00`)
+
+**Goal:** a global, audio-reactive branding overlay that appears over every mode, fully
+user-configurable and persisted, plus an About dialog and an ESC-quit fix.
+
+### Scope
+- **`visuals/logo.py` (`RenkLogo`)** — a global overlay (NOT a `@register`ed mode). The
+  App owns one instance and draws it on top of the active mode each frame, so it shows in
+  **all** modes. It slowly **circles** (spins; faster on bass), gently **pulses** with
+  energy, and can **emit** sparks on the beat (reuses the shared `SparkField`). Composited
+  **additively** so the neon-on-black art glows with no bounding box.
+- **Configurable + persisted** via the `RenK` modal panel (`ui/logo_panel.py`): **Show**
+  on/off, **Color** (Default picture ↔ animated **Rainbow+** via a luminance tint of the
+  art), **Transparency** (25/50/75/100%), **Size** (Small/Medium/Large = fractions of the
+  min canvas side), **Position** (Center + 4 corners), **Emit** on/off. Settings schema
+  bumped to **v2** (old files migrate by defaulting `logo_*`).
+- **About dialog** (`ui/about.py`, `About` button): owner, license, version, build date,
+  Python/pygame versions. Owner/build live as `APP_OWNER`/`APP_BUILD_DATE` in `config.py`.
+- **ESC fix:** `Esc` no longer quits — it closes an open modal, else exits fullscreen.
+  Quit stays on the `Quit` button and `Ctrl+Q`.
+- **Assets:** logo art bundled at `audio_visualizer/assets/renk_logo.png`; a new
+  `resources.py` resolves bundled assets in dev and frozen runs; the spec packages them.
+- Reduce-motion disables emission and energy-reactive spin. Shared `LOGO_*` tunables live
+  in `config.py`.
+
+### Tests
+- `test_logo_phase9.py`: logo renders across all positions/sizes; disabled skips spin;
+  spins over time; Rainbow+ tint path; opacity presets; **Emit** spawns sparks on onset;
+  **reduce-motion disables emission**; `_to_luminance` keeps size + alpha; settings
+  round-trip, default-on-missing migration, opacity snapping, invalid-choice fallback;
+  logo panel row-click invokes the action, close button + outside-click dismiss, ignores
+  events when closed; About dialog toggles/draws/closes.
+
+### Exit criteria
+- [x] Logo overlay shows over every mode, is toggleable, and reacts to audio (spin/pulse/emit).
+- [x] Color (Default/Rainbow+), transparency, size, and center/corner position all work and persist.
+- [x] About dialog shows owner/license/version/build date; `Esc` no longer quits.
+- [x] lint/mypy clean, `test.ps1` green (108), `--selftest` exit 0, exe builds + self-tests.
+
+**Estimate: 1–2 days.** *(done)*
+
+---
+
+## Future phases (10+) — improvements & growth
 
 Not scheduled; pull items in as priorities dictate. Each should still land behind tests and keep the "simple but works" bar.
 

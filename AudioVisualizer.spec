@@ -27,6 +27,13 @@ from audio_visualizer.config import APP_NAME, APP_VERSION  # noqa: E402
 # Pull in pyaudiowpatch's bundled PortAudio DLL.
 binaries = collect_dynamic_libs("pyaudiowpatch")
 
+# Bundle packaged assets (the RenK logo PNG) into audio_visualizer/assets so the
+# resource loader finds them under sys._MEIPASS in the frozen build.
+_assets_src = os.path.abspath(os.path.join("src", "audio_visualizer", "assets"))
+datas = [(_assets_src, os.path.join("audio_visualizer", "assets"))] if os.path.isdir(
+    _assets_src
+) else []
+
 # The visual modes are imported dynamically (registry.discover), so PyInstaller's
 # static analysis can't see them. Collect them explicitly so discovery finds them
 # inside the frozen bundle.
@@ -62,7 +69,7 @@ a = Analysis(
     ["src/audio_visualizer/__main__.py"],
     pathex=["src"],
     binaries=binaries,
-    datas=[],
+    datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],

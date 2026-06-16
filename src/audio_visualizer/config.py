@@ -16,7 +16,10 @@ Magic-number policy (see .cursor/rules/python-coding-style.mdc):
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.08.00"
+APP_VERSION = "00.09.00"
+# Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
+APP_OWNER = "pn1619"
+APP_BUILD_DATE = "2026-06-16"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
@@ -162,9 +165,63 @@ SNOW_WIND_SCALE = 0.9  # bass energy -> horizontal drift
 SNOW_WIND_SCALE_REDUCED = 0.25
 SNOW_SIZE_SCALE = 2.5  # mid-band energy -> flake radius growth
 
+# --- RenK logo overlay (global; drawn over every visual mode) -----------------
+# The logo is a transparent PNG bundled under the package's ``assets/`` dir.
+LOGO_FILENAME = "renk_logo.png"
+# Whether the logo is shown by default (user can toggle it on/off in any mode).
+LOGO_ENABLED_DEFAULT = True
+# Slow "circling" spin, in degrees/second at speed_scale 1.0 (honors the speed control).
+LOGO_SPIN_DEG_PER_SEC = 18.0
+# Audio-reactive extra spin: bass energy adds up to this many deg/sec on top.
+LOGO_SPIN_ENERGY_GAIN = 36.0
+# Subtle "breathing" pulse: the logo scales by ±this fraction with overall energy.
+LOGO_PULSE_AMOUNT = 0.06
+
+# Discrete size presets -> diameter as a fraction of the canvas's min side.
+LOGO_SIZES: tuple[str, ...] = ("small", "medium", "large")
+LOGO_SIZE_DEFAULT = "medium"
+LOGO_SIZE_LABELS: dict[str, str] = {"small": "Small", "medium": "Medium", "large": "Large"}
+LOGO_SIZE_FRACTIONS: dict[str, float] = {"small": 0.22, "medium": 0.40, "large": 0.62}
+
+# Discrete on-screen anchors. Center is the default; the rest are the four corners.
+LOGO_POSITIONS: tuple[str, ...] = (
+    "center",
+    "top_left",
+    "top_right",
+    "bottom_left",
+    "bottom_right",
+)
+LOGO_POSITION_DEFAULT = "center"
+LOGO_POSITION_LABELS: dict[str, str] = {
+    "center": "Center",
+    "top_left": "Top-Left",
+    "top_right": "Top-Right",
+    "bottom_left": "Bottom-Left",
+    "bottom_right": "Bottom-Right",
+}
+# Inset of a corner-anchored logo from the canvas edge (fraction of min side).
+LOGO_CORNER_MARGIN = 0.03
+
+# Opacity presets (0..1 alpha multiplier) so the logo can sit quietly behind visuals.
+LOGO_OPACITIES: tuple[float, ...] = (0.25, 0.5, 0.75, 1.0)
+LOGO_OPACITY_DEFAULT = 0.75
+
+# Color modes: "default" keeps the baked rainbow picture; "rainbow_plus" cycles the
+# hue over time using a luminance copy of the image (so the glass-tube shape matches).
+LOGO_COLOR_MODES: tuple[str, ...] = ("default", "rainbow_plus")
+LOGO_COLOR_DEFAULT = "default"
+LOGO_COLOR_LABELS: dict[str, str] = {"default": "Default", "rainbow_plus": "Rainbow+"}
+
+# Optional particle emission from the logo ring (reuses the shared SparkField).
+LOGO_EMIT_DEFAULT = False
+LOGO_EMIT_PER_ONSET = 10  # sparks released on a detected beat
+LOGO_EMIT_SPEED = 0.18  # outward spark speed in normalized units/sec
+
 # --- Settings persistence -----------------------------------------------------
 SETTINGS_FILENAME = "settings.json"
-SETTINGS_SCHEMA_VERSION = 1
+# v2 added the RenK logo overlay preferences (logo_*). Older files migrate by
+# defaulting the new keys.
+SETTINGS_SCHEMA_VERSION = 2
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error
