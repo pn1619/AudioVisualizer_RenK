@@ -60,7 +60,7 @@ The exe bundles the PortAudio DLL and a Windows version resource. Drop an
 
 | Action | Mouse | Keyboard |
 |--------|-------|----------|
-| Start/stop capture | Start/Stop button | `Space` |
+| Start/stop capture | `Menu` ▸ Start/Stop | `Space` |
 | Previous / next mode | `<` / `>` buttons | `Left`/`Right` or `[` / `]` |
 | Jump to mode | mode **dropdown** (click to choose) | `1`–`9` (`D` opens dropdown) |
 | Sensitivity down/up | `Sens -` / `Sens +` (value shown between) | `-` / `=` |
@@ -72,9 +72,9 @@ The exe bundles the PortAudio DLL and a Windows version resource. Drop an
 | Reduce motion (caps strobing) | `Motion` button | `M` |
 | RenK logo settings | `RenK` button (modal panel) | — |
 | About (owner/license/version) | `About` button | — |
-| Fullscreen | `Full` button | `F11` (exit with `Esc`) |
+| Fullscreen | `Menu` ▸ Fullscreen | `F11` (exit with `Esc`) |
 | Debug overlay | — | `F3` |
-| Quit | `Quit` button | `Ctrl+Q` |
+| Quit | `Menu` ▸ Quit | `Ctrl+Q` |
 | Close modal / exit fullscreen | — | `Esc` |
 
 A one-time **photosensitivity notice** appears before strobing modes; reduce-motion

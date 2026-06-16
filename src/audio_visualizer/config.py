@@ -16,7 +16,7 @@ Magic-number policy (see .cursor/rules/python-coding-style.mdc):
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.09.00"
+APP_VERSION = "00.09.01"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-16"
@@ -177,11 +177,25 @@ LOGO_SPIN_ENERGY_GAIN = 36.0
 # Subtle "breathing" pulse: the logo scales by ±this fraction with overall energy.
 LOGO_PULSE_AMOUNT = 0.06
 
-# Discrete size presets -> diameter as a fraction of the canvas's min side.
-LOGO_SIZES: tuple[str, ...] = ("small", "medium", "large")
+# Discrete size presets -> logo height as a fraction of the canvas's min side.
+LOGO_SIZES: tuple[str, ...] = ("tiny", "small", "medium", "large", "xlarge", "huge")
 LOGO_SIZE_DEFAULT = "medium"
-LOGO_SIZE_LABELS: dict[str, str] = {"small": "Small", "medium": "Medium", "large": "Large"}
-LOGO_SIZE_FRACTIONS: dict[str, float] = {"small": 0.22, "medium": 0.40, "large": 0.62}
+LOGO_SIZE_LABELS: dict[str, str] = {
+    "tiny": "Tiny",
+    "small": "Small",
+    "medium": "Medium",
+    "large": "Large",
+    "xlarge": "X-Large",
+    "huge": "Huge",
+}
+LOGO_SIZE_FRACTIONS: dict[str, float] = {
+    "tiny": 0.15,
+    "small": 0.25,
+    "medium": 0.40,
+    "large": 0.55,
+    "xlarge": 0.72,
+    "huge": 0.90,
+}
 
 # Discrete on-screen anchors. Center is the default; the rest are the four corners.
 LOGO_POSITIONS: tuple[str, ...] = (
@@ -206,11 +220,15 @@ LOGO_CORNER_MARGIN = 0.03
 LOGO_OPACITIES: tuple[float, ...] = (0.25, 0.5, 0.75, 1.0)
 LOGO_OPACITY_DEFAULT = 0.75
 
-# Color modes: "default" keeps the baked rainbow picture; "rainbow_plus" cycles the
-# hue over time using a luminance copy of the image (so the glass-tube shape matches).
+# Color modes: "default" keeps the baked rainbow picture; "rainbow_plus" paints a
+# swirling multi-color rainbow over a luminance copy (hue varies by angle + radius and
+# cycles over time), so the glow shows many colors at once instead of one flat hue.
 LOGO_COLOR_MODES: tuple[str, ...] = ("default", "rainbow_plus")
 LOGO_COLOR_DEFAULT = "default"
 LOGO_COLOR_LABELS: dict[str, str] = {"default": "Default", "rainbow_plus": "Rainbow+"}
+# Rainbow+ swirl: how many extra hue turns are added across the radius (more = more
+# colors at once / a tighter spiral). Hue = angle + radius * this, then + time phase.
+LOGO_RAINBOW_SWIRL = 1.5
 
 # Optional particle emission from the logo ring (reuses the shared SparkField).
 LOGO_EMIT_DEFAULT = False

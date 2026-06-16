@@ -29,6 +29,7 @@ from audio_visualizer.config import (
     LOGO_OPACITY_DEFAULT,
     LOGO_POSITION_DEFAULT,
     LOGO_PULSE_AMOUNT,
+    LOGO_RAINBOW_SWIRL,
     LOGO_SIZE_DEFAULT,
     LOGO_SIZE_FRACTIONS,
     LOGO_SPIN_DEG_PER_SEC,
@@ -45,6 +46,8 @@ logger = logging.getLogger(__name__)
 _BASS_FRACTION = 0.125
 # Emit only when onset strength clears this (avoids a constant dribble of sparks).
 _EMIT_ONSET_MIN = 0.2
+# 256-entry hue -> RGB lookup table for fast per-pixel rainbow tinting (Rainbow+).
+_RAINBOW_LUT = np.array([rainbow_color(i / 256.0) for i in range(256)], dtype=np.uint8)
 
 
 def _load_logo_surface() -> pygame.Surface | None:
@@ -79,6 +82,21 @@ def _to_luminance(surface: pygame.Surface) -> pygame.Surface:
     return lum
 
 
+def _build_hue_map(width: int, height: int) -> np.ndarray:
+    """Per-pixel base hue (0..1) that swirls by angle + radius around the center.
+
+    Indexing matches ``pygame.surfarray`` (column-major ``(width, height)``). The
+    radius term spreads many hues across the art at once; the angle term makes it
+    rotate; callers add a time phase so the whole rainbow cycles.
+    """
+    xs = (np.arange(width, dtype=np.float32) - width / 2.0)[:, None]
+    ys = (np.arange(height, dtype=np.float32) - height / 2.0)[None, :]
+    angle = np.arctan2(ys, xs) / (2.0 * np.pi)  # -0.5..0.5
+    radius = np.sqrt(xs**2 + ys**2)
+    radius /= max(1.0, float(radius.max()))
+    return (angle + radius * LOGO_RAINBOW_SWIRL) % 1.0
+
+
 class RenkLogo:
     """Audio-reactive branding overlay shared across all visual modes.
 
@@ -108,56 +126,70 @@ class RenkLogo:
 
         self._angle = 0.0
         self._sparks = SparkField(SPARK_MAX)
-        # Cache the scaled artwork; rebuilt when the target diameter changes.
-        self._cached_diameter = -1
+        # Cache the scaled artwork; rebuilt when the target height changes. Scaling
+        # preserves the source aspect ratio so the ring stays circular (not squished).
+        self._cached_height = -1
+        self._scaled_size = (0, 0)
         self._scaled_colored: pygame.Surface | None = None
         self._scaled_lum: pygame.Surface | None = None
+        # Precomputed per-pixel hue map (angle + radius swirl) for Rainbow+ tinting.
+        self._hue_map: np.ndarray | None = None
 
     @property
     def available(self) -> bool:
         """True when the logo image loaded and can be drawn."""
         return self._base is not None
 
-    def _diameter(self, canvas: tuple[int, int]) -> int:
+    def _height(self, canvas: tuple[int, int]) -> int:
         min_side = min(canvas)
         return max(1, int(LOGO_SIZE_FRACTIONS.get(self.size_key, 0.4) * min_side))
 
-    def _anchor_center(self, canvas: tuple[int, int], radius: float) -> tuple[float, float]:
+    def _anchor_center(self, canvas: tuple[int, int]) -> tuple[float, float]:
         """Center point for the current position anchor (corners inset by margin)."""
         w, h = canvas
-        margin = LOGO_CORNER_MARGIN * min(canvas) + radius
+        half_w, half_h = self._scaled_size[0] / 2.0, self._scaled_size[1] / 2.0
+        margin = LOGO_CORNER_MARGIN * min(canvas)
+        mx, my = margin + half_w, margin + half_h
         anchors = {
             "center": (w / 2, h / 2),
-            "top_left": (margin, margin),
-            "top_right": (w - margin, margin),
-            "bottom_left": (margin, h - margin),
-            "bottom_right": (w - margin, h - margin),
+            "top_left": (mx, my),
+            "top_right": (w - mx, my),
+            "bottom_left": (mx, h - my),
+            "bottom_right": (w - mx, h - my),
         }
         return anchors.get(self.position, (w / 2, h / 2))
 
-    def _ensure_scaled(self, diameter: int) -> None:
-        """(Re)build the scaled artwork caches when the target size changes."""
-        if diameter == self._cached_diameter or self._base is None:
+    def _ensure_scaled(self, height: int) -> None:
+        """(Re)build scaled art + hue map when the target height changes (aspect-safe)."""
+        if height == self._cached_height or self._base is None:
             return
-        size = (diameter, diameter)
+        w0, h0 = self._base.get_size()
+        width = max(1, round(height * w0 / h0))  # preserve aspect ratio -> stays circular
+        size = (width, height)
         self._scaled_colored = pygame.transform.smoothscale(self._base, size)
         if self._lum is not None:
             self._scaled_lum = pygame.transform.smoothscale(self._lum, size)
-        self._cached_diameter = diameter
+        self._hue_map = _build_hue_map(width, height)
+        self._scaled_size = size
+        self._cached_height = height
 
-    def _tinted_lum(self) -> pygame.Surface | None:
-        """The luminance art multiplied by the current cycling hue (Rainbow+)."""
-        if self._scaled_lum is None:
+    def _rainbow_art(self) -> pygame.Surface | None:
+        """Luminance art painted with a swirling, time-cycling multi-color rainbow."""
+        if self._scaled_lum is None or self._hue_map is None:
             return None
-        hue = self.theme.color_phase % 1.0
+        idx = ((self._hue_map + self.theme.color_phase) % 1.0 * 255.0).astype(np.uint8)
+        grad_rgb = _RAINBOW_LUT[idx]  # (w, h, 3) per-pixel rainbow
+        grad = pygame.Surface(self._scaled_size)
+        pygame.surfarray.blit_array(grad, grad_rgb)
         tinted = self._scaled_lum.copy()
-        tinted.fill((*rainbow_color(hue), 255), special_flags=pygame.BLEND_RGB_MULT)
+        # Multiply the grayscale tube by the rainbow so brightness shapes the glow.
+        tinted.blit(grad, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
         return tinted
 
     def _frame_art(self) -> pygame.Surface | None:
-        """Pick the base artwork for this frame (colored picture or tinted hue)."""
+        """Pick the base artwork for this frame (colored picture or swirling rainbow)."""
         if self.color_mode == "rainbow_plus":
-            return self._tinted_lum()
+            return self._rainbow_art()
         return self._scaled_colored
 
     def _bass(self, frame: AnalysisFrame | None) -> float:
@@ -172,8 +204,7 @@ class RenkLogo:
             return
 
         canvas = surface.get_size()
-        diameter = self._diameter(canvas)
-        self._ensure_scaled(diameter)
+        self._ensure_scaled(self._height(canvas))
 
         energy = clamp(frame.rms) if frame is not None else 0.0
         bass = 0.0 if self.reduce_motion else self._bass(frame)
@@ -181,7 +212,7 @@ class RenkLogo:
         self._angle = (self._angle + self._spin_step(bass, dt)) % 360.0
         pulse = 1.0 if self.reduce_motion else 1.0 + LOGO_PULSE_AMOUNT * energy
 
-        center = self._anchor_center(canvas, diameter / 2.0)
+        center = self._anchor_center(canvas)
         self._blit_logo(surface, center, pulse)
         self._update_sparks(surface, frame, center, canvas, dt)
 
