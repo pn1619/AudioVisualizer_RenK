@@ -11,6 +11,20 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.09.02` — Phase 9 fix: RenK logo ring is now a true circle
+
+**Fixed**
+- The logo's ring read as an **ellipse** — the source art's ring was ~9% wider than
+  tall (measured 1086×995). Re-baked the bundled `renk_logo.png` with a horizontal
+  correction so the ring is now circular (993×992, ratio ≈ 1.00). No code/logic change;
+  the aspect-preserving scaler now reproduces a true circle.
+
+**Tests / verification**
+- `tools\test.ps1` → **112 passed**; ruff / black / mypy **clean**; `--selftest` exit
+  **0**; exe builds + self-tests.
+
+---
+
 ## `00.09.01` — Phase 9 fixes: Menu group, round logo, more sizes, swirling Rainbow+
 
 **Fixed / changed**
