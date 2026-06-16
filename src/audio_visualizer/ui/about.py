@@ -11,13 +11,11 @@ from audio_visualizer.config import (
     APP_NAME,
     APP_OWNER,
     APP_VERSION,
-    COLOR_ACCENT,
     COLOR_BG,
-    COLOR_PANEL,
-    COLOR_PANEL_HOVER,
     COLOR_TEXT,
     COLOR_TEXT_DIM,
 )
+from audio_visualizer.ui.style import STYLE, draw_panel
 
 _PANEL_W = 420
 _PAD = 16
@@ -88,12 +86,11 @@ class AboutDialog:
         surface.blit(dim, canvas.topleft)
 
         panel = self._panel_rect(canvas)
-        pygame.draw.rect(surface, COLOR_PANEL, panel, border_radius=10)
-        pygame.draw.rect(surface, COLOR_ACCENT, panel, width=1, border_radius=10)
+        draw_panel(surface, panel, accent_border=True)
 
         x = panel.x + _PAD
         y = panel.y + _PAD
-        title = font.render(APP_NAME, True, COLOR_ACCENT)
+        title = font.render(APP_NAME, True, STYLE.accent)
         surface.blit(title, (x, y))
         y += title.get_height() + _LINE_GAP
 
@@ -110,8 +107,6 @@ class AboutDialog:
         self, surface: pygame.Surface, canvas: pygame.Rect, font: pygame.font.Font
     ) -> None:
         rect = self._close_rect(canvas)
-        bg = COLOR_PANEL_HOVER if self._hover_close else COLOR_PANEL
-        pygame.draw.rect(surface, bg, rect, border_radius=6)
-        pygame.draw.rect(surface, COLOR_TEXT_DIM, rect, width=1, border_radius=6)
+        draw_panel(surface, rect, hovered=self._hover_close, accent_border=True)
         text = font.render("Close", True, COLOR_TEXT)
         surface.blit(text, text.get_rect(center=rect.center))

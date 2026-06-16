@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pygame
 
-from audio_visualizer.config import COLOR_ACCENT, COLOR_BG, COLOR_TEXT
+from audio_visualizer.config import COLOR_TEXT
+from audio_visualizer.ui.style import TEXT_PAD, draw_panel, fit_text
 
 
 class Chip:
@@ -18,7 +19,7 @@ class Chip:
         self.rect = rect
 
     def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
-        pygame.draw.rect(surface, COLOR_BG, self.rect, border_radius=6)
-        pygame.draw.rect(surface, COLOR_ACCENT, self.rect, width=1, border_radius=6)
-        label = font.render(self.text, True, COLOR_TEXT)
-        surface.blit(label, label.get_rect(center=self.rect.center))
+        draw_panel(surface, self.rect, accent_border=True)
+        label = fit_text(font, self.text, self.rect.width - TEXT_PAD * 2)
+        text = font.render(label, True, COLOR_TEXT)
+        surface.blit(text, text.get_rect(center=self.rect.center))

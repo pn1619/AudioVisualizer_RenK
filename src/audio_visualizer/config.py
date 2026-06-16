@@ -16,7 +16,7 @@ Magic-number policy (see .cursor/rules/python-coding-style.mdc):
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.09.02"
+APP_VERSION = "00.09.03"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-16"
@@ -25,18 +25,52 @@ APP_BUILD_DATE = "2026-06-16"
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
 MIN_WINDOW_SIZE: tuple[int, int] = (640, 360)
 TARGET_FPS = 60
-# Two stacked rows: global controls (top) + color/per-mode options (bottom).
+# Baseline two-row control-bar height (global controls + color/per-mode options).
+# The bar now flows/wraps its widgets to the window width and grows taller as
+# needed (see ControlBar.content_height); this stays the default for Layout.
 CONTROL_BAR_HEIGHT = 88
+
+# --- Control-bar flow layout --------------------------------------------------
+# Widgets flow left-to-right and wrap to a new line when they'd leave the window,
+# so nothing ever spills off-screen (even at MIN_WINDOW_SIZE). All derived; no
+# hard-coded widget coordinates live outside ControlBar.
+CONTROL_ROW_HEIGHT = 30  # height of one widget / one flowed row
+CONTROL_GAP = 6  # gap between widgets and between wrapped rows
 
 # --- Colors (RGB) -------------------------------------------------------------
 COLOR_BG = (10, 10, 18)
-COLOR_PANEL = (22, 22, 34)
-COLOR_PANEL_HOVER = (38, 38, 56)
-COLOR_TEXT = (224, 224, 236)
+# Control-bar strip: between the canvas bg and the widget panels so widgets pop.
+COLOR_BAR = (16, 16, 26)
+COLOR_PANEL = (30, 30, 46)
+COLOR_PANEL_HOVER = (48, 48, 72)
+# Subtle always-on widget outline (flat style) for definition without noise.
+COLOR_BORDER = (58, 58, 84)
+COLOR_TEXT = (228, 228, 240)
 COLOR_TEXT_DIM = (140, 140, 160)
 COLOR_ACCENT = (90, 200, 255)
 COLOR_WARN = (240, 180, 80)
 COLOR_ERROR = (240, 90, 90)
+
+# --- UI appearance (user-selectable; persisted) -------------------------------
+# Control-bar / widget look. "flat" = solid rounded panels with crisp borders;
+# "glass" = pill-shaped translucent panels with an accent glow. Read at draw time
+# from ui/style.py so the look switches live from the Appearance panel.
+UI_STYLES: tuple[str, ...] = ("flat", "glass")
+UI_STYLE_DEFAULT = "flat"
+UI_STYLE_LABELS: dict[str, str] = {"flat": "Flat", "glass": "Glass"}
+
+# Text font family. "mono" = a modern terminal-style monospace (Cascadia/Consolas,
+# like Cursor's terminal); "sans" = a clean UI sans. We pass the comma-separated
+# preference list to pygame's SysFont, which picks the first installed family.
+UI_FONTS: tuple[str, ...] = ("mono", "sans")
+UI_FONT_DEFAULT = "mono"
+UI_FONT_LABELS: dict[str, str] = {"mono": "Mono (terminal)", "sans": "Sans"}
+UI_FONT_FAMILIES: dict[str, str] = {
+    "mono": "cascadiamono,cascadiacode,consolas,jetbrainsmono,couriernew,monospace",
+    "sans": "segoeui,inter,arial,helvetica,sans",
+}
+UI_FONT_SIZE = 15
+UI_FONT_SIZE_SMALL = 14
 
 # Palette used by spectrum / light-show modes (low -> high frequency).
 PALETTE: tuple[tuple[int, int, int], ...] = (
@@ -168,6 +202,8 @@ SNOW_SIZE_SCALE = 2.5  # mid-band energy -> flake radius growth
 # --- RenK logo overlay (global; drawn over every visual mode) -----------------
 # The logo is a transparent PNG bundled under the package's ``assets/`` dir.
 LOGO_FILENAME = "renk_logo.png"
+# Square app/window icon (RenK emblem on a rounded badge) for the title bar/taskbar.
+APP_ICON_FILENAME = "renk_icon.png"
 # Whether the logo is shown by default (user can toggle it on/off in any mode).
 LOGO_ENABLED_DEFAULT = True
 # Slow "circling" spin, in degrees/second at speed_scale 1.0 (honors the speed control).
@@ -237,9 +273,9 @@ LOGO_EMIT_SPEED = 0.18  # outward spark speed in normalized units/sec
 
 # --- Settings persistence -----------------------------------------------------
 SETTINGS_FILENAME = "settings.json"
-# v2 added the RenK logo overlay preferences (logo_*). Older files migrate by
-# defaulting the new keys.
-SETTINGS_SCHEMA_VERSION = 2
+# v2 added the RenK logo overlay preferences (logo_*). v3 added UI appearance
+# (ui_style, ui_font). Older files migrate by defaulting the new keys.
+SETTINGS_SCHEMA_VERSION = 3
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error

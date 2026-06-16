@@ -1,7 +1,9 @@
 """A minimal dropdown (combo) widget for picking a value from a list.
 
 Closed it shows the current label + a caret; open it lists options below the
-header (drawn on top of the canvas). No external UI dependency.
+header (drawn on top of the canvas). Header and option text are truncated to fit
+their box (never spill out), and the open list is nudged left so it stays inside
+the window even when the header sits near the right edge.
 """
 
 from __future__ import annotations
@@ -10,14 +12,13 @@ from collections.abc import Callable
 
 import pygame
 
-from audio_visualizer.config import (
-    COLOR_ACCENT,
-    COLOR_PANEL,
-    COLOR_PANEL_HOVER,
-    COLOR_TEXT,
-)
+from audio_visualizer.config import COLOR_TEXT
+from audio_visualizer.ui.style import TEXT_PAD, draw_panel, fit_text
 
 _ROW_H = 28
+# The open list is at least this wide so options stay readable even when the
+# header box is narrow; it never grows past the right bound (set by the bar).
+_MIN_LIST_W = 150
 
 
 class Dropdown:
@@ -36,6 +37,8 @@ class Dropdown:
         self.open = False
         self.rect = pygame.Rect(0, 0, 0, 0)
         self._hover_index = -1
+        # Right edge the open list must stay within (window width); None = unbounded.
+        self._bound_right: int | None = None
 
     def set_options(self, options: list[tuple[str, str]]) -> None:
         self._options = list(options)
@@ -45,6 +48,10 @@ class Dropdown:
 
     def set_rect(self, rect: pygame.Rect) -> None:
         self.rect = rect
+
+    def set_bound_right(self, right: int) -> None:
+        """Keep the open option list within ``right`` (the window's right edge)."""
+        self._bound_right = right
 
     def toggle(self) -> None:
         self.open = not self.open
@@ -60,9 +67,20 @@ class Dropdown:
                 break
         return f"{self._title}: {selected}" if self._title else selected
 
+    def _list_geometry(self) -> tuple[int, int]:
+        """(x, width) of the open list, clamped to stay within the right bound."""
+        width = max(self.rect.width, _MIN_LIST_W)
+        x = self.rect.x
+        if self._bound_right is not None:
+            width = min(width, max(self.rect.width, self._bound_right - TEXT_PAD))
+            if x + width > self._bound_right:
+                x = max(0, self._bound_right - width)
+        return x, width
+
     def _option_rects(self) -> list[pygame.Rect]:
+        x, width = self._list_geometry()
         return [
-            pygame.Rect(self.rect.x, self.rect.bottom + i * _ROW_H, self.rect.width, _ROW_H)
+            pygame.Rect(x, self.rect.bottom + i * _ROW_H, width, _ROW_H)
             for i in range(len(self._options))
         ]
 
@@ -92,21 +110,26 @@ class Dropdown:
 
     def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
         self._draw_header(surface, font)
-        if self.open:
-            for i, (key, label) in enumerate(self._options):
-                rect = self._option_rects()[i]
-                hovered = i == self._hover_index
-                bg = COLOR_PANEL_HOVER if hovered else COLOR_PANEL
-                pygame.draw.rect(surface, bg, rect)
-                if key == self._selected_key:
-                    pygame.draw.rect(surface, COLOR_ACCENT, rect, width=1)
-                text = font.render(label, True, COLOR_TEXT)
-                surface.blit(text, text.get_rect(midleft=(rect.x + 8, rect.centery)))
+        if not self.open:
+            return
+        for i, rect in enumerate(self._option_rects()):
+            key, label = self._options[i]
+            draw_panel(
+                surface, rect, hovered=i == self._hover_index, accent_fill=key == self._selected_key
+            )
+            fitted = fit_text(font, label, rect.width - TEXT_PAD * 2)
+            text = font.render(fitted, True, COLOR_TEXT)
+            surface.blit(text, text.get_rect(midleft=(rect.x + TEXT_PAD, rect.centery)))
 
     def _draw_header(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
-        pygame.draw.rect(surface, COLOR_PANEL, self.rect, border_radius=6)
-        if self.open:
-            pygame.draw.rect(surface, COLOR_ACCENT, self.rect, width=1, border_radius=6)
+        draw_panel(surface, self.rect, accent_border=self.open)
         caret = "\u25b2" if self.open else "\u25bc"
-        text = font.render(f"{self.current_label}  {caret}", True, COLOR_TEXT)
-        surface.blit(text, text.get_rect(midleft=(self.rect.x + 8, self.rect.centery)))
+        caret_surf = font.render(caret, True, COLOR_TEXT)
+        # Reserve room for the caret on the right, then truncate the label to fit.
+        label_w = self.rect.width - TEXT_PAD * 2 - caret_surf.get_width() - 4
+        label = font.render(fit_text(font, self.current_label, label_w), True, COLOR_TEXT)
+        surface.blit(label, label.get_rect(midleft=(self.rect.x + TEXT_PAD, self.rect.centery)))
+        surface.blit(
+            caret_surf,
+            caret_surf.get_rect(midright=(self.rect.right - TEXT_PAD, self.rect.centery)),
+        )

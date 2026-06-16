@@ -19,6 +19,7 @@ from audio_visualizer.audio.capture import LoopbackSource
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.audio.source import AudioSource, SourceStatus, SyntheticSource
 from audio_visualizer.config import (
+    APP_ICON_FILENAME,
     APP_NAME,
     APP_VERSION,
     COLOR_BG,
@@ -29,6 +30,7 @@ from audio_visualizer.config import (
     IDLE_BANNER_DELAY,
     LOGO_COLOR_LABELS,
     LOGO_COLOR_MODES,
+    LOGO_FILENAME,
     LOGO_OPACITIES,
     LOGO_POSITION_LABELS,
     LOGO_POSITIONS,
@@ -50,13 +52,21 @@ from audio_visualizer.config import (
     SPEED_SCALE_MIN,
     SPEED_SCALE_STEP,
     TARGET_FPS,
+    UI_FONT_LABELS,
+    UI_FONTS,
+    UI_STYLE_LABELS,
+    UI_STYLES,
 )
+from audio_visualizer.resources import asset_path
 from audio_visualizer.settings import Settings
 from audio_visualizer.ui.about import AboutDialog
+from audio_visualizer.ui.appearance_panel import AppearanceActions, AppearancePanel
 from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
+from audio_visualizer.ui.fonts import get_ui_fonts
 from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
 from audio_visualizer.ui.logo_panel import LogoPanel, LogoPanelActions
+from audio_visualizer.ui.style import STYLE
 from audio_visualizer.visuals import registry
 from audio_visualizer.visuals.base import BaseVisualizer, Theme
 from audio_visualizer.visuals.logo import RenkLogo
@@ -88,6 +98,12 @@ class App:
         self._settings: Settings = settings_mod.load() if load_settings else Settings()
         self._persist = load_settings
 
+        # UI appearance (style + font) is user-selectable and applied before any
+        # widget draws; STYLE is the process-wide look read by widgets.
+        self._ui_style = self._settings.ui_style
+        self._ui_font = self._settings.ui_font
+        STYLE.set_style(self._ui_style)
+
         registry.discover()
         self._mode_keys = registry.keys()
         if not self._mode_keys:
@@ -117,9 +133,9 @@ class App:
             self._screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
             self._screen = pygame.display.set_mode(self._windowed_size, pygame.RESIZABLE)
+        self._set_window_icon()
 
-        self._font = pygame.font.Font(None, 22)
-        self._font_small = pygame.font.Font(None, 20)
+        self._font, self._font_small = get_ui_fonts(self._ui_font)
         self._clock = pygame.time.Clock()
 
         self._source: AudioSource = LoopbackSource()
@@ -137,17 +153,25 @@ class App:
         self._logo = RenkLogo(reduce_motion=self._reduce_motion, theme=self._theme)
         self._apply_logo_settings()
         self._logo_panel = LogoPanel(self._build_logo_panel_actions())
+        self._appearance = AppearancePanel(self._build_appearance_actions())
         self._about = AboutDialog()
 
         self._hud = Hud()
         self._controls = ControlBar(self._build_actions(), registry.options())
-        self._layout = Layout.compute(
-            self._screen.get_size(), show_control_bar=not self._fullscreen
-        )
-        self._controls.relayout(self._layout.control_bar)
-        self._refresh_mode_options()
+        self._refresh_mode_options()  # populates option dropdowns + lays out the bar
 
         self._running = False
+
+    def _set_window_icon(self) -> None:
+        """Set the title-bar/taskbar icon from the RenK emblem (best effort)."""
+        path = asset_path(APP_ICON_FILENAME) or asset_path(LOGO_FILENAME)
+        if path is None:
+            return
+        try:
+            icon = pygame.image.load(str(path)).convert_alpha()
+            pygame.display.set_icon(pygame.transform.smoothscale(icon, (64, 64)))
+        except pygame.error:
+            logger.warning("Could not set window icon from %s", path, exc_info=True)
 
     # -- setup helpers --------------------------------------------------------
     def _resolve_start_index(self, start_mode: str | None) -> int:
@@ -185,6 +209,13 @@ class App:
             open_about=lambda: self._about.toggle(),
             toggle_fullscreen=self._toggle_fullscreen,
             quit=self._request_quit,
+            open_appearance=lambda: self._appearance.toggle(),
+        )
+
+    def _build_appearance_actions(self) -> AppearanceActions:
+        return AppearanceActions(
+            cycle_style=self._cycle_ui_style,
+            cycle_font=self._cycle_ui_font,
         )
 
     def _build_logo_panel_actions(self) -> LogoPanelActions:
@@ -287,6 +318,8 @@ class App:
             for opt in type(self._visual).OPTIONS
         ]
         self._controls.set_mode_options(specs)
+        # Option count changes the bar's flowed height, so recompute the layout.
+        self._relayout(self._screen.get_size())
 
     def _set_mode_option(self, key: str, index: int) -> None:
         self._visual.set_option_index(key, index)
@@ -372,6 +405,24 @@ class App:
             "emit": "On" if self._logo.emit else "Off",
         }
 
+    # -- UI appearance --------------------------------------------------------
+    def _cycle_ui_style(self) -> None:
+        self._ui_style = self._cycle_next(UI_STYLES, self._ui_style)
+        STYLE.set_style(self._ui_style)
+        logger.debug("UI style = %s", self._ui_style)
+
+    def _cycle_ui_font(self) -> None:
+        self._ui_font = self._cycle_next(UI_FONTS, self._ui_font)
+        self._font, self._font_small = get_ui_fonts(self._ui_font)
+        logger.debug("UI font = %s", self._ui_font)
+
+    def _appearance_values(self) -> dict[str, str]:
+        """Human-readable current values for the Appearance panel rows."""
+        return {
+            "style": UI_STYLE_LABELS.get(self._ui_style, self._ui_style),
+            "font": UI_FONT_LABELS.get(self._ui_font, self._ui_font),
+        }
+
     def _notice_visible(self) -> bool:
         """The one-time photosensitivity notice shows before strobing modes."""
         return not self._notice_acknowledged and self._visual.STROBES
@@ -392,11 +443,12 @@ class App:
         self._running = False
 
     def _modal_open(self) -> bool:
-        return self._logo_panel.open or self._about.open
+        return self._logo_panel.open or self._about.open or self._appearance.open
 
     def _close_modals(self) -> None:
         self._logo_panel.open = False
         self._about.open = False
+        self._appearance.open = False
 
     # -- loop body ------------------------------------------------------------
     def _handle_events(self) -> None:
@@ -418,6 +470,7 @@ class App:
                 else:
                     canvas = self._layout.canvas
                     self._logo_panel.handle_event(event, canvas)
+                    self._appearance.handle_event(event, canvas)
                     self._about.handle_event(event, canvas)
                 continue
             if event.type == pygame.VIDEORESIZE and not self._fullscreen:
@@ -474,7 +527,10 @@ class App:
             self._set_mode_index(min(key - pygame.K_1, len(self._mode_keys) - 1))
 
     def _relayout(self, size: tuple[int, int]) -> None:
-        self._layout = Layout.compute(size, show_control_bar=not self._fullscreen)
+        show = not self._fullscreen
+        width = max(MIN_WINDOW_SIZE[0], int(size[0]))
+        bar_h = self._controls.content_height(width) if show else 0
+        self._layout = Layout.compute(size, show_control_bar=show, control_bar_height=bar_h)
         self._controls.relayout(self._layout.control_bar)
         self._visual.on_resize(self._layout.canvas.size)
 
@@ -540,6 +596,8 @@ class App:
         # Modals draw last so they sit above the canvas, controls, and HUD.
         self._logo_panel.set_state(self._logo_panel_values())
         self._logo_panel.draw(screen, canvas, self._font, self._font_small)
+        self._appearance.set_state(self._appearance_values())
+        self._appearance.draw(screen, canvas, self._font, self._font_small)
         self._about.draw(screen, canvas, self._font, self._font_small)
 
     def _hud_state(self) -> HudState:
@@ -586,6 +644,8 @@ class App:
             logo_opacity=self._logo.opacity,
             logo_color=self._logo.color_mode,
             logo_emit=self._logo.emit,
+            ui_style=self._ui_style,
+            ui_font=self._ui_font,
         )
 
     def _shutdown(self) -> None:

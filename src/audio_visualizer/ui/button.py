@@ -6,12 +6,8 @@ from collections.abc import Callable
 
 import pygame
 
-from audio_visualizer.config import (
-    COLOR_ACCENT,
-    COLOR_PANEL,
-    COLOR_PANEL_HOVER,
-    COLOR_TEXT,
-)
+from audio_visualizer.config import COLOR_TEXT
+from audio_visualizer.ui.style import TEXT_PAD, draw_panel, fit_text
 
 
 class Button:
@@ -37,10 +33,7 @@ class Button:
         return False
 
     def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
-        bg = COLOR_PANEL_HOVER if self._hover else COLOR_PANEL
-        pygame.draw.rect(surface, bg, self.rect, border_radius=6)
-        if self._hover:
-            pygame.draw.rect(surface, COLOR_ACCENT, self.rect, width=1, border_radius=6)
-        text = font.render(self.label, True, COLOR_TEXT)
-        text_rect = text.get_rect(center=self.rect.center)
-        surface.blit(text, text_rect)
+        draw_panel(surface, self.rect, hovered=self._hover)
+        label = fit_text(font, self.label, self.rect.width - TEXT_PAD * 2)
+        text = font.render(label, True, COLOR_TEXT)
+        surface.blit(text, text.get_rect(center=self.rect.center))
