@@ -16,7 +16,9 @@ Magic-number policy (see .cursor/rules/python-coding-style.mdc):
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-APP_VERSION = "00.09.03"
+# FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
+# so it stays two digits. The build spec parses each PP.FF.BB part base-16.
+APP_VERSION = "00.0A.00"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-16"
@@ -71,6 +73,30 @@ UI_FONT_FAMILIES: dict[str, str] = {
 }
 UI_FONT_SIZE = 15
 UI_FONT_SIZE_SMALL = 14
+
+# Accent color for active/hover highlights. "cyan"/"green" are solid; "aurora" is a
+# magenta->cyan horizontal gradient glow (the premium Concept-B look). The gradient
+# entry's text color falls back to its cyan end so labels stay readable.
+UI_ACCENTS: tuple[str, ...] = ("cyan", "aurora", "green")
+UI_ACCENT_DEFAULT = "cyan"
+UI_ACCENT_LABELS: dict[str, str] = {
+    "cyan": "Cyan",
+    "aurora": "Aurora (magenta->cyan)",
+    "green": "Neon green",
+}
+# Solid accent RGB per key (the gradient entry uses its B endpoint here for text).
+UI_ACCENT_COLORS: dict[str, tuple[int, int, int]] = {
+    "cyan": (90, 200, 255),
+    "aurora": (90, 200, 255),
+    "green": (110, 240, 150),
+}
+# Two-color horizontal gradient for gradient accents (A on the left -> B on right);
+# None means the accent is a flat color.
+UI_ACCENT_GRADIENTS: dict[str, tuple[tuple[int, int, int], tuple[int, int, int]] | None] = {
+    "cyan": None,
+    "aurora": ((255, 70, 200), (90, 200, 255)),
+    "green": None,
+}
 
 # Palette used by spectrum / light-show modes (low -> high frequency).
 PALETTE: tuple[tuple[int, int, int], ...] = (
@@ -137,6 +163,55 @@ COLOR_SCHEME_LABELS: dict[str, str] = {
 }
 # How fast rainbow_plus sweeps the hue wheel (cycles per second).
 COLOR_CYCLE_RATE = 0.15
+
+# --- Global background layer (drawn behind every visual mode) -----------------
+# A process-wide backdrop the user picks in the Appearance panel. "black" is the
+# plain default; the others render *behind* the active mode (modes never clear the
+# canvas, so the backdrop shows through wherever the mode doesn't paint).
+BG_MODES: tuple[str, ...] = ("black", "spectrum", "gradient", "aurora")
+BG_MODE_DEFAULT = "black"
+BG_MODE_LABELS: dict[str, str] = {
+    "black": "Black",
+    "spectrum": "Spectrum line",
+    "gradient": "Gradient",
+    "aurora": "Aurora",
+}
+# Spectrum-line height presets -> max bar height as a fraction of the canvas height.
+BG_HEIGHTS: tuple[str, ...] = ("low", "medium", "high", "tall")
+BG_HEIGHT_DEFAULT = "medium"
+BG_HEIGHT_LABELS: dict[str, str] = {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "tall": "Tall",
+}
+BG_HEIGHT_FRACTIONS: dict[str, float] = {
+    "low": 0.08,
+    "medium": 0.16,
+    "high": 0.26,
+    "tall": 0.40,
+}
+# Background spectrum look: target on-screen bar pitch (px) and overall opacity so
+# the line stays a quiet backdrop, plus attack/release smoothing for a calm line.
+BG_SPECTRUM_BAR_PITCH = 6
+BG_SPECTRUM_ALPHA = 200
+BG_SPECTRUM_ATTACK = 0.5
+BG_SPECTRUM_RELEASE = 0.12
+BG_SPECTRUM_IDLE_FRACTION = 0.04  # faint resting baseline when silent/idle
+# Magenta->cyan palette the spectrum/gradient/aurora sample across (low->high x).
+BG_PALETTE: tuple[tuple[int, int, int], ...] = (
+    (255, 70, 200),
+    (180, 90, 255),
+    (90, 150, 255),
+    (90, 220, 255),
+)
+# Gradient backdrop: bottom tint the canvas fades toward, + how much energy lifts it.
+BG_GRADIENT_BOTTOM = (26, 18, 44)
+BG_GRADIENT_ENERGY_GAIN = 0.5
+# Aurora backdrop: number of drifting soft blobs and their base opacity/drift speed.
+BG_AURORA_BLOBS = 4
+BG_AURORA_ALPHA = 64
+BG_AURORA_DRIFT = 0.05
 
 # Onset (beat) detection: spectral flux is normalized to 0..1 via this gain;
 # a frame is treated as an onset when its strength clears the threshold.
@@ -274,8 +349,9 @@ LOGO_EMIT_SPEED = 0.18  # outward spark speed in normalized units/sec
 # --- Settings persistence -----------------------------------------------------
 SETTINGS_FILENAME = "settings.json"
 # v2 added the RenK logo overlay preferences (logo_*). v3 added UI appearance
-# (ui_style, ui_font). Older files migrate by defaulting the new keys.
-SETTINGS_SCHEMA_VERSION = 3
+# (ui_style, ui_font). v4 added the accent color + global background layer
+# (ui_accent, bg_mode, bg_height). Older files migrate by defaulting new keys.
+SETTINGS_SCHEMA_VERSION = 4
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error

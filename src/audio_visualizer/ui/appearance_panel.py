@@ -15,8 +15,14 @@ import pygame
 from audio_visualizer.config import COLOR_BG, COLOR_TEXT
 from audio_visualizer.ui.style import STYLE, draw_panel
 
-_ROW_KEYS: tuple[str, ...] = ("style", "font")
-_ROW_LABELS: dict[str, str] = {"style": "Control style", "font": "Text font"}
+_ROW_KEYS: tuple[str, ...] = ("style", "accent", "font", "background", "bg_height")
+_ROW_LABELS: dict[str, str] = {
+    "style": "Control style",
+    "accent": "Accent color",
+    "font": "Text font",
+    "background": "Background",
+    "bg_height": "Spectrum height",
+}
 
 _PANEL_W = 360
 _ROW_H = 44
@@ -28,7 +34,10 @@ class AppearanceActions:
     """Callbacks invoked when a row is clicked (App mutates state + persists)."""
 
     cycle_style: Callable[[], None]
+    cycle_accent: Callable[[], None]
     cycle_font: Callable[[], None]
+    cycle_background: Callable[[], None]
+    cycle_bg_height: Callable[[], None]
 
 
 class AppearancePanel:
@@ -37,7 +46,10 @@ class AppearancePanel:
     def __init__(self, actions: AppearanceActions) -> None:
         self._actions: dict[str, Callable[[], None]] = {
             "style": actions.cycle_style,
+            "accent": actions.cycle_accent,
             "font": actions.cycle_font,
+            "background": actions.cycle_background,
+            "bg_height": actions.cycle_bg_height,
         }
         self.open = False
         self._values: dict[str, str] = {key: "" for key in _ROW_KEYS}

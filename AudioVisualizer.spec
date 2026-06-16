@@ -39,8 +39,9 @@ datas = [(_assets_src, os.path.join("audio_visualizer", "assets"))] if os.path.i
 # inside the frozen bundle.
 hiddenimports = ["pyaudiowpatch", *collect_submodules("audio_visualizer.visuals")]
 
-# Windows version resource derived from the single APP_VERSION (PP.FF.BB).
-_parts = [int(p) for p in APP_VERSION.split(".")]
+# Windows version resource derived from the single APP_VERSION (PP.FF.BB). Parts
+# are parsed base-16 because FF uses hex from phase 10 on ("0A" == 10).
+_parts = [int(p, 16) for p in APP_VERSION.split(".")]
 _vtuple = tuple((_parts + [0, 0, 0, 0])[:4])
 version_info = VSVersionInfo(
     ffi=FixedFileInfo(filevers=_vtuple, prodvers=_vtuple, mask=0x3F, flags=0x0, OS=0x40004,

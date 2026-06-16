@@ -13,6 +13,10 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from audio_visualizer.config import (
+    BG_HEIGHT_DEFAULT,
+    BG_HEIGHTS,
+    BG_MODE_DEFAULT,
+    BG_MODES,
     COLOR_SCHEME_DEFAULT,
     COLOR_SCHEMES,
     DEFAULT_WINDOW_SIZE,
@@ -31,6 +35,8 @@ from audio_visualizer.config import (
     SIZE_SCALE_DEFAULT,
     SMOOTHING_DEFAULT,
     SPEED_SCALE_DEFAULT,
+    UI_ACCENT_DEFAULT,
+    UI_ACCENTS,
     UI_FONT_DEFAULT,
     UI_FONTS,
     UI_STYLE_DEFAULT,
@@ -66,6 +72,10 @@ class Settings:
     # UI appearance (Phase 9.03 / schema v3).
     ui_style: str = UI_STYLE_DEFAULT
     ui_font: str = UI_FONT_DEFAULT
+    # Accent color + global background layer (Phase 10 / schema v4).
+    ui_accent: str = UI_ACCENT_DEFAULT
+    bg_mode: str = BG_MODE_DEFAULT
+    bg_height: str = BG_HEIGHT_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -146,6 +156,9 @@ def _from_dict(raw: dict) -> Settings:
         logo_emit=_bool(raw.get("logo_emit"), defaults.logo_emit),
         ui_style=_choice(raw.get("ui_style"), UI_STYLES, defaults.ui_style),
         ui_font=_choice(raw.get("ui_font"), UI_FONTS, defaults.ui_font),
+        ui_accent=_choice(raw.get("ui_accent"), UI_ACCENTS, defaults.ui_accent),
+        bg_mode=_choice(raw.get("bg_mode"), BG_MODES, defaults.bg_mode),
+        bg_height=_choice(raw.get("bg_height"), BG_HEIGHTS, defaults.bg_height),
     )
 
 

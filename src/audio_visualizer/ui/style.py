@@ -1,9 +1,9 @@
-"""Shared, runtime-switchable UI look (flat vs glass) + a small text helper.
+"""Shared, runtime-switchable UI look (flat vs glass, accent color) + text helper.
 
 Widgets read the module-level :data:`STYLE` singleton at draw time instead of
-hard-coding colors/shapes, so the Appearance panel can flip the whole UI's style
-live. All panel/button/dropdown backgrounds go through :func:`draw_panel` so the
-two styles live in exactly one place.
+hard-coding colors/shapes, so the Appearance panel can flip the whole UI's style,
+accent, and font live. All panel/button/dropdown backgrounds go through
+:func:`draw_panel` so the styles + the (optional gradient) accent live in one place.
 """
 
 from __future__ import annotations
@@ -11,10 +11,13 @@ from __future__ import annotations
 import pygame
 
 from audio_visualizer.config import (
-    COLOR_ACCENT,
     COLOR_BORDER,
     COLOR_PANEL,
     COLOR_PANEL_HOVER,
+    UI_ACCENT_COLORS,
+    UI_ACCENT_DEFAULT,
+    UI_ACCENT_GRADIENTS,
+    UI_ACCENTS,
     UI_STYLE_DEFAULT,
     UI_STYLES,
 )
@@ -24,17 +27,26 @@ TEXT_PAD = 8
 # Flat-style corner radius (glass uses a full pill radius instead).
 _FLAT_RADIUS = 8
 
+Color = tuple[int, int, int]
+
 
 class UiStyle:
     """Mutable, process-wide UI appearance state read by widgets at draw time."""
 
     def __init__(self) -> None:
         self.style: str = UI_STYLE_DEFAULT
-        self.accent: tuple[int, int, int] = COLOR_ACCENT
+        self.accent: Color = UI_ACCENT_COLORS[UI_ACCENT_DEFAULT]
+        # Two endpoints when the accent is a horizontal gradient, else None.
+        self.accent_grad: tuple[Color, Color] | None = UI_ACCENT_GRADIENTS[UI_ACCENT_DEFAULT]
 
     def set_style(self, style: str) -> None:
         if style in UI_STYLES:
             self.style = style
+
+    def set_accent(self, accent: str) -> None:
+        if accent in UI_ACCENTS:
+            self.accent = UI_ACCENT_COLORS[accent]
+            self.accent_grad = UI_ACCENT_GRADIENTS[accent]
 
 
 STYLE = UiStyle()
@@ -45,9 +57,39 @@ def _radius(rect: pygame.Rect) -> int:
     return rect.height // 2 if STYLE.style == "glass" else _FLAT_RADIUS
 
 
-def _mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+def _mix(a: Color, b: Color, t: float) -> Color:
     """Blend color ``a`` toward ``b`` by ``t`` in 0..1."""
-    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))  # type: ignore[return-value]
+    return (
+        int(round(a[0] + (b[0] - a[0]) * t)),
+        int(round(a[1] + (b[1] - a[1]) * t)),
+        int(round(a[2] + (b[2] - a[2]) * t)),
+    )
+
+
+def _accent_gradient(size: tuple[int, int], radius: int, alpha: int) -> pygame.Surface:
+    """A rounded, horizontal magenta->cyan (accent) gradient surface at ``alpha``."""
+    a, b = STYLE.accent_grad  # type: ignore[misc]  # caller guards None
+    w, h = max(1, size[0]), max(1, size[1])
+    grad = pygame.Surface((w, h)).convert_alpha()
+    for x in range(w):
+        pygame.draw.line(grad, _mix(a, b, x / max(1, w - 1)), (x, 0), (x, h))
+    mask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, alpha), mask.get_rect(), border_radius=radius)
+    grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return grad
+
+
+def _draw_accent_border(surface: pygame.Surface, rect: pygame.Rect, radius: int) -> None:
+    """Outline ``rect`` in the accent (a true gradient ring for gradient accents)."""
+    if STYLE.accent_grad is None:
+        pygame.draw.rect(surface, STYLE.accent, rect, width=1, border_radius=radius)
+        return
+    ring = _accent_gradient(rect.size, radius, 255)
+    inner = ring.get_rect().inflate(-2, -2)
+    # pygame.draw overwrites pixels (incl. alpha) on SRCALPHA surfaces, so this
+    # punches the interior transparent, leaving only the gradient ring.
+    pygame.draw.rect(ring, (0, 0, 0, 0), inner, border_radius=max(0, radius - 1))
+    surface.blit(ring, rect.topleft)
 
 
 def draw_panel(
@@ -62,32 +104,38 @@ def draw_panel(
 
     ``hovered`` lightens the fill; ``accent_border`` outlines in the accent;
     ``accent_fill`` tints the fill toward the accent (selected/active controls).
+    The accent may be a solid color or a magenta->cyan gradient (Aurora).
     """
     radius = _radius(rect)
-    accent = STYLE.accent
-    if STYLE.style == "glass":
+    glass = STYLE.style == "glass"
+    show_accent = accent_border or accent_fill or hovered
+
+    if glass:
         surf = pygame.Surface(rect.size, pygame.SRCALPHA)
         body = surf.get_rect()
-        if accent_fill:
-            pygame.draw.rect(surf, (*accent, 70), body, border_radius=radius)
+        if accent_fill and STYLE.accent_grad is not None:
+            surf.blit(_accent_gradient(rect.size, radius, 90), (0, 0))
+        elif accent_fill:
+            pygame.draw.rect(surf, (*STYLE.accent, 70), body, border_radius=radius)
         else:
             base = COLOR_PANEL_HOVER if hovered else COLOR_PANEL
-            alpha = 200 if hovered else 150
-            pygame.draw.rect(surf, (*base, alpha), body, border_radius=radius)
+            pygame.draw.rect(surf, (*base, 200 if hovered else 150), body, border_radius=radius)
         surface.blit(surf, rect.topleft)
-        edge = accent if (accent_border or accent_fill or hovered) else COLOR_BORDER
-        pygame.draw.rect(surface, edge, rect, width=1, border_radius=radius)
-        return
-    # Flat style.
-    if accent_fill:
-        fill = _mix(COLOR_PANEL, accent, 0.30)
-    elif hovered:
-        fill = COLOR_PANEL_HOVER
+    elif accent_fill and STYLE.accent_grad is not None:
+        surface.blit(_accent_gradient(rect.size, radius, 235), rect.topleft)
     else:
-        fill = COLOR_PANEL
-    pygame.draw.rect(surface, fill, rect, border_radius=radius)
-    edge = accent if (accent_border or accent_fill or hovered) else COLOR_BORDER
-    pygame.draw.rect(surface, edge, rect, width=1, border_radius=radius)
+        if accent_fill:
+            fill = _mix(COLOR_PANEL, STYLE.accent, 0.30)
+        elif hovered:
+            fill = COLOR_PANEL_HOVER
+        else:
+            fill = COLOR_PANEL
+        pygame.draw.rect(surface, fill, rect, border_radius=radius)
+
+    if show_accent:
+        _draw_accent_border(surface, rect, radius)
+    else:
+        pygame.draw.rect(surface, COLOR_BORDER, rect, width=1, border_radius=radius)
 
 
 def fit_text(font: pygame.font.Font, text: str, max_width: int) -> str:

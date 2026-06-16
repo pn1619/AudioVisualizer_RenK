@@ -11,6 +11,33 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0A.00` — Phase 10: global backgrounds & accent colors
+
+**Added**
+- **Background layer** (Appearance → **Background**) drawn *behind* every visual mode,
+  with the height-controlled spectrum from the concept art:
+  - **Black** (default), **Spectrum line** (a thin, colorful magenta→cyan equalizer along
+    the bottom edge — height: Low/Medium/High/Tall via **Spectrum height**), **Gradient**
+    (calm vertical tint), and **Aurora** (softly drifting additive color blobs).
+  - New `visuals/background.py` (`Background`); composited first in `app.py` (modes never
+    clear the canvas, so it shows through). Honors the color scheme + reduce-motion.
+- **Accent color** (Appearance → **Accent color**): **Cyan** (default), **Aurora**
+  (magenta→cyan **gradient** glow — the premium Concept-B look, real gradient borders/fills),
+  or **Neon green**. Implemented once in `ui/style.py`.
+- All three persist (settings **schema v4**: `ui_accent`, `bg_mode`, `bg_height`).
+
+**Changed**
+- Version scheme: `FF` (phase) is now written **hex** from phase 10 (`0A`), so it stays two
+  digits; the PyInstaller spec parses `PP.FF.BB` base-16 for the Windows version resource.
+
+**Tests / verification**
+- Added `tests/test_background_phase10.py` (black no-op, spectrum paints the bottom edge,
+  every backdrop renders, gradient-accent draw paths, settings v4 round-trip + migration).
+- ruff / black / mypy **clean**; full suite **passes**; `--selftest` exit **0**; exe builds
+  + self-tests.
+
+---
+
 ## `00.09.03` — Phase 9 polish: modern GUI, selectable look & font, app icon
 
 **Added**
