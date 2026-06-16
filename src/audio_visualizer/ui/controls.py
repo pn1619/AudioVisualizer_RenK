@@ -59,7 +59,8 @@ class ControlBar:
 
     def __init__(self, actions: ControlActions, mode_options: list[tuple[str, str]]) -> None:
         self._actions = actions
-        self._start = Button("Start", actions.toggle_capture)
+        # Start/Stop, Fullscreen and Quit are grouped into one "Menu" action dropdown.
+        self._menu = Dropdown(self._on_menu_select, static_label="Menu")
         self._prev = Button("<", actions.prev_mode)
         self._dropdown = Dropdown(actions.select_mode)
         self._dropdown.set_options(mode_options)
@@ -81,15 +82,13 @@ class ControlBar:
         self._reduce = Button("Motion+", actions.toggle_reduce_motion)
         self._logo = Button("RenK", actions.open_logo_panel)
         self._about = Button("About", actions.open_about)
-        self._full = Button("Full", actions.toggle_fullscreen)
-        self._quit = Button("Quit", actions.quit)
 
         self._color = Dropdown(actions.select_color, title="Color")
         self._color.set_options([(s, COLOR_SCHEME_LABELS.get(s, s)) for s in COLOR_SCHEMES])
 
         # (widget, width) in display order for each row.
         self._row1: list[tuple[Button | Dropdown | Chip, int]] = [
-            (self._start, 56),
+            (self._menu, 72),
             (self._prev, 28),
             (self._dropdown, 130),
             (self._next, 28),
@@ -108,13 +107,20 @@ class ControlBar:
             (self._reduce, 64),
             (self._logo, 52),
             (self._about, 56),
-            (self._full, 44),
-            (self._quit, 44),
         ]
         self._option_dropdowns: list[Dropdown] = []
         self._bar: pygame.Rect | None = None
         self._buttons = [w for w, _ in self._row1 if isinstance(w, Button)]
         self._chips = [w for w, _ in self._row1 if isinstance(w, Chip)]
+
+    def _on_menu_select(self, key: str) -> None:
+        """Route a Menu item to its action (Start/Stop, Fullscreen, Quit)."""
+        if key == "capture":
+            self._actions.toggle_capture()
+        elif key == "fullscreen":
+            self._actions.toggle_fullscreen()
+        elif key == "quit":
+            self._actions.quit()
 
     # -- state / contents -----------------------------------------------------
     def set_state(
@@ -128,7 +134,13 @@ class ControlBar:
         size_scale: float,
         speed_scale: float,
     ) -> None:
-        self._start.label = "Stop" if capturing else "Start"
+        self._menu.set_options(
+            [
+                ("capture", "Stop" if capturing else "Start"),
+                ("fullscreen", "Fullscreen"),
+                ("quit", "Quit"),
+            ]
+        )
         self._dropdown.set_selected(mode_key)
         self._reduce.label = "Motion-" if reduce_motion else "Motion+"
         self._color.set_selected(color_scheme)
@@ -176,7 +188,7 @@ class ControlBar:
 
     # -- input ----------------------------------------------------------------
     def _all_dropdowns(self) -> list[Dropdown]:
-        return [self._dropdown, self._color, *self._option_dropdowns]
+        return [self._menu, self._dropdown, self._color, *self._option_dropdowns]
 
     def handle_event(self, event: pygame.event.Event) -> bool:
         for dd in self._all_dropdowns():

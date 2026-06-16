@@ -23,9 +23,14 @@ _ROW_H = 28
 class Dropdown:
     """Header + expandable option list; calls ``on_select(key)`` on choice."""
 
-    def __init__(self, on_select: Callable[[str], None], title: str = "") -> None:
+    def __init__(
+        self, on_select: Callable[[str], None], title: str = "", static_label: str = ""
+    ) -> None:
         self._on_select = on_select
         self._title = title
+        # When set, the header always shows this text (an action menu, not a value
+        # picker) instead of the currently selected option.
+        self._static_label = static_label
         self._options: list[tuple[str, str]] = []  # (key, label)
         self._selected_key = ""
         self.open = False
@@ -46,6 +51,8 @@ class Dropdown:
 
     @property
     def current_label(self) -> str:
+        if self._static_label:
+            return self._static_label
         selected = "Mode"
         for key, label in self._options:
             if key == self._selected_key:

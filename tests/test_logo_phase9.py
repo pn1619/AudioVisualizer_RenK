@@ -119,6 +119,38 @@ def test_to_luminance_preserves_size_and_alpha() -> None:
     assert lum.get_flags() & pygame.SRCALPHA
 
 
+def test_logo_preserves_source_aspect_ratio() -> None:
+    # A 3:2 source must not be squished into a square when scaled.
+    src = pygame.Surface((30, 20), pygame.SRCALPHA)
+    pygame.draw.ellipse(src, (40, 200, 255, 255), src.get_rect(), width=2)
+    logo = RenkLogo(surface=src)
+    logo.size_key = "medium"
+    logo.draw(pygame.Surface((400, 300)), _onset_frame(), 0.016)
+    w, h = logo._scaled_size
+    assert abs(w / h - 30 / 20) < 0.05  # aspect preserved
+
+
+def test_logo_more_size_presets_all_render() -> None:
+    logo = RenkLogo(surface=_logo_surface())
+    surface = pygame.Surface((500, 400))
+    heights = []
+    for size in LOGO_SIZES:
+        logo.size_key = size
+        logo.draw(surface, _onset_frame(), 0.016)
+        heights.append(logo._scaled_size[1])
+    assert len(LOGO_SIZES) >= 6
+    assert heights == sorted(heights)  # presets increase in size
+
+
+def test_logo_rainbow_uses_varied_hue_map() -> None:
+    logo = RenkLogo(surface=_logo_surface(40))
+    logo.color_mode = "rainbow_plus"
+    logo.draw(pygame.Surface((320, 240)), _onset_frame(), 0.016)
+    assert logo._hue_map is not None
+    # A swirling rainbow spans many hues, not one flat value.
+    assert float(logo._hue_map.max() - logo._hue_map.min()) > 0.3
+
+
 # -- Settings round-trip / migration ------------------------------------------
 def test_logo_settings_round_trip() -> None:
     s = Settings(
@@ -208,6 +240,42 @@ def test_logo_panel_draws_without_error() -> None:
     surface = pygame.Surface((800, 600))
     font = pygame.font.Font(None, 22)
     panel.draw(surface, pygame.Rect(0, 0, 800, 600), font, font)
+
+
+def test_menu_dropdown_routes_actions() -> None:
+    from audio_visualizer.ui.controls import ControlActions, ControlBar
+
+    calls: dict[str, int] = {"capture": 0, "fullscreen": 0, "quit": 0}
+    actions = ControlActions(
+        toggle_capture=lambda: calls.__setitem__("capture", calls["capture"] + 1),
+        prev_mode=lambda: None,
+        next_mode=lambda: None,
+        select_mode=lambda key: None,
+        sensitivity_down=lambda: None,
+        sensitivity_up=lambda: None,
+        smoothing_down=lambda: None,
+        smoothing_up=lambda: None,
+        size_down=lambda: None,
+        size_up=lambda: None,
+        speed_down=lambda: None,
+        speed_up=lambda: None,
+        cycle_color_scheme=lambda: None,
+        select_color=lambda key: None,
+        option_change=lambda key, idx: None,
+        toggle_reduce_motion=lambda: None,
+        open_logo_panel=lambda: None,
+        open_about=lambda: None,
+        toggle_fullscreen=lambda: calls.__setitem__("fullscreen", calls["fullscreen"] + 1),
+        quit=lambda: calls.__setitem__("quit", calls["quit"] + 1),
+    )
+    bar = ControlBar(actions, [("waveform", "Waveform")])
+    bar.set_state(True, "waveform", False, "classic", 1.0, 0.5, 1.0, 1.0)
+    # Menu header stays "Menu" regardless of last action chosen.
+    assert bar._menu.current_label == "Menu"
+    bar._on_menu_select("capture")
+    bar._on_menu_select("fullscreen")
+    bar._on_menu_select("quit")
+    assert calls == {"capture": 1, "fullscreen": 1, "quit": 1}
 
 
 def test_about_dialog_toggle_and_draw() -> None:

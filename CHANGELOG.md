@@ -11,6 +11,27 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.09.01` — Phase 9 fixes: Menu group, round logo, more sizes, swirling Rainbow+
+
+**Fixed / changed**
+- **Control bar `Menu`** — Start/Stop, Fullscreen, and Quit are grouped into a single
+  **`Menu`** dropdown (less clutter); the first item reflects the capture state
+  (Start/Stop). Keyboard shortcuts (`Space`, `F11`, `Ctrl+Q`) are unchanged.
+- **RenK logo no longer squished** — scaling now **preserves the art's aspect ratio**, so
+  the ring renders as a proper circle (was distorted by forcing a square).
+- **More logo sizes** — six presets: **Tiny / Small / Medium / Large / X-Large / Huge**
+  (height = 15–90% of the min canvas side).
+- **Swirling Rainbow+** — the logo's Rainbow+ color is now a **multi-color, radiant glow**
+  (hue varies by angle + radius and cycles over time via a precomputed hue map + LUT)
+  instead of one flat, uniform hue.
+
+**Tests / verification**
+- `tools\test.ps1` → **112 passed** (adds aspect-ratio, size-preset ordering, varied
+  hue-map, and `Menu` action-routing tests).
+- ruff / black / mypy **clean**; `--selftest` exit **0**; exe builds + self-tests.
+
+---
+
 ## `00.09.00` — Phase 9: RenK logo overlay, About dialog & ESC fix
 
 **Delivered**
