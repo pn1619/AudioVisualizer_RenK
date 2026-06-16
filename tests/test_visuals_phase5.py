@@ -119,6 +119,8 @@ def _noop_actions() -> tuple[ControlActions, dict]:
         select_color=lambda key: calls.setdefault("color", key),
         option_change=lambda key, idx: calls.setdefault("option", (key, idx)),
         toggle_reduce_motion=lambda: None,
+        open_logo_panel=lambda: None,
+        open_about=lambda: None,
         toggle_fullscreen=lambda: None,
         quit=lambda: None,
     )

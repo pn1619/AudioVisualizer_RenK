@@ -11,6 +11,34 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.09.00` — Phase 9: RenK logo overlay, About dialog & ESC fix
+
+**Delivered**
+- **RenK logo overlay** — a global, audio-reactive branding overlay drawn **over every
+  visual mode** (not a mode itself). It slowly "circles" (spins, faster on bass), gently
+  pulses with energy, and can **emit sparks** on the beat (reusing the shared `SparkField`).
+  Implemented as `visuals/logo.py` (`RenkLogo`), owned by the App and composited
+  **additively** so the neon-on-black art glows with no bounding box.
+- **Fully configurable** via a `RenK` settings panel (modal): **Show** on/off (works in
+  all modes), **Color** (Default picture ↔ animated **Rainbow+** via a luminance tint),
+  **Transparency** (25/50/75/100%), **Size** (Small/Medium/Large), **Position** (Center +
+  4 corners), and **Emit** particles on/off. All preferences **persist** (settings
+  schema **v2**, older files migrate by defaulting the new keys).
+- **About dialog** (`About` button) — owner, license, version, build date, Python/pygame.
+- **ESC no longer quits the app** — it now only closes an open modal or leaves fullscreen.
+  Quit remains on the **Quit** button and **Ctrl+Q**.
+- Logo art bundled at `audio_visualizer/assets/renk_logo.png` and packaged into the exe.
+
+**Tests / verification**
+- `tools\test.ps1` → **108 passed** (adds `test_logo_phase9.py`: logo renders across all
+  positions/sizes, disabled/spin/rainbow/opacity paths, emit on onset, reduce-motion
+  disables emission, luminance helper, settings round-trip + migration + opacity snap,
+  and the panel/About modal interactions).
+- `tools\lint.ps1` → ruff **clean**, black **clean**, mypy **clean**.
+- `--selftest` → exit **0**.
+
+---
+
 ## `00.08.00` — Phase 8: Light Show 2, Laser 2 & particle trails
 
 **Delivered**

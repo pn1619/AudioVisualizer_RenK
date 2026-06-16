@@ -17,8 +17,12 @@ AudioVisualizer/
 │     ├─ main.py                # parse args, configure logging, install excepthook, build & run App
 │     ├─ app.py                 # App: window, main loop, input, mode switching (wiring only)
 │     ├─ config.py              # constants & defaults (APP_VERSION, FFT size, FPS, colors, smoothing keys)
-│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version, migrate-or-default)
+│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version, migrate-or-default; v2 adds logo_*)
 │     ├─ platform_win.py        # DPI awareness + Windows-specific shims (guarded, no-op off Windows)
+│     ├─ resources.py           # Phase 9: locate bundled assets/ in dev + frozen (_MEIPASS) runs
+│     │
+│     ├─ assets/
+│     │  └─ renk_logo.png        # Phase 9: RenK logo art (glowing glass-tube wordmark + ring)
 │     │
 │     ├─ audio/
 │     │  ├─ __init__.py
@@ -31,7 +35,8 @@ AudioVisualizer/
 │     │  ├─ __init__.py
 │     │  ├─ base.py             # BaseVisualizer + lifecycle hooks; Theme + ModeOption/OptionChoice (per-mode options)
 │     │  ├─ registry.py         # @register decorator + discover() auto-import; ordered mode list
-│     │  ├─ _helpers.py         # shared draw utils (color lerp, ring_points/draw_ring, RingPops); skipped by discovery
+│     │  ├─ _helpers.py         # shared draw utils (color lerp, ring_points/draw_ring, RingPops, SparkField); skipped by discovery
+│     │  ├─ logo.py             # Phase 9: RenkLogo global overlay (NOT a mode; drawn by app over every mode)
 │     │  ├─ waveform.py         # @register("waveform", ...)
 │     │  ├─ spectrum.py         # @register("spectrum", ...)
 │     │  ├─ lightshow.py        # @register("lightshow", ...)
@@ -54,7 +59,9 @@ AudioVisualizer/
 │        ├─ button.py           # minimal clickable Button (rect + label + hover)
 │        ├─ chip.py             # read-only value Chip (shows current Sens/Smooth/Size/Speed)
 │        ├─ dropdown.py         # minimal Dropdown widget (mode/color/per-mode options; optional title)
-│        ├─ controls.py         # two-row control bar: buttons + chips + color/option dropdowns
+│        ├─ controls.py         # two-row control bar: buttons + chips + color/option dropdowns (+ RenK/About buttons)
+│        ├─ logo_panel.py       # Phase 9: RenK logo settings modal (clickable value-cycling rows)
+│        ├─ about.py            # Phase 9: About modal (owner/license/version/build date)
 │        └─ hud.py              # status line + debug overlay (F3)
 │
 ├─ tests/                       # headless (SDL dummy drivers); see plan/testing.md
@@ -69,7 +76,8 @@ AudioVisualizer/
 │  ├─ test_dropdown.py          # dropdown open/select/click-outside
 │  ├─ test_ui_logic.py          # button hit-test, mode cycling wrap
 │  ├─ test_settings.py          # round-trip + corrupt/old schema → defaults
-│  ├─ test_visuals_phase{3,4,5,6}.py  # per-phase visual/option/color coverage
+│  ├─ test_visuals_phase{3,4,5,6,8}.py  # per-phase visual/option/color coverage
+│  ├─ test_logo_phase9.py       # RenK logo overlay + settings migration + panel/About modals
 │  └─ test_smoke.py             # headless App build + N ticks (incl. idle/resize)
 │
 ├─ tools/

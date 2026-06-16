@@ -16,6 +16,16 @@ from audio_visualizer.config import (
     COLOR_SCHEME_DEFAULT,
     COLOR_SCHEMES,
     DEFAULT_WINDOW_SIZE,
+    LOGO_COLOR_DEFAULT,
+    LOGO_COLOR_MODES,
+    LOGO_EMIT_DEFAULT,
+    LOGO_ENABLED_DEFAULT,
+    LOGO_OPACITIES,
+    LOGO_OPACITY_DEFAULT,
+    LOGO_POSITION_DEFAULT,
+    LOGO_POSITIONS,
+    LOGO_SIZE_DEFAULT,
+    LOGO_SIZES,
     SETTINGS_FILENAME,
     SETTINGS_SCHEMA_VERSION,
     SIZE_SCALE_DEFAULT,
@@ -42,6 +52,13 @@ class Settings:
     size_scale: float = SIZE_SCALE_DEFAULT
     speed_scale: float = SPEED_SCALE_DEFAULT
     color_scheme: str = COLOR_SCHEME_DEFAULT
+    # RenK logo overlay (Phase 9 / schema v2).
+    logo_enabled: bool = LOGO_ENABLED_DEFAULT
+    logo_size: str = LOGO_SIZE_DEFAULT
+    logo_position: str = LOGO_POSITION_DEFAULT
+    logo_opacity: float = LOGO_OPACITY_DEFAULT
+    logo_color: str = LOGO_COLOR_DEFAULT
+    logo_emit: bool = LOGO_EMIT_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -114,6 +131,12 @@ def _from_dict(raw: dict) -> Settings:
         size_scale=_float(raw.get("size_scale"), defaults.size_scale),
         speed_scale=_float(raw.get("speed_scale"), defaults.speed_scale),
         color_scheme=_choice(raw.get("color_scheme"), COLOR_SCHEMES, defaults.color_scheme),
+        logo_enabled=_bool(raw.get("logo_enabled"), defaults.logo_enabled),
+        logo_size=_choice(raw.get("logo_size"), LOGO_SIZES, defaults.logo_size),
+        logo_position=_choice(raw.get("logo_position"), LOGO_POSITIONS, defaults.logo_position),
+        logo_opacity=_opacity(raw.get("logo_opacity"), defaults.logo_opacity),
+        logo_color=_choice(raw.get("logo_color"), LOGO_COLOR_MODES, defaults.logo_color),
+        logo_emit=_bool(raw.get("logo_emit"), defaults.logo_emit),
     )
 
 
@@ -133,6 +156,13 @@ def _float(value: object, default: float) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         return default
     return float(value)
+
+
+def _opacity(value: object, default: float) -> float:
+    """Snap a stored opacity to the nearest allowed preset (lenient on type)."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return default
+    return min(LOGO_OPACITIES, key=lambda preset: abs(preset - float(value)))
 
 
 def _size(value: object, default: tuple[int, int]) -> tuple[int, int]:

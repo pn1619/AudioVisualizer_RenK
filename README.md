@@ -8,12 +8,13 @@ Visual modes: **waveform, waveform 2, waveform circle (x4), spectrum, light show
 (x2), particles, laser (x2), snowfall, and particles spiral** — 14 total; adding a
 mode is one drop-in file.
 
-> Status: **Phase 8 (v `00.08.00`)** — two new modes: **Light Show 2** (radial beams
-> made of pulsing particles, a shapeable core, optional emitted sparks) and **Laser 2**
-> (selectable Lissajous/rose/star/spiral/heart figure + beams that emit particles), plus
-> a shared **particle Trail** option (fading "shadow" trails). **14 modes total.** Builds
-> on Phase 7's docs/maintainability pass. See `plan/development-phases.md` for the roadmap
-> and `plan/architecture-and-code-flow.md` for how it works.
+> Status: **Phase 9 (v `00.09.00`)** — a global **RenK logo overlay** that appears over
+> every mode: it slowly circles, pulses with the music, and can emit sparks on the beat.
+> Configure it from the **RenK** panel — show on/off, Default ↔ **Rainbow+** color,
+> transparency, size, and center/corner position — and read app info in the new **About**
+> dialog. **ESC no longer quits** (use the Quit button or Ctrl+Q). Builds on Phase 8's 14
+> visual modes. See `plan/development-phases.md` for the roadmap and
+> `plan/architecture-and-code-flow.md` for how it works.
 
 ## Requirements
 
@@ -69,15 +70,20 @@ The exe bundles the PortAudio DLL and a Windows version resource. Drop an
 | Per-mode options | bottom-row **option dropdowns** (one per option of the active mode) | — |
 | Color scheme | **Color** dropdown (Classic / Rainbow / Rainbow+) | `C` cycles |
 | Reduce motion (caps strobing) | `Motion` button | `M` |
+| RenK logo settings | `RenK` button (modal panel) | — |
+| About (owner/license/version) | `About` button | — |
 | Fullscreen | `Full` button | `F11` (exit with `Esc`) |
 | Debug overlay | — | `F3` |
-| Quit | `Quit` button | `Esc` / `Ctrl+Q` |
+| Quit | `Quit` button | `Ctrl+Q` |
+| Close modal / exit fullscreen | — | `Esc` |
 
 A one-time **photosensitivity notice** appears before strobing modes; reduce-motion
-caps flashing. Your mode, sensitivity, smoothing, particle size, animation speed,
-color scheme, reduce-motion, fullscreen, and window size are saved to
-`%APPDATA%\AudioVisualizer\settings.json` and restored next launch (a corrupt file
-safely falls back to defaults).
+caps flashing. **`Esc` never quits the app** — it only closes an open panel or leaves
+fullscreen (quit via the `Quit` button or `Ctrl+Q`). Your mode, sensitivity, smoothing,
+particle size, animation speed, color scheme, reduce-motion, fullscreen, window size,
+and **RenK logo preferences** (show, color, transparency, size, position, emit) are
+saved to `%APPDATA%\AudioVisualizer\settings.json` and restored next launch (a corrupt
+file safely falls back to defaults).
 
 ## Developing
 
