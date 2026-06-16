@@ -93,16 +93,20 @@ def test_appearance_panel_rows_cycle() -> None:
     panel = AppearancePanel(
         AppearanceActions(
             cycle_style=lambda: calls.append("style"),
+            cycle_accent=lambda: calls.append("accent"),
             cycle_font=lambda: calls.append("font"),
+            cycle_background=lambda: calls.append("background"),
+            cycle_bg_height=lambda: calls.append("bg_height"),
         )
     )
     panel.open = True
     canvas = pygame.Rect(0, 0, 1280, 720)
     rows = panel._row_rects(canvas)
+    keys = [key for key, _rect in rows]
     for _key, rect in rows:
         ev = pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center)
         assert panel.handle_event(ev, canvas) is True
-    assert calls == ["style", "font"]
+    assert calls == keys  # each row routed to its own action, in order
 
 
 def test_layout_accepts_dynamic_control_bar_height() -> None:
@@ -114,11 +118,11 @@ def test_layout_accepts_dynamic_control_bar_height() -> None:
     assert hidden.control_bar.height == 0
 
 
-def test_settings_v3_roundtrip(tmp_path) -> None:
+def test_settings_ui_roundtrip(tmp_path) -> None:
     path = tmp_path / "settings.json"
     assert settings_mod.save(Settings(ui_style="glass", ui_font="sans"), path)
     loaded = settings_mod.load(path)
-    assert loaded.schema_version == 3
+    assert loaded.schema_version == 4
     assert loaded.ui_style == "glass"
     assert loaded.ui_font == "sans"
 
@@ -127,6 +131,6 @@ def test_settings_migrates_old_file_to_ui_defaults(tmp_path) -> None:
     path = tmp_path / "settings.json"
     path.write_text(json.dumps({"schema_version": 1, "mode": "waveform"}), encoding="utf-8")
     loaded = settings_mod.load(path)
-    assert loaded.schema_version == 3
+    assert loaded.schema_version == 4
     assert loaded.ui_style == "flat"  # default applied for the missing key
     assert loaded.ui_font == "mono"

@@ -22,6 +22,10 @@ from audio_visualizer.config import (
     APP_ICON_FILENAME,
     APP_NAME,
     APP_VERSION,
+    BG_HEIGHT_LABELS,
+    BG_HEIGHTS,
+    BG_MODE_LABELS,
+    BG_MODES,
     COLOR_BG,
     COLOR_CYCLE_RATE,
     COLOR_SCHEMES,
@@ -52,6 +56,8 @@ from audio_visualizer.config import (
     SPEED_SCALE_MIN,
     SPEED_SCALE_STEP,
     TARGET_FPS,
+    UI_ACCENT_LABELS,
+    UI_ACCENTS,
     UI_FONT_LABELS,
     UI_FONTS,
     UI_STYLE_LABELS,
@@ -68,6 +74,7 @@ from audio_visualizer.ui.layout import Layout
 from audio_visualizer.ui.logo_panel import LogoPanel, LogoPanelActions
 from audio_visualizer.ui.style import STYLE
 from audio_visualizer.visuals import registry
+from audio_visualizer.visuals.background import Background
 from audio_visualizer.visuals.base import BaseVisualizer, Theme
 from audio_visualizer.visuals.logo import RenkLogo
 
@@ -102,7 +109,9 @@ class App:
         # widget draws; STYLE is the process-wide look read by widgets.
         self._ui_style = self._settings.ui_style
         self._ui_font = self._settings.ui_font
+        self._ui_accent = self._settings.ui_accent
         STYLE.set_style(self._ui_style)
+        STYLE.set_accent(self._ui_accent)
 
         registry.discover()
         self._mode_keys = registry.keys()
@@ -149,6 +158,10 @@ class App:
 
         self._visual: BaseVisualizer = self._make_visual()
         self._visual.on_enter()
+
+        self._background = Background(theme=self._theme, reduce_motion=self._reduce_motion)
+        self._background.mode = self._settings.bg_mode
+        self._background.height_key = self._settings.bg_height
 
         self._logo = RenkLogo(reduce_motion=self._reduce_motion, theme=self._theme)
         self._apply_logo_settings()
@@ -215,7 +228,10 @@ class App:
     def _build_appearance_actions(self) -> AppearanceActions:
         return AppearanceActions(
             cycle_style=self._cycle_ui_style,
+            cycle_accent=self._cycle_ui_accent,
             cycle_font=self._cycle_ui_font,
+            cycle_background=self._cycle_background,
+            cycle_bg_height=self._cycle_bg_height,
         )
 
     def _build_logo_panel_actions(self) -> LogoPanelActions:
@@ -366,6 +382,7 @@ class App:
         self._reduce_motion = not self._reduce_motion
         self._visual.reduce_motion = self._reduce_motion
         self._logo.reduce_motion = self._reduce_motion
+        self._background.reduce_motion = self._reduce_motion
         logger.debug("Reduce motion = %s", self._reduce_motion)
 
     # -- RenK logo overlay ----------------------------------------------------
@@ -416,11 +433,29 @@ class App:
         self._font, self._font_small = get_ui_fonts(self._ui_font)
         logger.debug("UI font = %s", self._ui_font)
 
+    def _cycle_ui_accent(self) -> None:
+        self._ui_accent = self._cycle_next(UI_ACCENTS, self._ui_accent)
+        STYLE.set_accent(self._ui_accent)
+        logger.debug("UI accent = %s", self._ui_accent)
+
+    def _cycle_background(self) -> None:
+        self._background.mode = self._cycle_next(BG_MODES, self._background.mode)
+        logger.debug("Background = %s", self._background.mode)
+
+    def _cycle_bg_height(self) -> None:
+        self._background.height_key = self._cycle_next(BG_HEIGHTS, self._background.height_key)
+        logger.debug("Background height = %s", self._background.height_key)
+
     def _appearance_values(self) -> dict[str, str]:
         """Human-readable current values for the Appearance panel rows."""
         return {
             "style": UI_STYLE_LABELS.get(self._ui_style, self._ui_style),
+            "accent": UI_ACCENT_LABELS.get(self._ui_accent, self._ui_accent),
             "font": UI_FONT_LABELS.get(self._ui_font, self._ui_font),
+            "background": BG_MODE_LABELS.get(self._background.mode, self._background.mode),
+            "bg_height": BG_HEIGHT_LABELS.get(
+                self._background.height_key, self._background.height_key
+            ),
         }
 
     def _notice_visible(self) -> bool:
@@ -570,6 +605,8 @@ class App:
         canvas = self._layout.canvas
         try:
             sub = screen.subsurface(canvas)
+            # The background layer is composited first, behind the active mode.
+            self._background.draw(sub, self._frame, dt)
             self._visual.draw(sub, self._frame, dt)
             # The RenK logo is a global overlay: drawn over every mode's output.
             self._logo.draw(sub, self._frame, dt)
@@ -646,6 +683,9 @@ class App:
             logo_emit=self._logo.emit,
             ui_style=self._ui_style,
             ui_font=self._ui_font,
+            ui_accent=self._ui_accent,
+            bg_mode=self._background.mode,
+            bg_height=self._background.height_key,
         )
 
     def _shutdown(self) -> None:

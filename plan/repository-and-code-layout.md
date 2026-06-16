@@ -37,6 +37,7 @@ AudioVisualizer/
 │     │  ├─ registry.py         # @register decorator + discover() auto-import; ordered mode list
 │     │  ├─ _helpers.py         # shared draw utils (color lerp, ring_points/draw_ring, RingPops, SparkField); skipped by discovery
 │     │  ├─ logo.py             # Phase 9: RenkLogo global overlay (NOT a mode; drawn by app over every mode)
+│     │  ├─ background.py       # Phase 10: Background layer (NOT a mode; drawn by app BEHIND every mode): black/spectrum/gradient/aurora
 │     │  ├─ waveform.py         # @register("waveform", ...)
 │     │  ├─ spectrum.py         # @register("spectrum", ...)
 │     │  ├─ lightshow.py        # @register("lightshow", ...)
@@ -182,7 +183,7 @@ The single source of the UI look: a process-wide `STYLE` (Flat/Glass + accent) t
 Builds the control bar and **flows/wraps** its widgets to the window width (global controls + value steppers, then color + per-mode option dropdowns), so nothing runs off-screen even at the minimum window size; `content_height(width)` reports the height the App feeds to `Layout.compute`. Translates clicks into `App` actions (start/stop, mode, sensitivity/smoothing/size/speed, color, per-mode option changes, fullscreen, Appearance). `set_mode_options(specs)` rebuilds the per-mode dropdowns when the active mode changes; only one dropdown stays open at a time.
 
 ### `ui/appearance_panel.py` & `ui/about.py` & `ui/logo_panel.py`
-Centered modal dialogs (dim backdrop, click-row-to-cycle or Close). **Appearance** picks the UI **style** (Flat/Glass) and **font** (Mono/Sans); **RenK** configures the logo overlay; **About** shows owner/license/version/build/runtime. All draw via `ui/style.draw_panel`.
+Centered modal dialogs (dim backdrop, click-row-to-cycle or Close). **Appearance** picks the UI **style** (Flat/Glass), **accent** (Cyan/Aurora gradient/Neon green), **font** (Mono/Sans), the global **background** (Black/Spectrum/Gradient/Aurora), and **Spectrum height**; **RenK** configures the logo overlay; **About** shows owner/license/version/build/runtime. All draw via `ui/style.draw_panel`, which centralizes both styles and the (optionally gradient) accent.
 
 ### `ui/hud.py`
 Status line (device, RMS/peak, FPS, mode) and the **F3 debug overlay**.
