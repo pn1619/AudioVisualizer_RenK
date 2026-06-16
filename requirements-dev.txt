@@ -7,3 +7,4 @@ mypy>=1.11         # static type checking (optional/non-blocking at first)
 pytest>=8.0        # tests (run headless with SDL_VIDEODRIVER=dummy)
 pre-commit>=3.8    # git hook running ruff + black on commit
 pyinstaller>=6.10  # build the single-file .exe
+pillow>=10.0       # tools/prep_icon.py only (bakes the app icon); not a runtime dep

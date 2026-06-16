@@ -141,8 +141,8 @@ def test_control_bar_shows_values_and_routes_options() -> None:
         size_scale=1.0,
         speed_scale=1.25,
     )
-    assert bar._sens_chip.text == "1.50"
-    assert bar._speed_chip.text == "1.25"
+    assert bar._sens_chip.text == "Sens 1.50"
+    assert bar._speed_chip.text == "Speed 1.25"
 
     bar.set_mode_options([OptionSpec("thickness", "Line", ("Thin", "Normal", "Thick"), 1)])
     assert len(bar._option_dropdowns) == 1

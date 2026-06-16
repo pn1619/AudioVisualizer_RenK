@@ -11,6 +11,39 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.09.03` — Phase 9 polish: modern GUI, selectable look & font, app icon
+
+**Added**
+- **Appearance panel** (Menu → `Appearance…`) to pick the UI look and font live, both
+  **persisted** (settings **schema v3**): **Control style** — **Flat** (solid rounded
+  panels, crisp borders) or **Glass** (pill-shaped, translucent) — and **Text font** —
+  **Mono** (a modern terminal-style monospace: Cascadia/Consolas, like Cursor's terminal)
+  or **Sans** (Segoe UI). New `ui/fonts.py` resolves the family via `SysFont`.
+- **App / window icon** — the RenK emblem on a rounded badge is set as the title-bar/taskbar
+  icon (`assets/renk_icon.png`) and baked into the `.exe` (`assets/icon.ico`, all sizes).
+  Reproducible via `tools/prep_icon.py` (Pillow, dev-only).
+
+**Changed / Fixed**
+- **No more text spilling out of controls** — dropdown headers and option rows truncate
+  with an ellipsis to fit their box, and the open option list is nudged left to stay
+  inside the window (item 2).
+- **Control bar flows & wraps** — widgets now reflow onto extra rows instead of running off
+  the right edge, and the bar grows taller as needed; on small windows everything stays
+  on-screen (item 3). `Layout.compute` accepts a dynamic `control_bar_height`.
+- **Nicer widgets** — a single `ui/style.py` draws every panel/button/chip/dropdown in the
+  chosen style with clear hover/active states and an accent (cyan) highlight; the bar sits
+  on a darker strip (`COLOR_BAR`) with a separator so controls read as distinct buttons.
+- **Compact value steppers** — Sens/Smooth/Size/Speed are now `−  Name 0.00  +` (name+value
+  in the chip), so the wider UI font never truncates them.
+
+**Tests / verification**
+- Added `tests/test_ui_phase903.py` (text fitting, flow/wrap + dynamic height, dropdown
+  bounds, Appearance panel routing, settings v3 round-trip + migration).
+- ruff / black / mypy **clean**; full suite **passes**; `--selftest` exit **0**; exe builds
+  + self-tests.
+
+---
+
 ## `00.09.02` — Phase 9 fix: RenK logo ring is now a true circle
 
 **Fixed**

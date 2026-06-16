@@ -163,17 +163,26 @@ Each mode = **one file**: subclass `BaseVisualizer`, decorate with `@register`, 
 ### `ui/layout.py`
 `Layout` — computes the control-bar, main-canvas, and HUD rectangles from the **current surface size** every frame (with the minimum-size clamp). Single place that owns positioning, so resizing/fullscreen never produces clipping or stretching and no module hard-codes pixel coordinates.
 
+### `ui/style.py`
+The single source of the UI look: a process-wide `STYLE` (Flat/Glass + accent) that every widget reads at draw time, `draw_panel(...)` (the one place the two styles are drawn, with hover/accent states), and `fit_text(font, text, max_width)` (ellipsis truncation so nothing spills out of a box).
+
+### `ui/fonts.py`
+`get_ui_fonts(choice)` — resolves the **Mono** (terminal-style monospace) or **Sans** UI fonts via pygame `SysFont` (with fallbacks), so the user-chosen font applies everywhere.
+
 ### `ui/button.py`
-`Button` — rect, label, hover/press state, `handle_event(event) -> bool`, `draw(surface)`. No external UI lib.
+`Button` — rect, label, hover/press state, `handle_event(event) -> bool`, `draw(surface, font)`; draws via `ui/style.draw_panel` and truncates its label to fit.
 
 ### `ui/chip.py`
-`Chip` — a non-interactive labelled value box; the control bar uses these to show the current Sensitivity/Smoothing/Size/Speed values.
+`Chip` — a non-interactive labelled value box; the control bar uses these to show `Sens/Smooth/Size/Speed <value>` between the `−`/`+` steppers.
 
 ### `ui/dropdown.py`
-`Dropdown` — header + expandable option list; optional `title` prefixes the current label (e.g. `Fall: Normal`). Used for the mode picker, color scheme, and per-mode options.
+`Dropdown` — header + expandable option list; optional `title` prefixes the current label (e.g. `Fall: Normal`). Header + option text **truncate to fit**, and the open list is clamped to stay within the window's right edge (`set_bound_right`). Used for the Menu, mode picker, color scheme, and per-mode options.
 
 ### `ui/controls.py`
-Builds and lays out the **two-row** control bar (global controls + value chips on top; color and per-mode option dropdowns on the bottom); translates clicks into `App` actions (start/stop, mode, sensitivity/smoothing/size/speed, color, per-mode option changes, fullscreen). `set_mode_options(specs)` rebuilds the per-mode dropdowns when the active mode changes; only one dropdown stays open at a time.
+Builds the control bar and **flows/wraps** its widgets to the window width (global controls + value steppers, then color + per-mode option dropdowns), so nothing runs off-screen even at the minimum window size; `content_height(width)` reports the height the App feeds to `Layout.compute`. Translates clicks into `App` actions (start/stop, mode, sensitivity/smoothing/size/speed, color, per-mode option changes, fullscreen, Appearance). `set_mode_options(specs)` rebuilds the per-mode dropdowns when the active mode changes; only one dropdown stays open at a time.
+
+### `ui/appearance_panel.py` & `ui/about.py` & `ui/logo_panel.py`
+Centered modal dialogs (dim backdrop, click-row-to-cycle or Close). **Appearance** picks the UI **style** (Flat/Glass) and **font** (Mono/Sans); **RenK** configures the logo overlay; **About** shows owner/license/version/build/runtime. All draw via `ui/style.draw_panel`.
 
 ### `ui/hud.py`
 Status line (device, RMS/peak, FPS, mode) and the **F3 debug overlay**.

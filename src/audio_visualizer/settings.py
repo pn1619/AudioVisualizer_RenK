@@ -31,6 +31,10 @@ from audio_visualizer.config import (
     SIZE_SCALE_DEFAULT,
     SMOOTHING_DEFAULT,
     SPEED_SCALE_DEFAULT,
+    UI_FONT_DEFAULT,
+    UI_FONTS,
+    UI_STYLE_DEFAULT,
+    UI_STYLES,
 )
 from audio_visualizer.platform_win import get_appdata_dir
 
@@ -59,6 +63,9 @@ class Settings:
     logo_opacity: float = LOGO_OPACITY_DEFAULT
     logo_color: str = LOGO_COLOR_DEFAULT
     logo_emit: bool = LOGO_EMIT_DEFAULT
+    # UI appearance (Phase 9.03 / schema v3).
+    ui_style: str = UI_STYLE_DEFAULT
+    ui_font: str = UI_FONT_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -137,6 +144,8 @@ def _from_dict(raw: dict) -> Settings:
         logo_opacity=_opacity(raw.get("logo_opacity"), defaults.logo_opacity),
         logo_color=_choice(raw.get("logo_color"), LOGO_COLOR_MODES, defaults.logo_color),
         logo_emit=_bool(raw.get("logo_emit"), defaults.logo_emit),
+        ui_style=_choice(raw.get("ui_style"), UI_STYLES, defaults.ui_style),
+        ui_font=_choice(raw.get("ui_font"), UI_FONTS, defaults.ui_font),
     )
 
 

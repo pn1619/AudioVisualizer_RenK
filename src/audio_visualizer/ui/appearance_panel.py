@@ -1,8 +1,8 @@
-"""Modal panel for the RenK logo overlay settings (clickable, value-cycling rows).
+"""Modal panel to pick the UI appearance: control style + text font.
 
-Kept deliberately simple: each row shows ``Label … Value`` and clicking it cycles
-to the next value (or toggles on/off). The App owns the panel, feeds it the current
-values via :meth:`set_state`, and wires each row to a callback.
+Mirrors :mod:`ui.logo_panel`: each row shows ``Label … Value`` and clicking it
+cycles to the next value. The App owns the panel, feeds current values via
+:meth:`set_state`, and wires each row to a callback that mutates + persists.
 """
 
 from __future__ import annotations
@@ -15,44 +15,29 @@ import pygame
 from audio_visualizer.config import COLOR_BG, COLOR_TEXT
 from audio_visualizer.ui.style import STYLE, draw_panel
 
-_ROW_KEYS: tuple[str, ...] = ("enabled", "color", "opacity", "size", "position", "emit")
-_ROW_LABELS: dict[str, str] = {
-    "enabled": "Show logo",
-    "color": "Color",
-    "opacity": "Transparency",
-    "size": "Size",
-    "position": "Position",
-    "emit": "Emit particles",
-}
+_ROW_KEYS: tuple[str, ...] = ("style", "font")
+_ROW_LABELS: dict[str, str] = {"style": "Control style", "font": "Text font"}
 
 _PANEL_W = 360
-_ROW_H = 40
-_PAD = 12
+_ROW_H = 44
+_PAD = 14
 
 
 @dataclass
-class LogoPanelActions:
+class AppearanceActions:
     """Callbacks invoked when a row is clicked (App mutates state + persists)."""
 
-    toggle_enabled: Callable[[], None]
-    cycle_color: Callable[[], None]
-    cycle_opacity: Callable[[], None]
-    cycle_size: Callable[[], None]
-    cycle_position: Callable[[], None]
-    toggle_emit: Callable[[], None]
+    cycle_style: Callable[[], None]
+    cycle_font: Callable[[], None]
 
 
-class LogoPanel:
-    """A centered modal listing the logo settings; rows cycle their value on click."""
+class AppearancePanel:
+    """A centered modal listing UI appearance settings; rows cycle on click."""
 
-    def __init__(self, actions: LogoPanelActions) -> None:
+    def __init__(self, actions: AppearanceActions) -> None:
         self._actions: dict[str, Callable[[], None]] = {
-            "enabled": actions.toggle_enabled,
-            "color": actions.cycle_color,
-            "opacity": actions.cycle_opacity,
-            "size": actions.cycle_size,
-            "position": actions.cycle_position,
-            "emit": actions.toggle_emit,
+            "style": actions.cycle_style,
+            "font": actions.cycle_font,
         }
         self.open = False
         self._values: dict[str, str] = {key: "" for key in _ROW_KEYS}
@@ -60,7 +45,6 @@ class LogoPanel:
         self._hover_close = False
 
     def set_state(self, values: dict[str, str]) -> None:
-        """Update the displayed value text for each row."""
         self._values.update(values)
 
     def toggle(self) -> None:
@@ -92,7 +76,6 @@ class LogoPanel:
 
     # -- input ----------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event, canvas: pygame.Rect) -> bool:
-        """Consume events while open: row clicks cycle values; outside/close dismisses."""
         if not self.open:
             return False
         if event.type == pygame.MOUSEMOTION:
@@ -131,7 +114,7 @@ class LogoPanel:
         panel = self._panel_rect(canvas)
         draw_panel(surface, panel, accent_border=True)
 
-        title = font.render("RenK Logo", True, STYLE.accent)
+        title = font.render("Appearance", True, STYLE.accent)
         surface.blit(title, (panel.x + _PAD, panel.y - title.get_height() - 4))
 
         for key, rect in self._row_rects(canvas):
@@ -149,9 +132,9 @@ class LogoPanel:
     ) -> None:
         draw_panel(surface, rect, hovered=hovered)
         label = font.render(_ROW_LABELS[key], True, COLOR_TEXT)
-        surface.blit(label, label.get_rect(midleft=(rect.x + 10, rect.centery)))
+        surface.blit(label, label.get_rect(midleft=(rect.x + 12, rect.centery)))
         value = font_small.render(self._values.get(key, ""), True, STYLE.accent)
-        surface.blit(value, value.get_rect(midright=(rect.right - 10, rect.centery)))
+        surface.blit(value, value.get_rect(midright=(rect.right - 12, rect.centery)))
 
     def _draw_close(
         self, surface: pygame.Surface, canvas: pygame.Rect, font: pygame.font.Font

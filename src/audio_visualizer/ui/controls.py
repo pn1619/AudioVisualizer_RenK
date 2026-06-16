@@ -12,10 +12,19 @@ from dataclasses import dataclass
 
 import pygame
 
-from audio_visualizer.config import COLOR_PANEL, COLOR_SCHEME_LABELS, COLOR_SCHEMES
+from audio_visualizer.config import (
+    COLOR_BAR,
+    COLOR_BORDER,
+    COLOR_SCHEME_LABELS,
+    COLOR_SCHEMES,
+    CONTROL_GAP,
+    CONTROL_ROW_HEIGHT,
+)
 from audio_visualizer.ui.button import Button
 from audio_visualizer.ui.chip import Chip
 from audio_visualizer.ui.dropdown import Dropdown
+
+_OPTION_W = 150  # width of the color + per-mode option dropdowns
 
 
 @dataclass
@@ -42,6 +51,9 @@ class ControlActions:
     open_about: Callable[[], None]
     toggle_fullscreen: Callable[[], None]
     quit: Callable[[], None]
+    # Opens the Appearance panel (UI style + font). Defaulted so older callers/tests
+    # that build ControlActions without it keep working.
+    open_appearance: Callable[[], None] = lambda: None
 
 
 @dataclass(frozen=True)
@@ -66,18 +78,22 @@ class ControlBar:
         self._dropdown.set_options(mode_options)
         self._next = Button(">", actions.next_mode)
 
-        self._sens_down = Button("Sens -", actions.sensitivity_down)
+        # Compact steppers: [-] <Name value> [+]; the chip carries the name+value so
+        # the tiny buttons stay unambiguous without long labels (which the wider
+        # monospace UI font would otherwise truncate).
+        minus, plus = "\u2212", "+"
+        self._sens_down = Button(minus, actions.sensitivity_down)
         self._sens_chip = Chip()
-        self._sens_up = Button("Sens +", actions.sensitivity_up)
-        self._smooth_down = Button("Smooth -", actions.smoothing_down)
+        self._sens_up = Button(plus, actions.sensitivity_up)
+        self._smooth_down = Button(minus, actions.smoothing_down)
         self._smooth_chip = Chip()
-        self._smooth_up = Button("Smooth +", actions.smoothing_up)
-        self._size_down = Button("Size -", actions.size_down)
+        self._smooth_up = Button(plus, actions.smoothing_up)
+        self._size_down = Button(minus, actions.size_down)
         self._size_chip = Chip()
-        self._size_up = Button("Size +", actions.size_up)
-        self._speed_down = Button("Speed -", actions.speed_down)
+        self._size_up = Button(plus, actions.size_up)
+        self._speed_down = Button(minus, actions.speed_down)
         self._speed_chip = Chip()
-        self._speed_up = Button("Speed +", actions.speed_up)
+        self._speed_up = Button(plus, actions.speed_up)
 
         self._reduce = Button("Motion+", actions.toggle_reduce_motion)
         self._logo = Button("RenK", actions.open_logo_panel)
@@ -87,26 +103,27 @@ class ControlBar:
         self._color.set_options([(s, COLOR_SCHEME_LABELS.get(s, s)) for s in COLOR_SCHEMES])
 
         # (widget, width) in display order for each row.
+        step = 28  # width of a -/+ stepper button
         self._row1: list[tuple[Button | Dropdown | Chip, int]] = [
-            (self._menu, 72),
-            (self._prev, 28),
-            (self._dropdown, 130),
-            (self._next, 28),
-            (self._sens_down, 52),
-            (self._sens_chip, 46),
-            (self._sens_up, 52),
-            (self._smooth_down, 64),
-            (self._smooth_chip, 46),
-            (self._smooth_up, 64),
-            (self._size_down, 52),
-            (self._size_chip, 46),
-            (self._size_up, 52),
-            (self._speed_down, 56),
-            (self._speed_chip, 46),
-            (self._speed_up, 56),
-            (self._reduce, 64),
-            (self._logo, 52),
-            (self._about, 56),
+            (self._menu, 84),
+            (self._prev, step),
+            (self._dropdown, 156),
+            (self._next, step),
+            (self._sens_down, step),
+            (self._sens_chip, 96),
+            (self._sens_up, step),
+            (self._smooth_down, step),
+            (self._smooth_chip, 116),
+            (self._smooth_up, step),
+            (self._size_down, step),
+            (self._size_chip, 96),
+            (self._size_up, step),
+            (self._speed_down, step),
+            (self._speed_chip, 104),
+            (self._speed_up, step),
+            (self._reduce, 90),
+            (self._logo, 60),
+            (self._about, 68),
         ]
         self._option_dropdowns: list[Dropdown] = []
         self._bar: pygame.Rect | None = None
@@ -114,11 +131,13 @@ class ControlBar:
         self._chips = [w for w, _ in self._row1 if isinstance(w, Chip)]
 
     def _on_menu_select(self, key: str) -> None:
-        """Route a Menu item to its action (Start/Stop, Fullscreen, Quit)."""
+        """Route a Menu item to its action (Start/Stop, Fullscreen, Appearance, Quit)."""
         if key == "capture":
             self._actions.toggle_capture()
         elif key == "fullscreen":
             self._actions.toggle_fullscreen()
+        elif key == "appearance":
+            self._actions.open_appearance()
         elif key == "quit":
             self._actions.quit()
 
@@ -138,16 +157,17 @@ class ControlBar:
             [
                 ("capture", "Stop" if capturing else "Start"),
                 ("fullscreen", "Fullscreen"),
+                ("appearance", "Appearance\u2026"),
                 ("quit", "Quit"),
             ]
         )
         self._dropdown.set_selected(mode_key)
         self._reduce.label = "Motion-" if reduce_motion else "Motion+"
         self._color.set_selected(color_scheme)
-        self._sens_chip.text = f"{sensitivity:.2f}"
-        self._smooth_chip.text = f"{smoothing:.2f}"
-        self._size_chip.text = f"{size_scale:.2f}"
-        self._speed_chip.text = f"{speed_scale:.2f}"
+        self._sens_chip.text = f"Sens {sensitivity:.2f}"
+        self._smooth_chip.text = f"Smooth {smoothing:.2f}"
+        self._size_chip.text = f"Size {size_scale:.2f}"
+        self._speed_chip.text = f"Speed {speed_scale:.2f}"
 
     def set_mode_options(self, specs: list[OptionSpec]) -> None:
         """Rebuild the per-mode option dropdowns for the active visual mode."""
@@ -167,24 +187,50 @@ class ControlBar:
         self._dropdown.toggle()
 
     # -- layout ---------------------------------------------------------------
+    def _row2_items(self) -> list[tuple[Button | Dropdown | Chip, int]]:
+        """Bottom group: color scheme + one dropdown per active-mode option."""
+        return [(self._color, _OPTION_W), *[(dd, _OPTION_W) for dd in self._option_dropdowns]]
+
+    def _flow(
+        self,
+        items: list[tuple[Button | Dropdown | Chip, int]],
+        left: int,
+        right: int,
+        top: int,
+        place: bool,
+    ) -> int:
+        """Flow ``items`` left-to-right, wrapping when they'd pass ``right``.
+
+        Returns the ``y`` of the last row used. When ``place`` is False the widgets
+        aren't moved (used to measure the needed height before the bar exists).
+        """
+        x = left
+        y = top
+        for widget, w in items:
+            if x > left and x + w > right:
+                x = left
+                y += CONTROL_ROW_HEIGHT + CONTROL_GAP
+            if place:
+                widget.set_rect(pygame.Rect(x, y, w, CONTROL_ROW_HEIGHT))
+            x += w + CONTROL_GAP
+        return y
+
+    def content_height(self, width: int) -> int:
+        """Total bar height needed to flow all widgets at the given window width."""
+        left, right, top = CONTROL_GAP, width - CONTROL_GAP, CONTROL_GAP
+        y = self._flow(self._row1, left, right, top, place=False)
+        y = self._flow(self._row2_items(), left, right, y + CONTROL_ROW_HEIGHT + CONTROL_GAP, False)
+        return y + CONTROL_ROW_HEIGHT + CONTROL_GAP
+
     def relayout(self, bar: pygame.Rect) -> None:
         self._bar = bar
-        pad = 6
-        row_h = max(1, (bar.height - pad * 3) // 2)
-        row1_y = bar.y + pad
-        row2_y = row1_y + row_h + pad
-
-        x = bar.x + pad
-        for widget, w in self._row1:
-            widget.set_rect(pygame.Rect(x, row1_y, w, row_h))
-            x += w + pad
-
-        x = bar.x + pad
-        self._color.set_rect(pygame.Rect(x, row2_y, 150, row_h))
-        x += 150 + pad
-        for dd in self._option_dropdowns:
-            dd.set_rect(pygame.Rect(x, row2_y, 150, row_h))
-            x += 150 + pad
+        left, right = bar.x + CONTROL_GAP, bar.right - CONTROL_GAP
+        top = bar.y + CONTROL_GAP
+        y = self._flow(self._row1, left, right, top, place=True)
+        self._flow(self._row2_items(), left, right, y + CONTROL_ROW_HEIGHT + CONTROL_GAP, True)
+        # Keep every open option list inside the window's right edge.
+        for dd in self._all_dropdowns():
+            dd.set_bound_right(bar.right - CONTROL_GAP)
 
     # -- input ----------------------------------------------------------------
     def _all_dropdowns(self) -> list[Dropdown]:
@@ -206,7 +252,8 @@ class ControlBar:
 
     # -- draw -----------------------------------------------------------------
     def draw(self, surface: pygame.Surface, bar: pygame.Rect, font: pygame.font.Font) -> None:
-        pygame.draw.rect(surface, COLOR_PANEL, bar)
+        pygame.draw.rect(surface, COLOR_BAR, bar)
+        pygame.draw.line(surface, COLOR_BORDER, bar.bottomleft, bar.bottomright)
         for btn in self._buttons:
             btn.draw(surface, font)
         for chip in self._chips:
