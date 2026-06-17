@@ -24,8 +24,11 @@ from audio_visualizer.config import (
 
 # Padding between a widget's edge and its text (used for truncation + draw).
 TEXT_PAD = 8
-# Flat-style corner radius (glass uses a full pill radius instead).
+# Flat-style corner radius (glass uses a full pill radius for small widgets).
 _FLAT_RADIUS = 8
+# Cap the glass radius so tall surfaces (modal panels) stay rounded rectangles
+# instead of collapsing into a lozenge; small controls below ~2x this stay pills.
+_GLASS_MAX_RADIUS = 22
 
 Color = tuple[int, int, int]
 
@@ -53,8 +56,14 @@ STYLE = UiStyle()
 
 
 def _radius(rect: pygame.Rect) -> int:
-    """Corner radius for ``rect`` under the current style (pill for glass)."""
-    return rect.height // 2 if STYLE.style == "glass" else _FLAT_RADIUS
+    """Corner radius for ``rect`` under the current style.
+
+    Glass pills small controls (radius = half-height) but caps the radius so a
+    large panel stays a rounded rectangle rather than a giant lozenge.
+    """
+    if STYLE.style == "glass":
+        return min(rect.height // 2, _GLASS_MAX_RADIUS)
+    return _FLAT_RADIUS
 
 
 def _mix(a: Color, b: Color, t: float) -> Color:

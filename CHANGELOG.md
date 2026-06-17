@@ -11,6 +11,38 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0A.01` — Phase 10.01: more backgrounds, a Background panel & a glass fix
+
+**Added**
+- **Four new backdrops** (Background panel): **Filaments (hair)** — dense hair-thin
+  rainbow lines; **Spectrum mirror** — a spectrum mirrored top + bottom; **Waveform
+  ribbon** — a scrolling oscilloscope band along the bottom; **Starfield** — slow
+  drifting dots that twinkle on treble/onsets; **Beat vignette** — edge glow that pulses
+  on each beat.
+- **Dedicated `BG` button** (next to `RenK`) opening a **Background** modal with
+  **Background** (mode), **Sensitivity** (reactivity gain), **Opacity** (overall
+  strength), and **Spectrum height**. Background settings moved out of *Appearance* into
+  this panel; both `bg_sensitivity` + `bg_opacity` persist (settings **schema v5**).
+- **Aurora now reacts to music**: beats shove the blobs off their drift path (springing
+  back) and loudness swells their size, instead of a fixed path.
+
+**Fixed**
+- **Glass control style** no longer turns the **Appearance / About / RenK / Background**
+  panels into a lozenge — the glass corner radius is now capped for large surfaces while
+  small controls stay full pills (`ui/style.py`).
+
+**Planned (no code yet — see `plan/phase-0b-candidates.md`, targeting `v00.0B.00`)**
+- Selectable **sound source** (any render endpoint loopback or input/mic; default
+  unchanged); user **custom visual presets** (save/name/load); **randomize/auto-cycle**
+  across a chosen set with smooth cross-fades on a user-set interval.
+
+**Tests / verification**
+- Added `tests/test_background_phase1001.py` (Background panel rows, opacity scales the
+  spectrum alpha, new modes render, glass-radius cap, settings v5 round-trip + snap).
+  ruff / black / mypy **clean**; full suite **passes**; `--selftest` exit **0**; exe builds.
+
+---
+
 ## `00.0A.00` — Phase 10: global backgrounds & accent colors
 
 **Added**

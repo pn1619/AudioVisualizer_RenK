@@ -83,16 +83,16 @@ def test_gradient_accent_sets_endpoints_and_draws() -> None:
         assert STYLE.accent_grad is None
 
 
-def test_settings_v4_roundtrip_and_migration(tmp_path) -> None:
+def test_settings_v5_roundtrip_and_migration(tmp_path) -> None:
     path = tmp_path / "settings.json"
     saved = Settings(ui_accent="aurora", bg_mode="spectrum", bg_height="high")
     assert settings_mod.save(saved, path)
     loaded = settings_mod.load(path)
-    assert loaded.schema_version == 4
+    assert loaded.schema_version == 5
     assert (loaded.ui_accent, loaded.bg_mode, loaded.bg_height) == ("aurora", "spectrum", "high")
 
     # An old v3 file (no Phase-10 keys) migrates to the new defaults.
     path.write_text(json.dumps({"schema_version": 3, "ui_style": "glass"}), encoding="utf-8")
     migrated = settings_mod.load(path)
-    assert migrated.schema_version == 4
+    assert migrated.schema_version == 5
     assert (migrated.ui_accent, migrated.bg_mode, migrated.bg_height) == ("cyan", "black", "medium")

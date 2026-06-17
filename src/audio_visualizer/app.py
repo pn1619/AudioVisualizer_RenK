@@ -26,6 +26,8 @@ from audio_visualizer.config import (
     BG_HEIGHTS,
     BG_MODE_LABELS,
     BG_MODES,
+    BG_OPACITY_CHOICES,
+    BG_SENSITIVITY_CHOICES,
     COLOR_BG,
     COLOR_CYCLE_RATE,
     COLOR_SCHEMES,
@@ -67,6 +69,7 @@ from audio_visualizer.resources import asset_path
 from audio_visualizer.settings import Settings
 from audio_visualizer.ui.about import AboutDialog
 from audio_visualizer.ui.appearance_panel import AppearanceActions, AppearancePanel
+from audio_visualizer.ui.background_panel import BackgroundActions, BackgroundPanel
 from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
 from audio_visualizer.ui.fonts import get_ui_fonts
 from audio_visualizer.ui.hud import Hud, HudState
@@ -162,11 +165,14 @@ class App:
         self._background = Background(theme=self._theme, reduce_motion=self._reduce_motion)
         self._background.mode = self._settings.bg_mode
         self._background.height_key = self._settings.bg_height
+        self._background.sensitivity = self._settings.bg_sensitivity
+        self._background.opacity = self._settings.bg_opacity
 
         self._logo = RenkLogo(reduce_motion=self._reduce_motion, theme=self._theme)
         self._apply_logo_settings()
         self._logo_panel = LogoPanel(self._build_logo_panel_actions())
         self._appearance = AppearancePanel(self._build_appearance_actions())
+        self._background_panel = BackgroundPanel(self._build_background_actions())
         self._about = AboutDialog()
 
         self._hud = Hud()
@@ -223,6 +229,7 @@ class App:
             toggle_fullscreen=self._toggle_fullscreen,
             quit=self._request_quit,
             open_appearance=lambda: self._appearance.toggle(),
+            open_background=lambda: self._background_panel.toggle(),
         )
 
     def _build_appearance_actions(self) -> AppearanceActions:
@@ -230,8 +237,14 @@ class App:
             cycle_style=self._cycle_ui_style,
             cycle_accent=self._cycle_ui_accent,
             cycle_font=self._cycle_ui_font,
-            cycle_background=self._cycle_background,
-            cycle_bg_height=self._cycle_bg_height,
+        )
+
+    def _build_background_actions(self) -> BackgroundActions:
+        return BackgroundActions(
+            cycle_mode=self._cycle_background,
+            cycle_sensitivity=self._cycle_bg_sensitivity,
+            cycle_opacity=self._cycle_bg_opacity,
+            cycle_height=self._cycle_bg_height,
         )
 
     def _build_logo_panel_actions(self) -> LogoPanelActions:
@@ -438,6 +451,15 @@ class App:
         STYLE.set_accent(self._ui_accent)
         logger.debug("UI accent = %s", self._ui_accent)
 
+    def _appearance_values(self) -> dict[str, str]:
+        """Human-readable current values for the Appearance panel rows."""
+        return {
+            "style": UI_STYLE_LABELS.get(self._ui_style, self._ui_style),
+            "accent": UI_ACCENT_LABELS.get(self._ui_accent, self._ui_accent),
+            "font": UI_FONT_LABELS.get(self._ui_font, self._ui_font),
+        }
+
+    # -- Background layer -----------------------------------------------------
     def _cycle_background(self) -> None:
         self._background.mode = self._cycle_next(BG_MODES, self._background.mode)
         logger.debug("Background = %s", self._background.mode)
@@ -446,14 +468,23 @@ class App:
         self._background.height_key = self._cycle_next(BG_HEIGHTS, self._background.height_key)
         logger.debug("Background height = %s", self._background.height_key)
 
-    def _appearance_values(self) -> dict[str, str]:
-        """Human-readable current values for the Appearance panel rows."""
+    def _cycle_bg_sensitivity(self) -> None:
+        self._background.sensitivity = self._cycle_next(
+            BG_SENSITIVITY_CHOICES, self._background.sensitivity
+        )
+        logger.debug("Background sensitivity = %s", self._background.sensitivity)
+
+    def _cycle_bg_opacity(self) -> None:
+        self._background.opacity = self._cycle_next(BG_OPACITY_CHOICES, self._background.opacity)
+        logger.debug("Background opacity = %s", self._background.opacity)
+
+    def _background_values(self) -> dict[str, str]:
+        """Human-readable current values for the Background panel rows."""
         return {
-            "style": UI_STYLE_LABELS.get(self._ui_style, self._ui_style),
-            "accent": UI_ACCENT_LABELS.get(self._ui_accent, self._ui_accent),
-            "font": UI_FONT_LABELS.get(self._ui_font, self._ui_font),
-            "background": BG_MODE_LABELS.get(self._background.mode, self._background.mode),
-            "bg_height": BG_HEIGHT_LABELS.get(
+            "mode": BG_MODE_LABELS.get(self._background.mode, self._background.mode),
+            "sensitivity": f"x{self._background.sensitivity:.2f}",
+            "opacity": f"{int(self._background.opacity * 100)}%",
+            "height": BG_HEIGHT_LABELS.get(
                 self._background.height_key, self._background.height_key
             ),
         }
@@ -478,12 +509,18 @@ class App:
         self._running = False
 
     def _modal_open(self) -> bool:
-        return self._logo_panel.open or self._about.open or self._appearance.open
+        return (
+            self._logo_panel.open
+            or self._about.open
+            or self._appearance.open
+            or self._background_panel.open
+        )
 
     def _close_modals(self) -> None:
         self._logo_panel.open = False
         self._about.open = False
         self._appearance.open = False
+        self._background_panel.open = False
 
     # -- loop body ------------------------------------------------------------
     def _handle_events(self) -> None:
@@ -506,6 +543,7 @@ class App:
                     canvas = self._layout.canvas
                     self._logo_panel.handle_event(event, canvas)
                     self._appearance.handle_event(event, canvas)
+                    self._background_panel.handle_event(event, canvas)
                     self._about.handle_event(event, canvas)
                 continue
             if event.type == pygame.VIDEORESIZE and not self._fullscreen:
@@ -635,6 +673,8 @@ class App:
         self._logo_panel.draw(screen, canvas, self._font, self._font_small)
         self._appearance.set_state(self._appearance_values())
         self._appearance.draw(screen, canvas, self._font, self._font_small)
+        self._background_panel.set_state(self._background_values())
+        self._background_panel.draw(screen, canvas, self._font, self._font_small)
         self._about.draw(screen, canvas, self._font, self._font_small)
 
     def _hud_state(self) -> HudState:
@@ -686,6 +726,8 @@ class App:
             ui_accent=self._ui_accent,
             bg_mode=self._background.mode,
             bg_height=self._background.height_key,
+            bg_sensitivity=self._background.sensitivity,
+            bg_opacity=self._background.opacity,
         )
 
     def _shutdown(self) -> None:

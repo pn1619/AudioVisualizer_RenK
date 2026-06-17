@@ -1,8 +1,8 @@
-"""Modal panel to pick the UI appearance: control style + text font.
+"""Modal panel for the global background layer (clickable, value-cycling rows).
 
 Mirrors :mod:`ui.logo_panel`: each row shows ``Label … Value`` and clicking it
-cycles to the next value. The App owns the panel, feeds current values via
-:meth:`set_state`, and wires each row to a callback that mutates + persists.
+cycles to the next value. The App owns the panel, feeds it current values via
+:meth:`set_state`, and wires each row to a callback. Opened from the ``BG`` button.
 """
 
 from __future__ import annotations
@@ -15,35 +15,38 @@ import pygame
 from audio_visualizer.config import COLOR_BG, COLOR_TEXT
 from audio_visualizer.ui.style import STYLE, draw_panel
 
-_ROW_KEYS: tuple[str, ...] = ("style", "accent", "font")
+_ROW_KEYS: tuple[str, ...] = ("mode", "sensitivity", "opacity", "height")
 _ROW_LABELS: dict[str, str] = {
-    "style": "Control style",
-    "accent": "Accent color",
-    "font": "Text font",
+    "mode": "Background",
+    "sensitivity": "Sensitivity",
+    "opacity": "Opacity",
+    "height": "Spectrum height",
 }
 
 _PANEL_W = 360
-_ROW_H = 44
-_PAD = 14
+_ROW_H = 40
+_PAD = 12
 
 
 @dataclass
-class AppearanceActions:
+class BackgroundActions:
     """Callbacks invoked when a row is clicked (App mutates state + persists)."""
 
-    cycle_style: Callable[[], None]
-    cycle_accent: Callable[[], None]
-    cycle_font: Callable[[], None]
+    cycle_mode: Callable[[], None]
+    cycle_sensitivity: Callable[[], None]
+    cycle_opacity: Callable[[], None]
+    cycle_height: Callable[[], None]
 
 
-class AppearancePanel:
-    """A centered modal listing UI appearance settings; rows cycle on click."""
+class BackgroundPanel:
+    """A centered modal listing background settings; rows cycle their value on click."""
 
-    def __init__(self, actions: AppearanceActions) -> None:
+    def __init__(self, actions: BackgroundActions) -> None:
         self._actions: dict[str, Callable[[], None]] = {
-            "style": actions.cycle_style,
-            "accent": actions.cycle_accent,
-            "font": actions.cycle_font,
+            "mode": actions.cycle_mode,
+            "sensitivity": actions.cycle_sensitivity,
+            "opacity": actions.cycle_opacity,
+            "height": actions.cycle_height,
         }
         self.open = False
         self._values: dict[str, str] = {key: "" for key in _ROW_KEYS}
@@ -51,6 +54,7 @@ class AppearancePanel:
         self._hover_close = False
 
     def set_state(self, values: dict[str, str]) -> None:
+        """Update the displayed value text for each row."""
         self._values.update(values)
 
     def toggle(self) -> None:
@@ -82,6 +86,7 @@ class AppearancePanel:
 
     # -- input ----------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event, canvas: pygame.Rect) -> bool:
+        """Consume events while open: row clicks cycle values; outside/close dismisses."""
         if not self.open:
             return False
         if event.type == pygame.MOUSEMOTION:
@@ -120,7 +125,7 @@ class AppearancePanel:
         panel = self._panel_rect(canvas)
         draw_panel(surface, panel, accent_border=True)
 
-        title = font.render("Appearance", True, STYLE.accent)
+        title = font.render("Background", True, STYLE.accent)
         surface.blit(title, (panel.x + _PAD, panel.y - title.get_height() - 4))
 
         for key, rect in self._row_rects(canvas):
@@ -138,9 +143,9 @@ class AppearancePanel:
     ) -> None:
         draw_panel(surface, rect, hovered=hovered)
         label = font.render(_ROW_LABELS[key], True, COLOR_TEXT)
-        surface.blit(label, label.get_rect(midleft=(rect.x + 12, rect.centery)))
+        surface.blit(label, label.get_rect(midleft=(rect.x + 10, rect.centery)))
         value = font_small.render(self._values.get(key, ""), True, STYLE.accent)
-        surface.blit(value, value.get_rect(midright=(rect.right - 12, rect.centery)))
+        surface.blit(value, value.get_rect(midright=(rect.right - 10, rect.centery)))
 
     def _draw_close(
         self, surface: pygame.Surface, canvas: pygame.Rect, font: pygame.font.Font

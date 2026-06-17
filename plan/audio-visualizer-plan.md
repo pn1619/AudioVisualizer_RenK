@@ -417,6 +417,15 @@ WASAPI loopback frequently delivers **silence — or no callback at all — when
 
 ---
 
+## 11.7 Planned next features (design parked)
+
+Detailed, agreed-but-unbuilt designs live in **`plan/phase-0b-candidates.md`** (targeting
+**`v00.0B.00`**): a **selectable sound source** (any render-endpoint loopback or input/mic;
+default unchanged), **user custom visual presets** (save/name/load), and a
+**randomize/auto-cycle** across a chosen set with smooth cross-fades on a user-set interval.
+
+---
+
 ## 12. Licensing & distribution notices
 
 Because we ship a binary, third-party licenses must travel with it:

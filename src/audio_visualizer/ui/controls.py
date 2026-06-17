@@ -54,6 +54,8 @@ class ControlActions:
     # Opens the Appearance panel (UI style + font). Defaulted so older callers/tests
     # that build ControlActions without it keep working.
     open_appearance: Callable[[], None] = lambda: None
+    # Opens the Background panel (backdrop + reactivity + opacity). Defaulted likewise.
+    open_background: Callable[[], None] = lambda: None
 
 
 @dataclass(frozen=True)
@@ -96,6 +98,7 @@ class ControlBar:
         self._speed_up = Button(plus, actions.speed_up)
 
         self._reduce = Button("Motion+", actions.toggle_reduce_motion)
+        self._bg = Button("BG", actions.open_background)
         self._logo = Button("RenK", actions.open_logo_panel)
         self._about = Button("About", actions.open_about)
 
@@ -122,6 +125,7 @@ class ControlBar:
             (self._speed_chip, 104),
             (self._speed_up, step),
             (self._reduce, 90),
+            (self._bg, 48),
             (self._logo, 60),
             (self._about, 68),
         ]

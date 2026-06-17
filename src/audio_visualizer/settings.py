@@ -17,6 +17,10 @@ from audio_visualizer.config import (
     BG_HEIGHTS,
     BG_MODE_DEFAULT,
     BG_MODES,
+    BG_OPACITY_CHOICES,
+    BG_OPACITY_DEFAULT,
+    BG_SENSITIVITY_CHOICES,
+    BG_SENSITIVITY_DEFAULT,
     COLOR_SCHEME_DEFAULT,
     COLOR_SCHEMES,
     DEFAULT_WINDOW_SIZE,
@@ -76,6 +80,9 @@ class Settings:
     ui_accent: str = UI_ACCENT_DEFAULT
     bg_mode: str = BG_MODE_DEFAULT
     bg_height: str = BG_HEIGHT_DEFAULT
+    # Per-backdrop reactivity + opacity (Phase 10.01 / schema v5).
+    bg_sensitivity: float = BG_SENSITIVITY_DEFAULT
+    bg_opacity: float = BG_OPACITY_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -159,6 +166,10 @@ def _from_dict(raw: dict) -> Settings:
         ui_accent=_choice(raw.get("ui_accent"), UI_ACCENTS, defaults.ui_accent),
         bg_mode=_choice(raw.get("bg_mode"), BG_MODES, defaults.bg_mode),
         bg_height=_choice(raw.get("bg_height"), BG_HEIGHTS, defaults.bg_height),
+        bg_sensitivity=_snap(
+            raw.get("bg_sensitivity"), BG_SENSITIVITY_CHOICES, defaults.bg_sensitivity
+        ),
+        bg_opacity=_snap(raw.get("bg_opacity"), BG_OPACITY_CHOICES, defaults.bg_opacity),
     )
 
 
@@ -185,6 +196,13 @@ def _opacity(value: object, default: float) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         return default
     return min(LOGO_OPACITIES, key=lambda preset: abs(preset - float(value)))
+
+
+def _snap(value: object, choices: tuple[float, ...], default: float) -> float:
+    """Snap a stored float to the nearest value in ``choices`` (lenient on type)."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return default
+    return min(choices, key=lambda preset: abs(preset - float(value)))
 
 
 def _size(value: object, default: tuple[int, int]) -> tuple[int, int]:

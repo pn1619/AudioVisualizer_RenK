@@ -18,10 +18,10 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0A.00"
+APP_VERSION = "00.0A.01"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
-APP_BUILD_DATE = "2026-06-16"
+APP_BUILD_DATE = "2026-06-17"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
@@ -165,18 +165,33 @@ COLOR_SCHEME_LABELS: dict[str, str] = {
 COLOR_CYCLE_RATE = 0.15
 
 # --- Global background layer (drawn behind every visual mode) -----------------
-# A process-wide backdrop the user picks in the Appearance panel. "black" is the
+# A process-wide backdrop the user picks in the Background panel. "black" is the
 # plain default; the others render *behind* the active mode (modes never clear the
 # canvas, so the backdrop shows through wherever the mode doesn't paint).
-BG_MODES: tuple[str, ...] = ("black", "spectrum", "gradient", "aurora")
+BG_MODES: tuple[str, ...] = (
+    "black",
+    "spectrum",
+    "filaments",
+    "mirror",
+    "ribbon",
+    "gradient",
+    "aurora",
+    "starfield",
+    "vignette",
+)
 BG_MODE_DEFAULT = "black"
 BG_MODE_LABELS: dict[str, str] = {
     "black": "Black",
     "spectrum": "Spectrum line",
+    "filaments": "Filaments (hair)",
+    "mirror": "Spectrum mirror",
+    "ribbon": "Waveform ribbon",
     "gradient": "Gradient",
     "aurora": "Aurora",
+    "starfield": "Starfield",
+    "vignette": "Beat vignette",
 }
-# Spectrum-line height presets -> max bar height as a fraction of the canvas height.
+# Spectrum-family height presets -> max bar/band height as a fraction of canvas height.
 BG_HEIGHTS: tuple[str, ...] = ("low", "medium", "high", "tall")
 BG_HEIGHT_DEFAULT = "medium"
 BG_HEIGHT_LABELS: dict[str, str] = {
@@ -191,13 +206,15 @@ BG_HEIGHT_FRACTIONS: dict[str, float] = {
     "high": 0.26,
     "tall": 0.40,
 }
-# Background spectrum look: target on-screen bar pitch (px) and overall opacity so
-# the line stays a quiet backdrop, plus attack/release smoothing for a calm line.
-BG_SPECTRUM_BAR_PITCH = 6
-BG_SPECTRUM_ALPHA = 200
-BG_SPECTRUM_ATTACK = 0.5
-BG_SPECTRUM_RELEASE = 0.12
-BG_SPECTRUM_IDLE_FRACTION = 0.04  # faint resting baseline when silent/idle
+# Per-backdrop reactivity gain and overall opacity, both cycled in the Background
+# panel so the layer can be tuned from a quiet hint to a loud wall.
+BG_SENSITIVITY_CHOICES: tuple[float, ...] = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
+BG_SENSITIVITY_DEFAULT = 1.0
+BG_OPACITY_CHOICES: tuple[float, ...] = (0.25, 0.5, 0.75, 1.0)
+BG_OPACITY_DEFAULT = 1.0
+# Beat/onset pulse envelope decay (per second) shared by vignette + aurora kicks.
+BG_PULSE_DECAY = 5.0
+
 # Magenta->cyan palette the spectrum/gradient/aurora sample across (low->high x).
 BG_PALETTE: tuple[tuple[int, int, int], ...] = (
     (255, 70, 200),
@@ -205,13 +222,35 @@ BG_PALETTE: tuple[tuple[int, int, int], ...] = (
     (90, 150, 255),
     (90, 220, 255),
 )
-# Gradient backdrop: bottom tint the canvas fades toward, + how much energy lifts it.
+# Spectrum look: target on-screen bar pitch (px) and base opacity, plus attack/
+# release smoothing for a calm line and a faint resting baseline when idle.
+BG_SPECTRUM_BAR_PITCH = 6
+BG_SPECTRUM_ALPHA = 200
+BG_SPECTRUM_ATTACK = 0.5
+BG_SPECTRUM_RELEASE = 0.12
+BG_SPECTRUM_IDLE_FRACTION = 0.04
+# Filaments: hair-thin (1px) rainbow lines at a tight pitch; brighter than spectrum.
+BG_FILAMENT_PITCH = 3
+BG_FILAMENT_ALPHA = 230
+BG_FILAMENT_HUE_SPREAD = 1.5  # rainbow wheel turns across the canvas width
+# Waveform ribbon: scrolling oscilloscope band along the bottom edge.
+BG_RIBBON_SCROLL_PX = 3
+BG_RIBBON_ALPHA = 190
+# Gradient backdrop: bottom tint the canvas fades toward.
 BG_GRADIENT_BOTTOM = (26, 18, 44)
-BG_GRADIENT_ENERGY_GAIN = 0.5
-# Aurora backdrop: number of drifting soft blobs and their base opacity/drift speed.
+# Aurora backdrop: drifting soft blobs; beats push them off-path + swell their size.
 BG_AURORA_BLOBS = 4
 BG_AURORA_ALPHA = 64
 BG_AURORA_DRIFT = 0.05
+BG_AURORA_PULSE_PUSH = 80  # px a beat shoves a blob outward before it springs back
+BG_AURORA_SIZE_GAIN = 0.6  # how much loudness swells the blob radius
+# Starfield: one star per this many px^2; slow drift + treble/onset twinkle.
+BG_STARFIELD_AREA_PER_STAR = 7000
+BG_STARFIELD_DRIFT = 10.0  # px/s base drift
+BG_STARFIELD_BASE_ALPHA = 120
+# Beat vignette: resting edge glow + how much a beat brightens the edges.
+BG_VIGNETTE_BASE_ALPHA = 40
+BG_VIGNETTE_PULSE_ALPHA = 170
 
 # Onset (beat) detection: spectral flux is normalized to 0..1 via this gain;
 # a frame is treated as an onset when its strength clears the threshold.
@@ -350,8 +389,9 @@ LOGO_EMIT_SPEED = 0.18  # outward spark speed in normalized units/sec
 SETTINGS_FILENAME = "settings.json"
 # v2 added the RenK logo overlay preferences (logo_*). v3 added UI appearance
 # (ui_style, ui_font). v4 added the accent color + global background layer
-# (ui_accent, bg_mode, bg_height). Older files migrate by defaulting new keys.
-SETTINGS_SCHEMA_VERSION = 4
+# (ui_accent, bg_mode, bg_height). v5 added per-backdrop reactivity + opacity
+# (bg_sensitivity, bg_opacity). Older files migrate by defaulting new keys.
+SETTINGS_SCHEMA_VERSION = 5
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error
