@@ -43,20 +43,27 @@ _CENTER = ModeOption(
     ),
     default_index=2,
 )
+# Spin: rotate the whole figure as one ("Solid") or let the inner half of each spoke
+# counter-rotate against the outer half ("Counter") for a layered, churning mandala.
+_SPIN = ModeOption(
+    "spin", "Spin", (OptionChoice("Solid", 0), OptionChoice("Counter", 1)), default_index=0
+)
 
 
 @register(key="kaleidoscope", display_name="Kaleidoscope", order=90)
 class Kaleidoscope(BaseVisualizer):
     """Mirrors an audio-driven wedge into a rotating symmetric mandala."""
 
-    OPTIONS = (_SEGMENTS, _CENTER)
+    OPTIONS = (_SEGMENTS, _CENTER, _SPIN)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
-        self._spin = 0.0
+        self._spin = 0.0  # outer-half rotation
+        self._spin_inner = 0.0  # inner-half rotation (opposite when "Counter")
 
     def on_enter(self) -> None:
         self._spin = 0.0
+        self._spin_inner = 0.0
 
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
         w, h = surface.get_size()
@@ -72,7 +79,10 @@ class Kaleidoscope(BaseVisualizer):
         scheme, phase = self.theme.color_scheme, self.theme.color_phase
 
         rate = 0.0 if self.reduce_motion else _SPIN_RATE
-        self._spin = (self._spin + dt * self.theme.speed_scale * rate * math.tau) % math.tau
+        adv = dt * self.theme.speed_scale * rate * math.tau
+        counter = int(self.option("spin")) == 1
+        self._spin = (self._spin + adv) % math.tau
+        self._spin_inner = (self._spin_inner + (-adv if counter else adv)) % math.tau
 
         if frame is not None and frame.band_energies.size:
             vals = resample_to(frame.band_energies.astype(np.float32), _SPOKES)
@@ -81,14 +91,20 @@ class Kaleidoscope(BaseVisualizer):
 
         line_w = max(2, int(scale / 130))
         for k in range(segments):
-            center_ang = self._spin + k * sector
+            base = k * sector
             for i in range(_SPOKES):
                 frac = i / max(1, _SPOKES - 1)
                 length = core_r + float(vals[i]) * max_len
+                mid = core_r + 0.5 * (length - core_r)
                 color = themed_color(scheme, frac, PALETTE, phase)
                 offset = frac * half
-                for ang in (center_ang + offset, center_ang - offset):  # mirror about the axis
-                    self._spoke(surface, cx, cy, ang, core_r, length, color, line_w)
+                # Inner half follows _spin_inner, outer half follows _spin -> the two
+                # layers spin together ("Solid") or against each other ("Counter").
+                for sign in (1.0, -1.0):  # mirror about each segment axis
+                    a_in = self._spin_inner + base + sign * offset
+                    a_out = self._spin + base + sign * offset
+                    self._spoke(surface, cx, cy, a_in, core_r, mid, color, line_w, tip=False)
+                    self._spoke(surface, cx, cy, a_out, mid, length, color, line_w, tip=True)
 
         self._draw_center(surface, cx, cy, core_r, frame)
 
@@ -102,13 +118,15 @@ class Kaleidoscope(BaseVisualizer):
         r1: float,
         color: tuple[int, int, int],
         width: int,
+        tip: bool = True,
     ) -> None:
         ca, sa = math.cos(ang), math.sin(ang)
         p0 = (cx + ca * r0, cy + sa * r0)
         p1 = (cx + ca * r1, cy + sa * r1)
         pygame.draw.line(surface, color, p0, p1, width)
         pygame.draw.aaline(surface, color, p0, p1)  # smooth the edges
-        pygame.draw.circle(surface, color, (int(p1[0]), int(p1[1])), max(2, width))
+        if tip:
+            pygame.draw.circle(surface, color, (int(p1[0]), int(p1[1])), max(2, width))
 
     def _draw_center(
         self,
@@ -140,11 +158,13 @@ class Kaleidoscope(BaseVisualizer):
         color: tuple[int, int, int],
         level: float,
     ) -> None:
-        size = radius * 4
+        # Surface must be big enough that the largest halo circle isn't clipped to a
+        # square: half-size is 3*radius, the biggest circle is 2*radius.
+        size = radius * 6
         glow = pygame.Surface((size, size), pygame.SRCALPHA)
         gc = (size // 2, size // 2)
         for ring in range(5, 0, -1):
-            r = int(radius * 0.5 * ring)
+            r = int(radius * 0.4 * ring)
             alpha = int(28 * ring * (0.5 + 0.5 * level))
             pygame.draw.circle(glow, (*color, alpha), gc, r)
         surface.blit(

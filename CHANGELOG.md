@@ -11,6 +11,29 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0A.04` — Phase 10.04: mode fixes & feel tweaks
+
+- **Audio Sun** — dropped the dashed color-wheel + inner spokes (they looked off);
+  the core is back to two **smooth concentric rings** + a soft glow whose colors flow
+  around the circumference. **Core** option: **Rings** / **Counter** (inner ring flows
+  the other way) / **Glow** (plain halo, the classic look) / **Radiate** (beat rings).
+- **Kaleidoscope** — fixed the **Glow** center rendering as a square (the halo circle was
+  larger than its own surface and got clipped); the glow surface is now sized correctly.
+  New **Spin** option: **Solid** (whole figure rotates) or **Counter** (each spoke's inner
+  half counter-rotates against its outer half).
+- **Plasma** — fixed the **Radial** flow looking grainy/distorted (it grew the coordinates
+  without bound, so the field aliased over time); it's now a smooth bounded breathing zoom.
+  Raised the field resolution and capped turbulence so **Soft** intensity stays smooth too.
+- **Tunnel Warp** — new **Width** option: **Depth** (thickness grows with the ring radius,
+  the old non-uniform look) or uniform **Thin / Normal / Thick**.
+- **Spectrum** — added a **None** gap choice (no spacing); pair with **Hairline** width for
+  dense, fine lines.
+
+**Verification** — ruff / black / mypy **clean**; full suite **passes**; `--selftest` exit
+**0**; exe builds + self-tests.
+
+---
+
 ## `00.0A.03` — Phase 10.03: mode polish, more options & a faster Kaleidoscope
 
 **Changed / fixed**

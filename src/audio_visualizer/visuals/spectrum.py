@@ -24,8 +24,13 @@ _CAPS = ModeOption("caps", "Caps", (OptionChoice("On", 1), OptionChoice("Off", 0
 _GAP = ModeOption(
     "gap",
     "Gap",
-    (OptionChoice("Tight", 1), OptionChoice("Normal", 2), OptionChoice("Wide", 5)),
-    default_index=1,
+    (
+        OptionChoice("None", 0),
+        OptionChoice("Tight", 1),
+        OptionChoice("Normal", 2),
+        OptionChoice("Wide", 5),
+    ),
+    default_index=2,
 )
 # Fraction of each slot the bar actually fills: lower = finer/thinner bars.
 _WIDTH = ModeOption(

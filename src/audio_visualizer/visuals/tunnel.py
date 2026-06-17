@@ -41,6 +41,19 @@ _STYLE = ModeOption(
     (OptionChoice("Full", 0), OptionChoice("Broken", 1), OptionChoice("Waveform", 2)),
     default_index=0,
 )
+# Line width. "Depth" grows with the ring's radius (near rings look closer/thicker);
+# the numeric choices are a uniform pixel width.
+_WIDTH = ModeOption(
+    "width",
+    "Width",
+    (
+        OptionChoice("Depth", 0),
+        OptionChoice("Thin", 2),
+        OptionChoice("Normal", 4),
+        OptionChoice("Thick", 7),
+    ),
+    default_index=0,
+)
 
 
 @dataclass
@@ -57,7 +70,7 @@ class Tunnel(BaseVisualizer):
 
     STROBES = True
 
-    OPTIONS = (_SHAPE, _STYLE)
+    OPTIONS = (_SHAPE, _STYLE, _WIDTH)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -83,12 +96,13 @@ class Tunnel(BaseVisualizer):
         self._update(dt, energy, onset, frame)
         sides = int(self.option("shape"))
         style = int(self.option("style"))
+        width_opt = int(self.option("width"))
         scheme, phase = self.theme.color_scheme, self.theme.color_phase
         for ring in self._rings:
             radius = ring.r * max_r
             if radius < 2:
                 continue
-            width = max(1, int(_WIDTH_NEAR * ring.r))
+            width = max(1, int(_WIDTH_NEAR * ring.r)) if width_opt == 0 else width_opt
             color = themed_color(scheme, ring.hue + phase, PALETTE, 0.0)
             self._draw_ring(surface, cx, cy, radius, sides, style, color, width, ring)
 

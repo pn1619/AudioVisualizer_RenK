@@ -21,9 +21,9 @@ from audio_visualizer.visuals._helpers import clamp
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
-_GRID_W = 200  # field is computed at this width then smoothscaled to the canvas
+_GRID_W = 360  # field is computed at this width then smoothscaled (higher = smoother)
 _FLOW_RATE = 0.4  # base time advance per second (scaled by speed)
-_BASS_TURBULENCE = 2.5  # extra spatial frequency added by bass energy
+_BASS_TURBULENCE = 1.4  # extra spatial frequency added by bass (capped to limit aliasing)
 _DROP_CAP = 140
 
 # Per-material palette stops (0..1) and a spatial-frequency factor.
@@ -167,27 +167,28 @@ class Plasma(BaseVisualizer):
             return 0.5 + dx * math.cos(a) - dy * math.sin(a), 0.5 + dx * math.sin(
                 a
             ) + dy * math.cos(a)
-        if flow == 4:  # radial: push outward over time
-            dx, dy = xx - 0.5, yy - 0.5
-            r = np.hypot(dx, dy) + self._phase
-            ang = np.arctan2(dy, dx)
-            return 0.5 + np.cos(ang) * r, 0.5 + np.sin(ang) * r
+        if flow == 4:  # radial: a bounded breathing zoom (in/out) about the center
+            s = 1.0 + 0.18 * math.sin(self._phase * math.tau)
+            return 0.5 + (xx - 0.5) * s, 0.5 + (yy - 0.5) * s
         return xx, yy  # drift
 
     def _field(
         self, xx: np.ndarray, yy: np.ndarray, t: float, bass: float, material: int, freq: float
     ) -> np.ndarray:
-        turb = (1.0 + bass * _BASS_TURBULENCE) * freq
+        # Cap turbulence so loud passages don't push the spatial frequency past what the
+        # grid can resolve (which is what made the field look grainy / aliased).
+        turb = (1.0 + min(bass, 1.0) * _BASS_TURBULENCE) * freq
+        r = np.hypot(xx - 0.5, yy - 0.5)
         v = (
             np.sin((xx * 6.0 + t) * turb)
             + np.sin((yy * 7.0 - t * 1.2) * freq)
             + np.sin((xx + yy) * 5.0 * turb + t * 0.7)
-            + np.sin(np.hypot(xx - 0.5, yy - 0.5) * 14.0 * freq - t * 1.5)
+            + np.sin(r * 9.0 * freq - t * 1.5)
         )
         if material == 3:  # lava: rising vertical bias
-            v += 1.4 * np.sin((yy * 9.0 - t * 2.6) * freq)
+            v += 1.4 * np.sin((yy * 8.0 - t * 2.6) * freq)
         elif material == 2:  # water: extra radial ripples
-            v += 1.2 * np.sin(np.hypot(xx - 0.5, yy - 0.5) * 26.0 - t * 3.0)
+            v += 1.2 * np.sin(r * 16.0 - t * 3.0)
         return (v / 5.0 + 0.5) % 1.0  # normalize and wrap for a seamless cycle
 
     def _apply_intensity(self, field: np.ndarray, k: float) -> np.ndarray:
