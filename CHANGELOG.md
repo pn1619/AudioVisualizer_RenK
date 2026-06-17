@@ -11,6 +11,20 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0A.05` — Phase 10.05: Audio Sun & Kaleidoscope fixes
+
+- **Audio Sun** — the core glow was blitting **additively** and oversized, so it read as a
+  big solid blue disc. Restored the softer **v00.0A.02** halo (normal alpha blit, sized so
+  nothing clips) behind the two color rings.
+- **Kaleidoscope** — in **Counter** spin the outer spokes were being cut by other segments'
+  inner spokes; now drawn in two passes (all inner halves first, then all outer halves on
+  top) so the outer layer is never clipped.
+
+**Verification** — ruff / black / mypy **clean**; full suite **passes**; `--selftest` exit
+**0**; exe builds + self-tests.
+
+---
+
 ## `00.0A.04` — Phase 10.04: mode fixes & feel tweaks
 
 - **Audio Sun** — dropped the dashed color-wheel + inner spokes (they looked off);

@@ -165,17 +165,20 @@ class RadialSpectrum(BaseVisualizer):
 
     @staticmethod
     def _glow(surface: pygame.Surface, cx: float, cy: float, core_r: float, level: float) -> None:
-        """Soft additive halo behind the core (the classic Audio Sun look)."""
-        size = int(core_r * 6) + 2
+        """Soft translucent halo behind the core (restored from v00.0A.02).
+
+        Drawn with a normal (alpha) blit, not additive, so it reads as a gentle glow
+        rather than a solid bright disc. The largest ring fits the surface exactly, so
+        nothing clips to a square.
+        """
+        size = int(core_r * 4) + 2
         glow = pygame.Surface((size, size), pygame.SRCALPHA)
         gc = (size // 2, size // 2)
-        for ring in range(5, 0, -1):
-            r = int(core_r * 0.45 * ring)  # max 2.25*core_r < the 3*core_r half-size (no clipping)
-            alpha = int(32 * ring * (0.5 + 0.5 * level))
-            pygame.draw.circle(glow, (*COLOR_ACCENT, alpha), gc, r)
-        surface.blit(
-            glow, glow.get_rect(center=(int(cx), int(cy))), special_flags=pygame.BLEND_RGB_ADD
-        )
+        for ring in range(4, 0, -1):
+            radius = int(core_r * (0.4 + 0.4 * ring))  # max ~2.0*core_r, half-size is 2.0*core_r
+            alpha = int(40 * ring * (0.5 + 0.5 * level))
+            pygame.draw.circle(glow, (*COLOR_ACCENT, alpha), gc, radius)
+        surface.blit(glow, glow.get_rect(center=(int(cx), int(cy))))
 
     def _update_rings(
         self,

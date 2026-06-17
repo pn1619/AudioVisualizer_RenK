@@ -90,21 +90,24 @@ class Kaleidoscope(BaseVisualizer):
             vals = np.full(_SPOKES, 0.04, dtype=np.float32)
 
         line_w = max(2, int(scale / 130))
-        for k in range(segments):
-            base = k * sector
-            for i in range(_SPOKES):
-                frac = i / max(1, _SPOKES - 1)
-                length = core_r + float(vals[i]) * max_len
-                mid = core_r + 0.5 * (length - core_r)
-                color = themed_color(scheme, frac, PALETTE, phase)
-                offset = frac * half
-                # Inner half follows _spin_inner, outer half follows _spin -> the two
-                # layers spin together ("Solid") or against each other ("Counter").
-                for sign in (1.0, -1.0):  # mirror about each segment axis
-                    a_in = self._spin_inner + base + sign * offset
-                    a_out = self._spin + base + sign * offset
-                    self._spoke(surface, cx, cy, a_in, core_r, mid, color, line_w, tip=False)
-                    self._spoke(surface, cx, cy, a_out, mid, length, color, line_w, tip=True)
+        # Two passes so the outer halves are never cut by inner halves of other segments:
+        # draw every inner half first, then every outer half on top.
+        for layer in ("inner", "outer"):
+            spin = self._spin_inner if layer == "inner" else self._spin
+            for k in range(segments):
+                base = k * sector
+                for i in range(_SPOKES):
+                    frac = i / max(1, _SPOKES - 1)
+                    length = core_r + float(vals[i]) * max_len
+                    mid = core_r + 0.5 * (length - core_r)
+                    color = themed_color(scheme, frac, PALETTE, phase)
+                    offset = frac * half
+                    r0, r1 = (core_r, mid) if layer == "inner" else (mid, length)
+                    for sign in (1.0, -1.0):  # mirror about each segment axis
+                        ang = spin + base + sign * offset
+                        self._spoke(
+                            surface, cx, cy, ang, r0, r1, color, line_w, tip=layer == "outer"
+                        )
 
         self._draw_center(surface, cx, cy, core_r, frame)
 
