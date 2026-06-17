@@ -11,6 +11,33 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0A.03` — Phase 10.03: mode polish, more options & a faster Kaleidoscope
+
+**Changed / fixed**
+- **Kaleidoscope** — rebuilt to draw mirrored spokes **directly as lines** (computing
+  rotated/reflected endpoints) instead of rotating a full-canvas surface every frame:
+  ~**4 ms/frame** at 16 segments / 1080p (was choppy) and the edges are now anti-aliased.
+  New **Center** ornament option: Disc / Ring / Glow / Off; **16** segments added.
+- **Plasma** — now has **Material** (Marble/Oil/Water/Lava/Silk, each its own palette +
+  feel), **Flow** direction (Drift/Right/Up/Swirl/Radial), **Intensity** (Soft/Normal/Vivid
+  contrast + turbulence), and an optional **Drops** overlay (Ripple / Rain / Blobs).
+- **Audio Sun** — the core is now two animated disks (segmented outer ring + spoked inner
+  disk) with a **Disks** option: Spin / Counter / Still / Radiate (beat rings).
+- **Tunnel Warp** — new **Rings** style option: Full / **Broken** (gapped arcs / dashed
+  polygons) / **Waveform** (each ring frozen into the waveform shape at its birth).
+- **Spectrogram** — more lively: **Heat** palettes (Neon/Fire/Ice), **Layout** Up or
+  **Butterfly** (bass-in-the-center mirror), beats brighten the column (`peak`), and the
+  newest "now" column glows as a bright leading edge.
+- **Spectrum** — new **Width** option (Hairline/Fine/Normal/Full) for finer, thinner bars.
+- **RenK logo** — new **Spin** direction (Clockwise / Counter-CW) and a new **Micro** size
+  (smaller than Tiny). Persisted (`Settings` schema **v6**, `logo_spin`).
+
+**Verification** — ruff / black / mypy **clean**; full suite **passes** (schema-version
+tests updated to v6, logo-panel test covers the new Spin row); `--selftest` exit **0**; exe
+builds + self-tests.
+
+---
+
 ## `00.0A.02` — Phase 10.02: six new visual modes
 
 **Added** — six new modes (each one new file, auto-registered; **14 → 20 modes**):

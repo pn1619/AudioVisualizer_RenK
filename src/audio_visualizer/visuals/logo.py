@@ -33,6 +33,7 @@ from audio_visualizer.config import (
     LOGO_SIZE_DEFAULT,
     LOGO_SIZE_FRACTIONS,
     LOGO_SPIN_DEG_PER_SEC,
+    LOGO_SPIN_DIR_DEFAULT,
     LOGO_SPIN_ENERGY_GAIN,
     SPARK_MAX,
 )
@@ -119,6 +120,7 @@ class RenkLogo:
         self.opacity = LOGO_OPACITY_DEFAULT
         self.color_mode = LOGO_COLOR_DEFAULT
         self.emit = LOGO_EMIT_DEFAULT
+        self.spin_dir = LOGO_SPIN_DIR_DEFAULT
 
         # ``surface`` lets tests inject a tiny image; otherwise load the asset.
         self._base = surface if surface is not None else _load_logo_surface()
@@ -219,7 +221,8 @@ class RenkLogo:
     def _spin_step(self, bass: float, dt: float) -> float:
         speed = self.theme.speed_scale
         gain = 0.0 if self.reduce_motion else LOGO_SPIN_ENERGY_GAIN * bass
-        return (LOGO_SPIN_DEG_PER_SEC + gain) * dt * speed
+        direction = -1.0 if self.spin_dir == "ccw" else 1.0
+        return direction * (LOGO_SPIN_DEG_PER_SEC + gain) * dt * speed
 
     def _blit_logo(
         self, surface: pygame.Surface, center: tuple[float, float], pulse: float

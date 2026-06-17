@@ -34,6 +34,8 @@ from audio_visualizer.config import (
     LOGO_POSITIONS,
     LOGO_SIZE_DEFAULT,
     LOGO_SIZES,
+    LOGO_SPIN_DIR_DEFAULT,
+    LOGO_SPIN_DIRS,
     SETTINGS_FILENAME,
     SETTINGS_SCHEMA_VERSION,
     SIZE_SCALE_DEFAULT,
@@ -73,6 +75,8 @@ class Settings:
     logo_opacity: float = LOGO_OPACITY_DEFAULT
     logo_color: str = LOGO_COLOR_DEFAULT
     logo_emit: bool = LOGO_EMIT_DEFAULT
+    # Logo spin direction (Phase 10.03 / schema v6).
+    logo_spin: str = LOGO_SPIN_DIR_DEFAULT
     # UI appearance (Phase 9.03 / schema v3).
     ui_style: str = UI_STYLE_DEFAULT
     ui_font: str = UI_FONT_DEFAULT
@@ -161,6 +165,7 @@ def _from_dict(raw: dict) -> Settings:
         logo_opacity=_opacity(raw.get("logo_opacity"), defaults.logo_opacity),
         logo_color=_choice(raw.get("logo_color"), LOGO_COLOR_MODES, defaults.logo_color),
         logo_emit=_bool(raw.get("logo_emit"), defaults.logo_emit),
+        logo_spin=_choice(raw.get("logo_spin"), LOGO_SPIN_DIRS, defaults.logo_spin),
         ui_style=_choice(raw.get("ui_style"), UI_STYLES, defaults.ui_style),
         ui_font=_choice(raw.get("ui_font"), UI_FONTS, defaults.ui_font),
         ui_accent=_choice(raw.get("ui_accent"), UI_ACCENTS, defaults.ui_accent),

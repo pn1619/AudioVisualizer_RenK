@@ -191,13 +191,22 @@ def test_logo_invalid_choice_falls_back() -> None:
 
 # -- Modals -------------------------------------------------------------------
 def _panel() -> tuple[LogoPanel, dict[str, int]]:
-    calls = {"enabled": 0, "color": 0, "opacity": 0, "size": 0, "position": 0, "emit": 0}
+    calls = {
+        "enabled": 0,
+        "color": 0,
+        "opacity": 0,
+        "size": 0,
+        "position": 0,
+        "spin": 0,
+        "emit": 0,
+    }
     actions = LogoPanelActions(
         toggle_enabled=lambda: calls.__setitem__("enabled", calls["enabled"] + 1),
         cycle_color=lambda: calls.__setitem__("color", calls["color"] + 1),
         cycle_opacity=lambda: calls.__setitem__("opacity", calls["opacity"] + 1),
         cycle_size=lambda: calls.__setitem__("size", calls["size"] + 1),
         cycle_position=lambda: calls.__setitem__("position", calls["position"] + 1),
+        cycle_spin=lambda: calls.__setitem__("spin", calls["spin"] + 1),
         toggle_emit=lambda: calls.__setitem__("emit", calls["emit"] + 1),
     )
     return LogoPanel(actions), calls

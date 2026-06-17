@@ -42,6 +42,8 @@ from audio_visualizer.config import (
     LOGO_POSITIONS,
     LOGO_SIZE_LABELS,
     LOGO_SIZES,
+    LOGO_SPIN_DIR_LABELS,
+    LOGO_SPIN_DIRS,
     MIN_WINDOW_SIZE,
     SENSITIVITY_MAX,
     SENSITIVITY_MIN,
@@ -254,6 +256,7 @@ class App:
             cycle_opacity=self._cycle_logo_opacity,
             cycle_size=self._cycle_logo_size,
             cycle_position=self._cycle_logo_position,
+            cycle_spin=self._cycle_logo_spin,
             toggle_emit=self._toggle_logo_emit,
         )
 
@@ -266,6 +269,7 @@ class App:
         self._logo.opacity = s.logo_opacity
         self._logo.color_mode = s.logo_color
         self._logo.emit = s.logo_emit
+        self._logo.spin_dir = s.logo_spin
 
     # -- public entry points --------------------------------------------------
     def run(self) -> int:
@@ -421,6 +425,9 @@ class App:
     def _cycle_logo_position(self) -> None:
         self._logo.position = self._cycle_next(LOGO_POSITIONS, self._logo.position)
 
+    def _cycle_logo_spin(self) -> None:
+        self._logo.spin_dir = self._cycle_next(LOGO_SPIN_DIRS, self._logo.spin_dir)
+
     def _toggle_logo_emit(self) -> None:
         self._logo.emit = not self._logo.emit
 
@@ -432,6 +439,7 @@ class App:
             "opacity": f"{int(self._logo.opacity * 100)}%",
             "size": LOGO_SIZE_LABELS.get(self._logo.size_key, self._logo.size_key),
             "position": LOGO_POSITION_LABELS.get(self._logo.position, self._logo.position),
+            "spin": LOGO_SPIN_DIR_LABELS.get(self._logo.spin_dir, self._logo.spin_dir),
             "emit": "On" if self._logo.emit else "Off",
         }
 
@@ -721,6 +729,7 @@ class App:
             logo_opacity=self._logo.opacity,
             logo_color=self._logo.color_mode,
             logo_emit=self._logo.emit,
+            logo_spin=self._logo.spin_dir,
             ui_style=self._ui_style,
             ui_font=self._ui_font,
             ui_accent=self._ui_accent,

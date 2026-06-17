@@ -18,7 +18,7 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0A.02"
+APP_VERSION = "00.0A.03"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-17"
@@ -328,9 +328,11 @@ LOGO_SPIN_ENERGY_GAIN = 36.0
 LOGO_PULSE_AMOUNT = 0.06
 
 # Discrete size presets -> logo height as a fraction of the canvas's min side.
-LOGO_SIZES: tuple[str, ...] = ("tiny", "small", "medium", "large", "xlarge", "huge")
+# "micro" is intentionally smaller than "tiny" for a subtle corner watermark.
+LOGO_SIZES: tuple[str, ...] = ("micro", "tiny", "small", "medium", "large", "xlarge", "huge")
 LOGO_SIZE_DEFAULT = "medium"
 LOGO_SIZE_LABELS: dict[str, str] = {
+    "micro": "Micro",
     "tiny": "Tiny",
     "small": "Small",
     "medium": "Medium",
@@ -339,6 +341,7 @@ LOGO_SIZE_LABELS: dict[str, str] = {
     "huge": "Huge",
 }
 LOGO_SIZE_FRACTIONS: dict[str, float] = {
+    "micro": 0.07,
     "tiny": 0.15,
     "small": 0.25,
     "medium": 0.40,
@@ -346,6 +349,11 @@ LOGO_SIZE_FRACTIONS: dict[str, float] = {
     "xlarge": 0.72,
     "huge": 0.90,
 }
+
+# Spin direction for the logo's slow circling rotation.
+LOGO_SPIN_DIRS: tuple[str, ...] = ("cw", "ccw")
+LOGO_SPIN_DIR_DEFAULT = "cw"
+LOGO_SPIN_DIR_LABELS: dict[str, str] = {"cw": "Clockwise", "ccw": "Counter-CW"}
 
 # Discrete on-screen anchors. Center is the default; the rest are the four corners.
 LOGO_POSITIONS: tuple[str, ...] = (
@@ -391,7 +399,7 @@ SETTINGS_FILENAME = "settings.json"
 # (ui_style, ui_font). v4 added the accent color + global background layer
 # (ui_accent, bg_mode, bg_height). v5 added per-backdrop reactivity + opacity
 # (bg_sensitivity, bg_opacity). Older files migrate by defaulting new keys.
-SETTINGS_SCHEMA_VERSION = 5
+SETTINGS_SCHEMA_VERSION = 6
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error

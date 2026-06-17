@@ -27,13 +27,25 @@ _GAP = ModeOption(
     (OptionChoice("Tight", 1), OptionChoice("Normal", 2), OptionChoice("Wide", 5)),
     default_index=1,
 )
+# Fraction of each slot the bar actually fills: lower = finer/thinner bars.
+_WIDTH = ModeOption(
+    "width",
+    "Width",
+    (
+        OptionChoice("Hairline", 0.12),
+        OptionChoice("Fine", 0.35),
+        OptionChoice("Normal", 0.7),
+        OptionChoice("Full", 1.0),
+    ),
+    default_index=2,
+)
 
 
 @register(key="spectrum", display_name="Spectrum", order=20)
 class Spectrum(BaseVisualizer):
     """Vertical bars, one per log-spaced band, with peak-hold caps."""
 
-    OPTIONS = (_CAPS, _GAP)
+    OPTIONS = (_CAPS, _GAP, _WIDTH)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -60,10 +72,13 @@ class Spectrum(BaseVisualizer):
         phase = self.theme.color_phase
         show_caps = self.option("caps") >= 1
         gap = int(self.option("gap"))
-        bar_w = max(1.0, (w - gap * (count + 1)) / count)
+        slot_w = max(1.0, (w - gap * (count + 1)) / count)
+        fill = float(self.option("width"))
+        bar_w = max(1.0, slot_w * fill)
+        inset = (slot_w - bar_w) / 2.0  # center the (possibly thinner) bar in its slot
         usable_h = h - _TOP_MARGIN_PX
         for i in range(count):
-            x = gap + i * (bar_w + gap)
+            x = gap + i * (slot_w + gap) + inset
             energy = float(bands[i])
             bar_h = energy * usable_h
             color = themed_color(scheme, i / max(1, count - 1), PALETTE, phase)

@@ -15,13 +15,14 @@ import pygame
 from audio_visualizer.config import COLOR_BG, COLOR_TEXT
 from audio_visualizer.ui.style import STYLE, draw_panel
 
-_ROW_KEYS: tuple[str, ...] = ("enabled", "color", "opacity", "size", "position", "emit")
+_ROW_KEYS: tuple[str, ...] = ("enabled", "color", "opacity", "size", "position", "spin", "emit")
 _ROW_LABELS: dict[str, str] = {
     "enabled": "Show logo",
     "color": "Color",
     "opacity": "Transparency",
     "size": "Size",
     "position": "Position",
+    "spin": "Spin",
     "emit": "Emit particles",
 }
 
@@ -39,6 +40,7 @@ class LogoPanelActions:
     cycle_opacity: Callable[[], None]
     cycle_size: Callable[[], None]
     cycle_position: Callable[[], None]
+    cycle_spin: Callable[[], None]
     toggle_emit: Callable[[], None]
 
 
@@ -52,6 +54,7 @@ class LogoPanel:
             "opacity": actions.cycle_opacity,
             "size": actions.cycle_size,
             "position": actions.cycle_position,
+            "spin": actions.cycle_spin,
             "emit": actions.toggle_emit,
         }
         self.open = False
