@@ -51,7 +51,13 @@ AudioVisualizer/
 │     │  ├─ particles.py        # Phase 2
 │     │  ├─ laser.py            # Phase 2
 │     │  ├─ snowfall.py         # Phase 3 (bass wind, mid-band flake size)
-│     │  └─ particles_spiral.py # Phase 3 (per-band spiral arms; Phase 6 size/spacing)
+│     │  ├─ particles_spiral.py # Phase 3 (per-band spiral arms; Phase 6 size/spacing)
+│     │  ├─ spectrogram.py      # Phase 10.02 (scrolling magnitude heatmap / waterfall)
+│     │  ├─ radial_spectrum.py  # Phase 10.02 ("Audio Sun": radial spectrum bars + core)
+│     │  ├─ plasma.py           # Phase 10.02 (bass sine-interference field, low-res upscaled)
+│     │  ├─ tunnel.py           # Phase 10.02 (rings flying outward; beats spawn; STROBES)
+│     │  ├─ fireworks.py        # Phase 10.02 (onset rockets -> gravity spark bursts)
+│     │  └─ kaleidoscope.py     # Phase 10.02 (mirrored/rotated wedge mandala)
 │     │      # add a mode = drop one new file here (subclass + @register); no other edits
 │     │
 │     └─ ui/

@@ -11,6 +11,33 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0A.02` — Phase 10.02: six new visual modes
+
+**Added** — six new modes (each one new file, auto-registered; **14 → 20 modes**):
+- **Spectrogram** (`spectrogram`) — a scrolling magnitude heatmap (frequency on Y, time
+  scrolling on X), intensity heat ramp.
+- **Audio Sun** (`radial_spectrum`) — spectrum bars radiating from a glowing core, hue swept
+  around the ring, with a faint oscilloscope ring; optional mirror symmetry.
+- **Plasma** (`plasma`) — a bass-reactive sine-interference color field (computed small,
+  upscaled), neon or rainbow tint.
+- **Tunnel Warp** (`tunnel`) — concentric rings flying outward from a vanishing point; energy
+  speeds the rush and beats spawn rings (circle/hexagon/square). Flagged `STROBES`.
+- **Fireworks** (`fireworks`) — onsets launch rockets that burst into gravity-driven spark
+  showers with ember trails; burst size scales with `peak`.
+- **Kaleidoscope** (`kaleidoscope`) — an audio-driven wedge mirrored/rotated into a rotating
+  symmetric mandala (6/8/12 segments).
+
+**Docs**
+- New `plan/visual-mode-ideas.md` — the catalog of shipped + proposed visualizations, and the
+  reference to consult before generating new concept art so ideas don't repeat.
+
+**Tests / verification**
+- Added `tests/test_modes_phase1002.py` (each new mode renders idle + active, both motion
+  settings); the existing "cycle all modes" smoke test now covers 20 modes. ruff / black /
+  mypy **clean**; full suite **passes**; `--selftest` exit **0**; exe builds + self-tests.
+
+---
+
 ## `00.0A.01` — Phase 10.01: more backgrounds, a Background panel & a glass fix
 
 **Added**
