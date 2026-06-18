@@ -9,6 +9,11 @@
 
 ## 0B-a. Selectable sound source
 
+> **Status: implemented in `v00.0B.01`.** Shipped as `audio/devices.py`
+> (`list_sources`/`find_device_info`), `LoopbackSource(device_id=...)`, a `Src` button +
+> `ui/source_panel.py` modal, and `Settings.source_id` (schema v8). The notes below are the
+> original design and remain accurate.
+
 **Goal.** Let the user pick which Windows audio endpoint drives the visuals. Default
 stays today's behavior (the **default render device**, WASAPI loopback).
 

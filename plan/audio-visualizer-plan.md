@@ -147,6 +147,7 @@ This is a first-class requirement, not a nice-to-have. The rules:
 | Particle size | Size − / + | `F5` / `F6` | Scale particle/flake sizes |
 | Animation speed | Speed − / + | `F7` / `F8` | Scale motion (fall/wind/rotation) |
 | Color scheme | Classic/Rainbow | `C` | Cycle color scheme |
+| Sound source | `Src` (modal) | — | Pick the capture device (default / output loopback / mic) — Phase 0B-a |
 | Reduce motion | Motion | `M` | Cap strobing/flash |
 | Fullscreen | ⛶ | `F11` | Toggle fullscreen |
 | Exit fullscreen | (overlay) | `Esc` | Leave fullscreen |
@@ -407,6 +408,7 @@ WASAPI loopback frequently delivers **silence — or no callback at all — when
 - Include a top-level `schema_version` (int; currently **7** — `config.SETTINGS_SCHEMA_VERSION`). On load, migrate or fall back to defaults if the version is unknown — never crash on a bad/old settings file.
 - Persisted: active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, window size, first-run-notice acknowledged, size/speed scale, color scheme, **appearance** (UI style / accent / font), **background** (mode / sensitivity / opacity / height), and **RenK logo** prefs (show / color / transparency / size / position / spin / emit).
 - **Migration:** v00.0A.07 remaps deprecated mode keys to their survivor via `config.MERGED_MODE_KEYS` (e.g. `waveform_2` → `waveform`). Per-mode option/preset indices are **not** persisted.
+- **Selectable source (v8, Phase 0B-a):** `source_id` (`""` ⇒ default render-device loopback; otherwise a device *name*). A missing device falls back to the default loopback on load.
 
 ### 11.4 High-DPI & window resize (Windows)
 

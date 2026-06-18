@@ -88,11 +88,11 @@ def test_settings_v5_roundtrip_and_migration(tmp_path) -> None:
     saved = Settings(ui_accent="aurora", bg_mode="spectrum", bg_height="high")
     assert settings_mod.save(saved, path)
     loaded = settings_mod.load(path)
-    assert loaded.schema_version == 7
+    assert loaded.schema_version == settings_mod.SETTINGS_SCHEMA_VERSION
     assert (loaded.ui_accent, loaded.bg_mode, loaded.bg_height) == ("aurora", "spectrum", "high")
 
     # An old v3 file (no Phase-10 keys) migrates to the new defaults.
     path.write_text(json.dumps({"schema_version": 3, "ui_style": "glass"}), encoding="utf-8")
     migrated = settings_mod.load(path)
-    assert migrated.schema_version == 7
+    assert migrated.schema_version == settings_mod.SETTINGS_SCHEMA_VERSION
     assert (migrated.ui_accent, migrated.bg_mode, migrated.bg_height) == ("cyan", "black", "medium")

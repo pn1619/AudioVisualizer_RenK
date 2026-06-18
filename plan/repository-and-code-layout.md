@@ -17,7 +17,7 @@ AudioVisualizer/
 │     ├─ main.py                # parse args, configure logging, install excepthook, build & run App
 │     ├─ app.py                 # App: window, main loop, input, mode switching (wiring only)
 │     ├─ config.py              # constants & defaults (APP_VERSION, FFT size, FPS, colors, smoothing keys)
-│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=7, migrate-or-default; v7 remaps merged mode keys)
+│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=8, migrate-or-default; v7 remaps merged mode keys, v8 adds source_id)
 │     ├─ platform_win.py        # DPI awareness + Windows-specific shims (guarded, no-op off Windows)
 │     ├─ resources.py           # Phase 9: locate bundled assets/ in dev + frozen (_MEIPASS) runs
 │     │
@@ -28,7 +28,8 @@ AudioVisualizer/
 │     │  ├─ __init__.py
 │     │  ├─ frame.py            # AnalysisFrame dataclass (immutable snapshot)
 │     │  ├─ source.py           # AudioSource interface + SyntheticSource (test tone)
-│     │  ├─ capture.py          # LoopbackSource: WASAPI loopback via pyaudiowpatch + ring buffer
+│     │  ├─ capture.py          # LoopbackSource(device_id): WASAPI loopback/input via pyaudiowpatch + ring buffer
+│     │  ├─ devices.py          # Phase 0B-a: enumerate selectable sources (list_sources / find_device_info)
 │     │  └─ analysis.py         # Analyzer: window + FFT + RMS/peak + log bands -> AnalysisFrame
 │     │
 │     ├─ visuals/
@@ -69,6 +70,7 @@ AudioVisualizer/
 │        ├─ logo_panel.py       # Phase 9: RenK logo settings modal (clickable value-cycling rows)
 │        ├─ appearance_panel.py # Phase 9.03: UI style/accent/font modal
 │        ├─ background_panel.py # Phase 10: Background modal (mode/sensitivity/opacity/height; opened by BG button)
+│        ├─ source_panel.py     # Phase 0B-a: Sound-source modal (selectable capture device; opened by Src button)
 │        ├─ about.py            # Phase 9: About modal (owner/license/version/build date)
 │        └─ hud.py              # status line + debug overlay (F3)
 │
@@ -87,6 +89,7 @@ AudioVisualizer/
 │  ├─ test_visuals_phase{3,4,5,6,8}.py  # per-phase visual/option/color coverage
 │  ├─ test_modes_phase{1002,1006,1007}.py # Phase 10 mode batches + 10.07 merges/migration/presets/sweeps
 │  ├─ test_background_phase{10,1001}.py    # background layer modes + panel/persistence
+│  ├─ test_devices_phase0b01.py # Phase 0B-a: source enumeration/resolution + panel + v8 migration
 │  ├─ test_ui_phase903.py       # appearance (style/accent/font) panel
 │  ├─ test_logo_phase9.py       # RenK logo overlay + settings migration + panel/About modals
 │  └─ test_smoke.py             # headless App build + N ticks (incl. idle/resize)
@@ -137,7 +140,7 @@ Entry point. Parse CLI args (`--debug`, `--mode`, `--selftest`, `--device`, `--v
 Plain constants and defaults only (no logic): `APP_VERSION`, `SAMPLE_RATE_FALLBACK`, `FFT_SIZE`, `BAND_COUNT`, `MIN_HZ`, `MAX_HZ`, `TARGET_FPS`, `SETTINGS_SCHEMA_VERSION`, `MERGED_MODE_KEYS`, color palette, smoothing factors, sensitivity range, window size, and the **shared visual tunables** (theme ranges, particle/snow caps, `REDUCE_MOTION_BURST_DIVISOR`, `IDLE_LINE_HUE`, circle-layout fractions, …). **Magic-number policy:** shared/cross-mode tunables live here as `UPPER_SNAKE_CASE`; mode-local "feel" numbers live as commented `_UPPER_SNAKE` constants atop their mode file. **Mode keys do *not* live here** — they're declared on each class via `@register(key=...)` (the registry is the single source of truth).
 
 ### `settings.py`
-Load/save user settings as JSON at `%APPDATA%\AudioVisualizer\settings.json`. Includes `schema_version` (currently **7**); on load, **migrate or fall back to defaults** for unknown/corrupt files (never crash) — v7 remaps deprecated mode keys to their survivor via `config.MERGED_MODE_KEYS`. Persists active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, window size, first-run-notice acknowledgement, size/speed scale, color scheme, appearance (style/accent/font), background, and RenK logo prefs. Per-mode option/preset indices are not persisted.
+Load/save user settings as JSON at `%APPDATA%\AudioVisualizer\settings.json`. Includes `schema_version` (currently **8**); on load, **migrate or fall back to defaults** for unknown/corrupt files (never crash) — v7 remaps deprecated mode keys to their survivor via `config.MERGED_MODE_KEYS`, v8 adds the selectable capture `source_id`. Persists active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, window size, first-run-notice acknowledgement, size/speed scale, color scheme, appearance (style/accent/font), background, RenK logo prefs, and `source_id`. Per-mode option/preset indices are not persisted.
 
 ### `platform_win.py`
 Windows-specific shims, each **guarded** so the module imports cleanly off Windows / in CI: set process **DPI awareness**, `%APPDATA%` path resolution. No pygame, no app logic.

@@ -16,6 +16,7 @@ import pygame
 from audio_visualizer import settings as settings_mod
 from audio_visualizer.audio.analysis import Analyzer
 from audio_visualizer.audio.capture import LoopbackSource
+from audio_visualizer.audio.devices import list_sources
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.audio.source import AudioSource, SourceStatus, SyntheticSource
 from audio_visualizer.config import (
@@ -77,6 +78,7 @@ from audio_visualizer.ui.fonts import get_ui_fonts
 from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
 from audio_visualizer.ui.logo_panel import LogoPanel, LogoPanelActions
+from audio_visualizer.ui.source_panel import SourceActions, SourcePanel
 from audio_visualizer.ui.style import STYLE
 from audio_visualizer.visuals import registry
 from audio_visualizer.visuals.background import Background
@@ -152,7 +154,8 @@ class App:
         self._font, self._font_small = get_ui_fonts(self._ui_font)
         self._clock = pygame.time.Clock()
 
-        self._source: AudioSource = LoopbackSource()
+        self._source_id = self._settings.source_id
+        self._source: AudioSource = LoopbackSource(device_id=self._source_id)
         self._analyzer = Analyzer()
         self._analyzer.set_smoothing(*_smoothing_to_coeffs(self._smoothing))
         self._frame: AnalysisFrame | None = None
@@ -175,6 +178,7 @@ class App:
         self._logo_panel = LogoPanel(self._build_logo_panel_actions())
         self._appearance = AppearancePanel(self._build_appearance_actions())
         self._background_panel = BackgroundPanel(self._build_background_actions())
+        self._source_panel = SourcePanel(SourceActions(select=self._select_source))
         self._about = AboutDialog()
 
         self._hud = Hud()
@@ -232,6 +236,7 @@ class App:
             quit=self._request_quit,
             open_appearance=lambda: self._appearance.toggle(),
             open_background=lambda: self._background_panel.toggle(),
+            open_source=self._open_source_panel,
         )
 
     def _build_appearance_actions(self) -> AppearanceActions:
@@ -321,6 +326,30 @@ class App:
             self._stop_capture()
         else:
             self._start_capture()
+
+    # -- selectable source ----------------------------------------------------
+    def _open_source_panel(self) -> None:
+        """Refresh the device list (only when opening) and show the Source modal."""
+        if not self._source_panel.open:
+            self._source_panel.set_state(self._source_rows(), self._source_id)
+        self._source_panel.toggle()
+
+    def _source_rows(self) -> list[tuple[str, str]]:
+        """(source_id, label) rows for the Source panel: default first, then devices."""
+        rows: list[tuple[str, str]] = [("", "Default (system audio)")]
+        for s in list_sources():
+            prefix = "Output" if s.kind == "loopback" else "Input"
+            suffix = "  (current default)" if s.is_default else ""
+            rows.append((s.id, f"{prefix}: {s.name}{suffix}"))
+        return rows
+
+    def _select_source(self, source_id: str) -> None:
+        """Switch the capture device (clean stop/recreate/start) and persist it."""
+        self._source_id = source_id
+        self._source.stop()
+        self._source = LoopbackSource(device_id=source_id)
+        self._start_capture()
+        logger.info("Selected source %r", source_id or "(default)")
 
     def _cycle_mode(self, delta: int) -> None:
         self._set_mode_index((self._mode_index + delta) % len(self._mode_keys))
@@ -522,6 +551,7 @@ class App:
             or self._about.open
             or self._appearance.open
             or self._background_panel.open
+            or self._source_panel.open
         )
 
     def _close_modals(self) -> None:
@@ -529,6 +559,7 @@ class App:
         self._about.open = False
         self._appearance.open = False
         self._background_panel.open = False
+        self._source_panel.open = False
 
     # -- loop body ------------------------------------------------------------
     def _handle_events(self) -> None:
@@ -552,6 +583,7 @@ class App:
                     self._logo_panel.handle_event(event, canvas)
                     self._appearance.handle_event(event, canvas)
                     self._background_panel.handle_event(event, canvas)
+                    self._source_panel.handle_event(event, canvas)
                     self._about.handle_event(event, canvas)
                 continue
             if event.type == pygame.VIDEORESIZE and not self._fullscreen:
@@ -683,6 +715,7 @@ class App:
         self._appearance.draw(screen, canvas, self._font, self._font_small)
         self._background_panel.set_state(self._background_values())
         self._background_panel.draw(screen, canvas, self._font, self._font_small)
+        self._source_panel.draw(screen, canvas, self._font, self._font_small)
         self._about.draw(screen, canvas, self._font, self._font_small)
 
     def _hud_state(self) -> HudState:
@@ -737,6 +770,7 @@ class App:
             bg_height=self._background.height_key,
             bg_sensitivity=self._background.sensitivity,
             bg_opacity=self._background.opacity,
+            source_id=self._source_id,
         )
 
     def _shutdown(self) -> None:

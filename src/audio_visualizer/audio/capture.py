@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from audio_visualizer.audio.devices import find_device_info
 from audio_visualizer.audio.source import SourceStatus
 from audio_visualizer.config import RING_BUFFER_SECONDS, SAMPLE_RATE_FALLBACK
 
@@ -22,13 +23,21 @@ logger = logging.getLogger(__name__)
 
 
 class LoopbackSource:
-    """Captures system playback (what you hear) on the default output device."""
+    """Captures audio from a WASAPI device.
 
-    def __init__(self, ring_seconds: float = RING_BUFFER_SECONDS) -> None:
+    With ``device_id == ""`` it follows the **default render device's** loopback
+    (today's behavior — "what you hear"). A non-empty ``device_id`` (a device
+    *name* from :mod:`audio.devices`) pins a specific output loopback or real
+    input (microphone); if that device is gone at ``start()`` time it falls back
+    to the default loopback rather than failing.
+    """
+
+    def __init__(self, device_id: str = "", ring_seconds: float = RING_BUFFER_SECONDS) -> None:
         self.sample_rate = SAMPLE_RATE_FALLBACK
         self.channels = 2
         self.device_name = ""
         self.status = SourceStatus.STOPPED
+        self._device_id = device_id
 
         self._ring_seconds = ring_seconds
         self._pa: Any = None
@@ -47,7 +56,7 @@ class LoopbackSource:
 
             self._continue_flag = pyaudio.paContinue
             self._pa = pyaudio.PyAudio()
-            info = self._pa.get_default_wasapi_loopback()
+            info = self._resolve_device(pyaudio)
 
             self.sample_rate = int(info["defaultSampleRate"])
             self.channels = max(1, int(info["maxInputChannels"]))
@@ -79,6 +88,19 @@ class LoopbackSource:
             logger.exception("Failed to start loopback capture")
             self.status = SourceStatus.ERROR
             self._cleanup()
+
+    def _resolve_device(self, pyaudio: Any) -> dict:
+        """Pick the device dict to open: the pinned ``device_id`` if present and
+        still available, else the default render device's loopback."""
+        if self._device_id:
+            match = find_device_info(self._pa, self._device_id, pyaudio.paWASAPI)
+            if match is not None:
+                return match
+            logger.warning(
+                "Selected source %r not found; falling back to default loopback",
+                self._device_id,
+            )
+        return self._pa.get_default_wasapi_loopback()
 
     def stop(self) -> None:
         self._cleanup()

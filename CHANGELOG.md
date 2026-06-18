@@ -11,6 +11,29 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.01` — Phase 0B-a: selectable sound source
+
+You can now choose **which audio device drives the visuals** instead of always
+using the default speakers' loopback.
+
+- **New `Src` button → Sound source modal.** Lists the **default** (system audio), every
+  **output** endpoint's loopback (speakers / headphones / HDMI), and real **inputs**
+  (microphone / line-in). Click one to switch; the active source is marked.
+- **`audio/devices.py`** enumerates sources via `pyaudiowpatch` (`list_sources()`), fully
+  defensive — any failure yields an empty list rather than crashing.
+- **`LoopbackSource(device_id=...)`** opens a pinned device by **name** (stable across
+  replugs, unlike indices) and negotiates its native format → mono float32, exactly as
+  before. If the saved device is gone at launch, it **falls back to the default loopback**.
+- **Selecting a source** does a clean stop → recreate → start, so it takes effect
+  immediately; the choice persists as `source_id` (**settings schema v7 → v8**, migrates by
+  defaulting to the system default). The existing error-banner + periodic recovery still
+  cover a device that vanishes mid-session.
+- Tests: device enumeration (loopback first, inputs filtered/deduped), device resolution
+  with default fallback, settings round-trip + v7→v8 migration, and the panel's
+  select/dismiss behavior.
+
+---
+
 ## `00.0B.00` — Phase 0B kickoff: custom-preset design
 
 Planning checkpoint that opens Phase 0B (`FF = 0B`). **No runtime/behavior change** — only

@@ -18,7 +18,7 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0B.00"
+APP_VERSION = "00.0B.01"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-18"
@@ -397,7 +397,8 @@ SETTINGS_FILENAME = "settings.json"
 # (ui_accent, bg_mode, bg_height). v5 added per-backdrop reactivity + opacity
 # (bg_sensitivity, bg_opacity). v6 added logo_spin. v7 (Phase 10.07) merged several
 # modes, so a saved `mode` key is remapped to its canonical survivor on load.
-SETTINGS_SCHEMA_VERSION = 7
+# v8 (Phase 0B-a) added the selectable capture source (source_id).
+SETTINGS_SCHEMA_VERSION = 8
 
 # Phase 10.07 mode merges: old mode keys -> the canonical mode that absorbed them.
 # Per-mode option indices were never persisted, so only the active key is remapped.

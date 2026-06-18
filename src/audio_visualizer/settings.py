@@ -88,6 +88,9 @@ class Settings:
     # Per-backdrop reactivity + opacity (Phase 10.01 / schema v5).
     bg_sensitivity: float = BG_SENSITIVITY_DEFAULT
     bg_opacity: float = BG_OPACITY_DEFAULT
+    # Selectable capture source (Phase 0B-a / schema v8). "" -> default render
+    # device loopback; otherwise a device *name* from audio.devices.
+    source_id: str = ""
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -177,6 +180,7 @@ def _from_dict(raw: dict) -> Settings:
             raw.get("bg_sensitivity"), BG_SENSITIVITY_CHOICES, defaults.bg_sensitivity
         ),
         bg_opacity=_snap(raw.get("bg_opacity"), BG_OPACITY_CHOICES, defaults.bg_opacity),
+        source_id=_str(raw.get("source_id"), defaults.source_id),
     )
 
 

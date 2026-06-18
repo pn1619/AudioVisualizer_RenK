@@ -334,13 +334,14 @@ mouse events forwarded to `ControlBar.handle_event`. Both call the same action m
 ## 8. Settings & persistence (`settings.py`)
 
 JSON at `%APPDATA%\AudioVisualizer\settings.json` with a `schema_version` (currently
-**7**; see `config.SETTINGS_SCHEMA_VERSION`). Persisted: active mode, sensitivity,
+**8**; see `config.SETTINGS_SCHEMA_VERSION`). Persisted: active mode, `source_id`, sensitivity,
 smoothing, reduce-motion, fullscreen, window size, notice-acknowledged, size/speed scale,
 color scheme, **appearance** (UI style / accent / font), **background** (mode /
 sensitivity / opacity / height), and **RenK logo** prefs (show / color / transparency /
 size / position / spin / emit). Load **migrates or falls back to defaults** for
 unknown/corrupt files (never crashes); v00.0A.07 remaps deprecated mode keys to their
-survivor via `config.MERGED_MODE_KEYS` (e.g. `lightshow_2` → `lightshow`). Per-mode
+survivor via `config.MERGED_MODE_KEYS` (e.g. `lightshow_2` → `lightshow`), and v8 adds the
+selectable capture `source_id` (a missing device falls back to the default loopback). Per-mode
 option/preset indices are **not** persisted. `App` re-clamps every value to its config
 range on construction, and `_current_settings()` snapshots state on exit.
 
