@@ -42,6 +42,82 @@ TRAIL_OPTION = ModeOption(
     default_index=0,
 )
 
+# --- Shared, reusable option presets (Phase 0A.06) ----------------------------
+# Modes opt into these by listing them in OPTIONS and reading the value, so option
+# names/values stay consistent across modes. Behavior is interpreted per-mode (kept
+# cheap: e.g. MIRROR reflects coordinates, GLOW draws a couple of translucent layers).
+
+# Coloring strategy on top of the global color scheme.
+COLOR_OPTION = ModeOption(
+    "color",
+    "Color",
+    (OptionChoice("Theme", 0), OptionChoice("Rainbow", 1), OptionChoice("Mono", 2)),
+    default_index=0,
+)
+# Symmetry: reflect the drawn geometry about the center axes.
+MIRROR_OPTION = ModeOption(
+    "mirror",
+    "Mirror",
+    (
+        OptionChoice("Off", 0),
+        OptionChoice("Horizontal", 1),
+        OptionChoice("Vertical", 2),
+        OptionChoice("Quad", 3),
+    ),
+    default_index=0,
+)
+# Soft additive halo (cheap layered-alpha glow, no full-screen blur).
+GLOW_OPTION = ModeOption(
+    "glow", "Glow", (OptionChoice("Off", 0), OptionChoice("Soft", 1)), default_index=0
+)
+# Line/element width.
+THICKNESS_OPTION = ModeOption(
+    "thickness",
+    "Width",
+    (OptionChoice("Fine", 1), OptionChoice("Normal", 2), OptionChoice("Bold", 4)),
+    default_index=1,
+)
+# Per-mode animation rate multiplier (separate from the global Theme speed).
+SPEED_OPTION = ModeOption(
+    "rate",
+    "Speed",
+    (OptionChoice("Slow", 0.5), OptionChoice("Normal", 1.0), OptionChoice("Fast", 2.0)),
+    default_index=1,
+)
+
+
+def mode_color(
+    color_opt: int, scheme: str, t: float, phase: float = 0.0, palette: tuple[Color, ...] = PALETTE
+) -> Color:
+    """Resolve a color for position ``t`` honoring the shared ``COLOR_OPTION``.
+
+    ``Theme`` follows the global color scheme; ``Rainbow`` forces a hue sweep;
+    ``Mono`` uses the accent color. Keeps coloring consistent across modes.
+    """
+    if color_opt == 1:
+        return rainbow_color(t + phase)
+    if color_opt == 2:
+        return COLOR_ACCENT
+    return themed_color(scheme, t, palette, phase)
+
+
+def mirror_points(
+    points: list[tuple[float, float]], cx: float, cy: float, mode: int
+) -> list[list[tuple[float, float]]]:
+    """Return the original point list plus its reflections for ``MIRROR_OPTION``.
+
+    Cheap symmetry: reflect coordinates about the center axes instead of copying
+    surfaces. ``mode`` 0=none, 1=horizontal, 2=vertical, 3=quad (both).
+    """
+    out = [points]
+    if mode in (1, 3):  # mirror left<->right
+        out.append([(2 * cx - x, y) for x, y in points])
+    if mode in (2, 3):  # mirror top<->bottom
+        out.append([(x, 2 * cy - y) for x, y in points])
+    if mode == 3:  # the diagonal quadrant
+        out.append([(2 * cx - x, 2 * cy - y) for x, y in points])
+    return out
+
 
 def clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
     """Clamp ``value`` into ``[low, high]``."""

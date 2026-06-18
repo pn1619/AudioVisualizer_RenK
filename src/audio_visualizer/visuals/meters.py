@@ -1,0 +1,223 @@
+"""VU Meters: studio-style level meters driven by frequency-grouped energy.
+
+Each group is one meter rendered as an LED ladder, a smooth bar, or a sweeping
+needle gauge. Levels rise instantly and fall with a tunable decay; an optional
+peak-hold pip floats above the level and sinks slowly. Colors can be the accent,
+a per-group sweep, or classic green/amber/red broadcast zones.
+"""
+
+from __future__ import annotations
+
+import math
+
+import numpy as np
+import pygame
+
+from audio_visualizer.audio.frame import AnalysisFrame
+from audio_visualizer.config import COLOR_ACCENT, PALETTE
+from audio_visualizer.visuals._helpers import palette_color, range_energies
+from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
+from audio_visualizer.visuals.registry import register
+
+_ZONE_GREEN = (60, 220, 90)
+_ZONE_AMBER = (240, 200, 50)
+_ZONE_RED = (240, 70, 60)
+_PEAK_DECAY = 0.35  # peak-hold pip fall speed (level fraction per second)
+
+_STYLE = ModeOption(
+    "style",
+    "Style",
+    (OptionChoice("Ladder", 0), OptionChoice("Bar", 1), OptionChoice("Needle", 2)),
+    default_index=0,
+)
+_GROUPS = ModeOption(
+    "groups",
+    "Meters",
+    (OptionChoice("4", 4), OptionChoice("8", 8), OptionChoice("12", 12), OptionChoice("24", 24)),
+    default_index=1,
+)
+_SEGMENTS = ModeOption(
+    "segments",
+    "Segments",
+    (OptionChoice("10", 10), OptionChoice("16", 16), OptionChoice("24", 24)),
+    default_index=1,
+)
+_PEAK = ModeOption("peak", "Peak", (OptionChoice("On", 1), OptionChoice("Off", 0)), default_index=0)
+_DECAY = ModeOption(
+    "decay",
+    "Decay",
+    (OptionChoice("Slow", 0.6), OptionChoice("Med", 1.4), OptionChoice("Fast", 3.0)),
+    default_index=1,
+)
+_ORIENT = ModeOption(
+    "orient",
+    "Layout",
+    (OptionChoice("Vertical", 0), OptionChoice("Horizontal", 1)),
+    default_index=0,
+)
+_COLOR = ModeOption(
+    "mcolor",
+    "Color",
+    (OptionChoice("Zones", 0), OptionChoice("Accent", 1), OptionChoice("Per-band", 2)),
+    default_index=0,
+)
+
+
+@register(key="meters", display_name="VU Meters", order=110)
+class Meters(BaseVisualizer):
+    """Frequency-grouped level meters (ladder / bar / needle) with peak hold."""
+
+    OPTIONS = (_STYLE, _GROUPS, _SEGMENTS, _PEAK, _DECAY, _ORIENT, _COLOR)
+
+    def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
+        super().__init__(reduce_motion, theme)
+        self._levels = np.zeros(0, dtype=np.float32)
+        self._peaks = np.zeros(0, dtype=np.float32)
+
+    def on_enter(self) -> None:
+        self._levels = np.zeros(0, dtype=np.float32)
+        self._peaks = np.zeros(0, dtype=np.float32)
+
+    def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
+        w, h = surface.get_size()
+        if w < 8 or h < 8:
+            return
+        groups = int(self.option("groups"))
+        self._update_levels(frame, groups, dt)
+
+        margin = int(min(w, h) * 0.06)
+        horiz = int(self.option("orient")) == 1
+        style = int(self.option("style"))
+        for i in range(groups):
+            cell = self._cell_rect(i, groups, w, h, margin, horiz)
+            level = float(self._levels[i])
+            peak = float(self._peaks[i])
+            if style == 0:
+                self._draw_ladder(surface, cell, level, peak, i, groups, horiz)
+            elif style == 1:
+                self._draw_bar(surface, cell, level, peak, i, groups, horiz)
+            else:
+                self._draw_needle(surface, cell, level, i, groups)
+
+    def _update_levels(self, frame: AnalysisFrame | None, groups: int, dt: float) -> None:
+        if self._levels.size != groups:
+            self._levels = np.zeros(groups, dtype=np.float32)
+            self._peaks = np.zeros(groups, dtype=np.float32)
+        if frame is None or frame.band_energies.size == 0:
+            target = np.zeros(groups, dtype=np.float32)
+        else:
+            target = np.clip(range_energies(frame.band_energies, groups), 0.0, 1.0)
+        # Instant attack, tunable release so meters "fall back" smoothly.
+        release = self.option("decay") * max(dt, 1e-3)
+        self._levels = np.maximum(target, self._levels - release)
+        self._peaks = np.maximum(self._levels, self._peaks - _PEAK_DECAY * max(dt, 1e-3))
+
+    @staticmethod
+    def _cell_rect(i: int, groups: int, w: int, h: int, margin: int, horiz: bool) -> pygame.Rect:
+        if horiz:
+            span = (h - 2 * margin) / groups
+            gap = span * 0.18
+            return pygame.Rect(
+                margin, int(margin + i * span + gap / 2), w - 2 * margin, int(span - gap)
+            )
+        span = (w - 2 * margin) / groups
+        gap = span * 0.18
+        return pygame.Rect(
+            int(margin + i * span + gap / 2), margin, int(span - gap), h - 2 * margin
+        )
+
+    def _color_for(self, level: float, i: int, groups: int) -> tuple[int, int, int]:
+        mode = int(self.option("mcolor"))
+        if mode == 1:
+            return COLOR_ACCENT
+        if mode == 2:
+            return palette_color(PALETTE, i / max(1, groups - 1))
+        if level > 0.85:
+            return _ZONE_RED
+        if level > 0.6:
+            return _ZONE_AMBER
+        return _ZONE_GREEN
+
+    def _draw_ladder(
+        self,
+        surface: pygame.Surface,
+        cell: pygame.Rect,
+        level: float,
+        peak: float,
+        i: int,
+        groups: int,
+        horiz: bool,
+    ) -> None:
+        segments = int(self.option("segments"))
+        lit = int(round(level * segments))
+        peak_seg = int(round(peak * segments)) if int(self.option("peak")) == 1 else -1
+        for s in range(segments):
+            frac = (s + 0.5) / segments
+            on = s < lit
+            seg_color = self._color_for(frac, i, groups)
+            color = seg_color if on else tuple(int(c * 0.18) for c in seg_color)
+            rect = self._segment_rect(cell, s, segments, horiz)
+            pygame.draw.rect(surface, color, rect)
+            if s == peak_seg:
+                pygame.draw.rect(surface, (255, 255, 255), rect, 1)
+
+    @staticmethod
+    def _segment_rect(cell: pygame.Rect, s: int, segments: int, horiz: bool) -> pygame.Rect:
+        pad = 1
+        if horiz:
+            sw = cell.width / segments
+            return pygame.Rect(
+                int(cell.left + s * sw + pad), cell.top, int(sw - 2 * pad), cell.height
+            )
+        sh = cell.height / segments
+        y = cell.bottom - (s + 1) * sh
+        return pygame.Rect(cell.left, int(y + pad), cell.width, int(sh - 2 * pad))
+
+    def _draw_bar(
+        self,
+        surface: pygame.Surface,
+        cell: pygame.Rect,
+        level: float,
+        peak: float,
+        i: int,
+        groups: int,
+        horiz: bool,
+    ) -> None:
+        color = self._color_for(level, i, groups)
+        pygame.draw.rect(surface, tuple(int(c * 0.16) for c in color), cell)
+        if horiz:
+            fill = pygame.Rect(cell.left, cell.top, int(cell.width * level), cell.height)
+        else:
+            fh = int(cell.height * level)
+            fill = pygame.Rect(cell.left, cell.bottom - fh, cell.width, fh)
+        pygame.draw.rect(surface, color, fill)
+        if int(self.option("peak")) == 1:
+            if horiz:
+                x = cell.left + int(cell.width * peak)
+                pygame.draw.line(surface, (255, 255, 255), (x, cell.top), (x, cell.bottom), 2)
+            else:
+                y = cell.bottom - int(cell.height * peak)
+                pygame.draw.line(surface, (255, 255, 255), (cell.left, y), (cell.right, y), 2)
+
+    def _draw_needle(
+        self, surface: pygame.Surface, cell: pygame.Rect, level: float, i: int, groups: int
+    ) -> None:
+        pivot = (cell.centerx, cell.bottom)
+        radius = min(cell.width, cell.height) * 0.9
+        pygame.draw.arc(
+            surface,
+            (60, 60, 70),
+            self._arc_rect(pivot, radius),
+            math.radians(30),
+            math.radians(150),
+            2,
+        )
+        angle = math.radians(150 - level * 120)  # 150deg (left/idle) -> 30deg (right/hot)
+        tip = (pivot[0] + math.cos(angle) * radius, pivot[1] - math.sin(angle) * radius)
+        pygame.draw.line(surface, self._color_for(level, i, groups), pivot, tip, 3)
+
+    @staticmethod
+    def _arc_rect(pivot: tuple[int, int], radius: float) -> pygame.Rect:
+        return pygame.Rect(
+            int(pivot[0] - radius), int(pivot[1] - radius), int(radius * 2), int(radius * 2)
+        )

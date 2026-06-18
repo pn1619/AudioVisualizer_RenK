@@ -11,6 +11,45 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0A.06` — Phase 10.06: six new visual modes
+
+Six brand-new modes, each with deep per-mode options and built to a strict 1080p
+frame budget. New shared, reusable option presets (`COLOR_OPTION`, `MIRROR_OPTION`,
+`GLOW_OPTION`, `THICKNESS_OPTION`, `SPEED_OPTION` + a `mode_color()` helper) keep
+option names/values consistent across modes.
+
+- **Synthwave Horizon** (`terrain`) — the spectrum as scrolling neon mountains (1–3
+  parallax ridges fed by a music-driven height-field) over a cached retro sun and sky,
+  with a perspective grid floor or a mirrored reflection. Options: **Layers / Fill
+  (Solid·Gradient·Wire) / Sun / Floor (Grid·Mirror·Off) / Speed / Palette
+  (Sunset·Ice·Mono) / Caps**.
+- **Vectorscope** (`vectorscope`) — XY phosphor scope plotting the waveform against a
+  delayed copy (Lissajous loops) with cheap CRT persistence (confined to the scope
+  square so the full-canvas blends stay light). Options: **Phase / Trail
+  (None·Short·Long) / Draw / Width / Color (Phosphor·Rainbow·Velocity) / Spin / Grid**.
+- **VU Meters** (`meters`) — frequency-grouped level meters as LED ladders, bars, or
+  needle gauges with instant attack, tunable release, and peak-hold. Options: **Style /
+  Meters (4–24) / Segments / Peak / Decay / Layout / Color (Zones·Accent·Per-band)**.
+- **Dot Matrix** (`matrix`) — retro LED panel: a columns equalizer or a scrolling
+  dot-resolution spectrogram. Options: **Grid / Dot (Round·Square·Diamond) / Gap /
+  Color (Heat·Per-col·Solid) / Mode (Columns·Scroll) / Peak / Glow**.
+- **Pulse Rings** (`pulse_rings`) — concentric rings that breathe per band; onsets birth
+  a bright pulse that sweeps outward. Options: **Rings / Draw (Outline·Filled·Dashed) /
+  Width / Spin / Color / Beat**.
+- **Ripples** (`ripples`) — beat-born shockwaves that grow and fade. Options: **Spawn
+  (Onset·Beat-grid·Continuous) / Origin / Style (Ring·Double·Filled) / Max / Speed /
+  Color**.
+
+**Performance** (1080p, headless, per-frame): terrain ~2.9 ms, vectorscope ~9.6 ms
+(heaviest, persistence path; bounded to the scope square), meters ~4.6 ms, matrix
+~2.5 ms, pulse_rings ~0.6 ms, ripples ~0.1 ms — all within the 60 fps budget.
+
+**Verification** — ruff / black / mypy **clean**; full suite **passes** (incl. an
+option-sweep test that renders every choice of every option); `--selftest` exit **0**;
+exe builds + self-tests.
+
+---
+
 ## `00.0A.05` — Phase 10.05: Audio Sun & Kaleidoscope fixes
 
 - **Audio Sun** — the core glow was blitting **additively** and oversized, so it read as a

@@ -40,6 +40,12 @@ numpy. Flashing modes set `STROBES = True`. Respect `reduce_motion`. **One mode 
 | `tunnel` | Tunnel Warp | Concentric rings flying outward; beats spawn rings. `STROBES`. |
 | `fireworks` | Fireworks | Onset rockets bursting into gravity spark showers. |
 | `kaleidoscope` | Kaleidoscope | Audio wedge mirrored/rotated into a symmetric mandala. |
+| `terrain` | Synthwave Horizon | Music-fed scrolling neon mountains over a retro sun + grid floor. |
+| `vectorscope` | Vectorscope | XY phosphor Lissajous scope (waveform vs delayed copy) + persistence. |
+| `meters` | VU Meters | Frequency-grouped LED ladders / bars / needle gauges + peak-hold. |
+| `matrix` | Dot Matrix | LED dot panel: columns equalizer or scrolling dot-spectrogram. |
+| `pulse_rings` | Pulse Rings | Concentric per-band breathing rings + outward beat pulses. |
+| `ripples` | Ripples | Beat-born expanding water-ripple shockwaves. |
 
 **Also not modes (global layers):** RenK logo overlay (`visuals/logo.py`) and the Background
 layer (`visuals/background.py`: black, spectrum line, filaments, mirror, ribbon, gradient,
@@ -49,11 +55,8 @@ aurora, starfield, vignette). Don't propose a *mode* that merely duplicates a ba
 
 ## Proposed (not yet built — fair game for future versions)
 
-- **VU / LED meters** — retro hi-fi ladder meters or needle gauges per band group.
-- **Dot-matrix grid** — an LED matrix; columns = bands lighting rows by energy (arcade).
-- **Scrolling terrain** — spectrum as a mountain-silhouette horizon scrolling into a landscape.
-- **Concentric pulse rings** — one ring per band; thickness/brightness = energy; breathing.
-- **XY vector scope** — true Lissajous from `waveform_mono` vs a delayed copy (analog scope).
 - **DNA double-helix** — two intertwined sine strands modulated by the waveform; rungs flash.
-- **Bloom ripples** — onsets drop expanding water-ripple shockwaves.
 - **Galaxy / vortex** — rotating spiral arms whose length/brightness follow bands.
+
+_(Shipped in `v00.0A.06`: VU meters, dot-matrix, scrolling terrain, pulse rings, XY
+vectorscope, bloom ripples — see the Shipped table above.)_
