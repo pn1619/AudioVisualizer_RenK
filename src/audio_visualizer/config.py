@@ -18,10 +18,10 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0A.07"
+APP_VERSION = "00.0A.08"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
-APP_BUILD_DATE = "2026-06-17"
+APP_BUILD_DATE = "2026-06-18"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
@@ -112,7 +112,6 @@ PALETTE: tuple[tuple[int, int, int], ...] = (
 SAMPLE_RATE_FALLBACK = 48000
 RING_BUFFER_SECONDS = 0.5
 FFT_SIZE = 2048
-HOP = 1024
 BAND_COUNT = 48
 MIN_HZ = 30.0
 MAX_HZ = 16000.0
@@ -277,8 +276,6 @@ IDLE_BANNER_DELAY = 5.0
 CIRCLE_BASE_RADIUS = 0.32
 # How strongly waveform samples push the ring in/out (fraction of min side).
 CIRCLE_WAVE_AMPLITUDE = 0.18
-# Multi-ring mode: how many concentric rings the user may stack.
-CIRCLE_RINGS_MAX = 10
 # Multi-ring layout (fractions of half the min side): innermost ring radius and the
 # outer bound that the rings are spread across before the Spacing option is applied.
 CIRCLE_INNER_FRACTION = 0.12
@@ -293,7 +290,7 @@ PARTICLE_MAX_REDUCED = 120  # cap when reduce-motion is on
 PARTICLE_BURST = 24  # particles spawned per detected onset
 PARTICLE_LIFETIME = 1.6  # seconds
 
-# --- Spark field (shared free-particle system: lightshow_2 / laser_2) ---------
+# --- Spark field (shared free-particle system: lightshow / laser) -------------
 # Free particles "shot out" / "emitted" by beam modes, with optional fading trails.
 SPARK_MAX = 500
 SPARK_MAX_REDUCED = 100  # cap when reduce-motion is on

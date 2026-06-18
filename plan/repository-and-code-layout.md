@@ -17,7 +17,7 @@ AudioVisualizer/
 │     ├─ main.py                # parse args, configure logging, install excepthook, build & run App
 │     ├─ app.py                 # App: window, main loop, input, mode switching (wiring only)
 │     ├─ config.py              # constants & defaults (APP_VERSION, FFT size, FPS, colors, smoothing keys)
-│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version, migrate-or-default; v2 adds logo_*)
+│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=7, migrate-or-default; v7 remaps merged mode keys)
 │     ├─ platform_win.py        # DPI awareness + Windows-specific shims (guarded, no-op off Windows)
 │     ├─ resources.py           # Phase 9: locate bundled assets/ in dev + frozen (_MEIPASS) runs
 │     │
@@ -50,7 +50,13 @@ AudioVisualizer/
 │     │  ├─ plasma.py           # Phase 10.02 (bass sine-interference field, low-res upscaled)
 │     │  ├─ tunnel.py           # Phase 10.02 (rings flying outward; beats spawn; STROBES)
 │     │  ├─ fireworks.py        # Phase 10.02 (onset rockets -> gravity spark bursts)
-│     │  └─ kaleidoscope.py     # Phase 10.02 (mirrored/rotated wedge mandala)
+│     │  ├─ kaleidoscope.py     # Phase 10.02 (mirrored/rotated wedge mandala)
+│     │  ├─ terrain.py          # Phase 10.06 ("Synthwave Horizon": scrolling wireframe terrain; Speed)
+│     │  ├─ vectorscope.py      # Phase 10.06 (L/R phase scope; Thickness + Mirror)
+│     │  ├─ meters.py           # Phase 10.06 ("VU Meters": per-band VU bars; Glow)
+│     │  ├─ matrix.py           # Phase 10.06 ("Dot Matrix": falling glyph columns; Glow)
+│     │  ├─ pulse_rings.py      # Phase 10.06 (onset-spawned expanding rings; Color + Thickness)
+│     │  └─ ripples.py          # Phase 10.06 (water-like ripples; Color + Speed)
 │     │      # add a mode = drop one new file here (subclass + @register); no other edits
 │     │
 │     └─ ui/
@@ -79,6 +85,9 @@ AudioVisualizer/
 │  ├─ test_ui_logic.py          # button hit-test, mode cycling wrap
 │  ├─ test_settings.py          # round-trip + corrupt/old schema → defaults
 │  ├─ test_visuals_phase{3,4,5,6,8}.py  # per-phase visual/option/color coverage
+│  ├─ test_modes_phase{1002,1006,1007}.py # Phase 10 mode batches + 10.07 merges/migration/presets/sweeps
+│  ├─ test_background_phase{10,1001}.py    # background layer modes + panel/persistence
+│  ├─ test_ui_phase903.py       # appearance (style/accent/font) panel
 │  ├─ test_logo_phase9.py       # RenK logo overlay + settings migration + panel/About modals
 │  └─ test_smoke.py             # headless App build + N ticks (incl. idle/resize)
 │
@@ -125,10 +134,10 @@ AudioVisualizer/
 Entry point. Parse CLI args (`--debug`, `--mode`, `--selftest`, `--device`, `--version`), configure `logging`, **install a global `sys.excepthook`** that logs the traceback to `logs/app.log` before exit, set DPI awareness via `platform_win`, construct `App`, run it. No business logic.
 
 ### `config.py`
-Plain constants and defaults only (no logic): `APP_VERSION`, `SAMPLE_RATE_FALLBACK`, `FFT_SIZE`, `HOP`, `BAND_COUNT`, `MIN_HZ`, `MAX_HZ`, `TARGET_FPS`, color palette, smoothing factors, sensitivity range, window size, and the **shared visual tunables** (theme ranges, particle/snow caps, `REDUCE_MOTION_BURST_DIVISOR`, `IDLE_LINE_HUE`, circle-layout fractions, …). **Magic-number policy:** shared/cross-mode tunables live here as `UPPER_SNAKE_CASE`; mode-local "feel" numbers live as commented `_UPPER_SNAKE` constants atop their mode file. **Mode keys do *not* live here** — they're declared on each class via `@register(key=...)` (the registry is the single source of truth).
+Plain constants and defaults only (no logic): `APP_VERSION`, `SAMPLE_RATE_FALLBACK`, `FFT_SIZE`, `BAND_COUNT`, `MIN_HZ`, `MAX_HZ`, `TARGET_FPS`, `SETTINGS_SCHEMA_VERSION`, `MERGED_MODE_KEYS`, color palette, smoothing factors, sensitivity range, window size, and the **shared visual tunables** (theme ranges, particle/snow caps, `REDUCE_MOTION_BURST_DIVISOR`, `IDLE_LINE_HUE`, circle-layout fractions, …). **Magic-number policy:** shared/cross-mode tunables live here as `UPPER_SNAKE_CASE`; mode-local "feel" numbers live as commented `_UPPER_SNAKE` constants atop their mode file. **Mode keys do *not* live here** — they're declared on each class via `@register(key=...)` (the registry is the single source of truth).
 
 ### `settings.py`
-Load/save user settings as JSON at `%APPDATA%\AudioVisualizer\settings.json`. Includes `schema_version`; on load, **migrate or fall back to defaults** for unknown/corrupt files (never crash). Persists active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, and first-run-notice acknowledgement.
+Load/save user settings as JSON at `%APPDATA%\AudioVisualizer\settings.json`. Includes `schema_version` (currently **7**); on load, **migrate or fall back to defaults** for unknown/corrupt files (never crash) — v7 remaps deprecated mode keys to their survivor via `config.MERGED_MODE_KEYS`. Persists active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, window size, first-run-notice acknowledgement, size/speed scale, color scheme, appearance (style/accent/font), background, and RenK logo prefs. Per-mode option/preset indices are not persisted.
 
 ### `platform_win.py`
 Windows-specific shims, each **guarded** so the module imports cleanly off Windows / in CI: set process **DPI awareness**, `%APPDATA%` path resolution. No pygame, no app logic.

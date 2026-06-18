@@ -1,4 +1,4 @@
-"""Phase 8: Light Show 2 / Laser 2 modes and the shared SparkField trail option."""
+"""Phase 8: Light Show / Laser beam modes and the shared SparkField trail option."""
 
 from __future__ import annotations
 

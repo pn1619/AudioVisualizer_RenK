@@ -30,7 +30,12 @@ Because `App` and `Analyzer` depend on the **interface**, tests and `--selftest`
 | Visual render | `tests/test_visuals.py` | Each registered mode `draw()`s on a dummy surface at several sizes (incl. tiny + with `frame=None`) without error; a mode that raises is isolated, not fatal |
 | Onset detection | `tests/test_onset.py` | A broadband transient (after silence) clears `ONSET_THRESHOLD`; a steady tone does not; silence reads exactly 0 |
 | Particles | `tests/test_particles.py` | Particle update is **deterministic under a fixed seed**; **reduce-motion caps** the live particle count |
-| Headless smoke | `tests/test_smoke.py` | `App` constructs and renders **N frames** with `SyntheticSource` and **does not crash**; renders an **idle (silent) frame**; **cycles through all 5 modes** without error |
+| Per-phase visuals | `tests/test_visuals_phase{3,4,5,6,8}.py` | Color/theme helpers, per-mode options, color schemes, circular waveforms, and the beam modes' `SparkField`/trail behavior |
+| Phase 9/9.03 UI | `tests/test_logo_phase9.py`, `tests/test_ui_phase903.py` | RenK logo overlay + settings migration + panel/About modals; appearance (style/accent/font) panel |
+| Background layer | `tests/test_background_phase{10,1001}.py` | Background modes render; panel/persistence round-trip |
+| Phase 10 modes | `tests/test_modes_phase{1002,1006,1007}.py` | New mode batches; the **26→19 merges** (registration), **v6→v7 mode-key migration**, **preset snapping**, and exhaustive **per-mode option sweeps** |
+| Dropdown | `tests/test_dropdown.py` | Open/select/click-outside behavior |
+| Headless smoke | `tests/test_smoke.py` | `App` constructs and renders **N frames** with `SyntheticSource` and **does not crash**; renders an **idle (silent) frame**; **cycles through all registered modes** (currently 19) without error |
 
 ### Headless rendering in CI
 

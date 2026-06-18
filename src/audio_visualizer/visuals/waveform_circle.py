@@ -110,6 +110,8 @@ class WaveformCircle(BaseVisualizer):
             return
         cx, cy = w / 2.0, h / 2.0
         half = min(w, h) * 0.5
+        # Honor a mid-session reduce-motion toggle (cap is fixed at construction).
+        self._pops.cap = _POP_MAX_REDUCED if self.reduce_motion else _POP_MAX
         rings = int(self.option("rings"))
         if rings <= 1:
             self._draw_single(surface, frame, cx, cy, half)

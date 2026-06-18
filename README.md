@@ -4,17 +4,20 @@ A Windows desktop app that captures **what you hear** (system playback via WASAP
 loopback) and renders it in real time — built with Python + pygame + numpy +
 pyaudiowpatch.
 
-Visual modes: **waveform, waveform 2, waveform circle (x4), spectrum, light show
-(x2), particles, laser (x2), snowfall, and particles spiral** — 14 total; adding a
-mode is one drop-in file.
+**19 visual modes** — Waveform, Waveform Rings, Spectrum, Audio Sun, Spectrogram,
+Light Show, Particles, Fireworks, Laser, Snowfall, Tunnel Warp, Plasma, Kaleidoscope,
+Synthwave Horizon, Vectorscope, VU Meters, Dot Matrix, Pulse Rings, and Ripples — each
+with its own **per-mode options** (and one-click **Presets**). Adding a mode is one
+drop-in file. The full catalog lives in `plan/visual-mode-ideas.md`.
 
-> Status: **Phase 9 (v `00.09.00`)** — a global **RenK logo overlay** that appears over
-> every mode: it slowly circles, pulses with the music, and can emit sparks on the beat.
-> Configure it from the **RenK** panel — show on/off, Default ↔ **Rainbow+** color,
-> transparency, size, and center/corner position — and read app info in the new **About**
-> dialog. **ESC no longer quits** (use the Quit button or Ctrl+Q). Builds on Phase 8's 14
-> visual modes. See `plan/development-phases.md` for the roadmap and
-> `plan/architecture-and-code-flow.md` for how it works.
+> Status: **Phase 10.07 (v `00.0A.07`)** — **mode consolidation & smarter options**.
+> Closely-related modes were merged into fewer, more flexible ones (a shared **Particles**
+> Off/Sparse/Dense axis; **Waveform Rings** with a Rings count; **Particles** with a
+> Field/Spiral **Emitter**), plus per-mode **Preset** dropdowns and **Mirror**/**Glow**
+> shared options. A global **RenK logo overlay** and **background layer** sit over/behind
+> every mode. **ESC never quits** (use the Quit button or Ctrl+Q). See
+> `plan/development-phases.md` for the roadmap, `plan/audio-visualizer-plan.md` §3.3 for
+> the mode table, and `plan/architecture-and-code-flow.md` for how it works.
 
 ## Requirements
 
@@ -67,9 +70,11 @@ The exe bundles the PortAudio DLL and a Windows version resource. Drop an
 | Smoothing down/up | `Smooth -` / `Smooth +` (value shown between) | `,` / `.` |
 | Particle size down/up | `Size -` / `Size +` (value shown between) | `F5` / `F6` |
 | Animation speed down/up | `Speed -` / `Speed +` (value shown between) | `F7` / `F8` |
-| Per-mode options | bottom-row **option dropdowns** (one per option of the active mode) | — |
+| Per-mode options & Presets | bottom-row **option dropdowns** (incl. a **Preset** picker for curated looks) | — |
 | Color scheme | **Color** dropdown (Classic / Rainbow / Rainbow+) | `C` cycles |
 | Reduce motion (caps strobing) | `Motion` button | `M` |
+| Appearance (style / accent / font) | `Menu` ▸ Appearance… (modal) | — |
+| Background layer | `BG` button (modal: mode / sensitivity / opacity / height) | — |
 | RenK logo settings | `RenK` button (modal panel) | — |
 | About (owner/license/version) | `About` button | — |
 | Fullscreen | `Menu` ▸ Fullscreen | `F11` (exit with `Esc`) |
@@ -81,9 +86,13 @@ A one-time **photosensitivity notice** appears before strobing modes; reduce-mot
 caps flashing. **`Esc` never quits the app** — it only closes an open panel or leaves
 fullscreen (quit via the `Quit` button or `Ctrl+Q`). Your mode, sensitivity, smoothing,
 particle size, animation speed, color scheme, reduce-motion, fullscreen, window size,
-and **RenK logo preferences** (show, color, transparency, size, position, emit) are
-saved to `%APPDATA%\AudioVisualizer\settings.json` and restored next launch (a corrupt
-file safely falls back to defaults).
+**appearance** (style / accent / font), **background layer** (mode / sensitivity /
+opacity / height), and **RenK logo preferences** (show, color, transparency, size,
+position, spin, emit) are saved to `%APPDATA%\AudioVisualizer\settings.json`
+(`schema_version` **7**) and restored next launch. Loading never crashes: a corrupt or
+older file safely migrates or falls back to defaults — and mode keys merged in v00.0A.07
+(e.g. `waveform_2`, `lightshow_2`, `particles_spiral`) are remapped to their survivor.
+Per-mode option/preset selections are session-only (not persisted).
 
 ## Developing
 

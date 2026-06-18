@@ -11,6 +11,49 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0A.08` — Phase 10.08: code cleanup + documentation sync
+
+A maintenance pass: no new modes or user-facing features. Focused on code-quality
+fixes surfaced by a full audit, plus bringing the docs/plans/skill/rules back in sync
+with the post-consolidation (19-mode) codebase.
+
+**Code cleanup**
+
+- **Live reduce-motion re-capping.** Toggling reduce-motion mid-session now takes effect
+  immediately for the shared particle fields: `RingPops`/`SparkField` expose a `cap`
+  setter and *Waveform Rings*, *Light Show*, and *Laser* re-apply the reduced cap each
+  frame (previously the cap was frozen at construction).
+- **Particles emitter lifecycle.** Switching the *Particles* **Emitter** (Field ↔ Spiral),
+  directly or via a preset, now clears the inactive pool so dormant particles don't
+  reappear on switch-back.
+- **Dead code removed.** Dropped the unused `HOP` and `CIRCLE_RINGS_MAX` config constants;
+  *Fireworks* now uses the shared `config.ONSET_THRESHOLD` instead of a duplicate literal.
+- **Readability.** Split the over-long `particles`/`lightshow` draw methods into focused
+  spawn/advance/render helpers; refreshed stale comments/docstrings that named deleted
+  modules; added a degenerate-band guard in *Laser*.
+- **Tests.** Added coverage for live reduce-motion re-capping and emitter pool clearing.
+
+**Documentation sync**
+
+- **README** rewritten for v00.0A.07 / **19 modes** (was Phase 9 / 14 modes): current mode
+  list, per-mode options & presets, appearance/background controls, and settings schema 7
+  + mode-key migration.
+- **Plans** updated: `architecture-and-code-flow.md` §6.6 modes table (now 19) + presets +
+  settings schema; `audio-visualizer-plan.md` §3.3 expanded to all 19 modes, Quit/`Esc`
+  row, §3.5/§8 examples, §11.3 persisted fields; `repository-and-code-layout.md` tree +
+  test inventory; `development-phases.md` gained a Phase 10 section; `testing.md` test
+  layers; `git-and-versioning.md` documents hex `FF` from phase 10; `phase-0b-candidates.md`
+  clarifies user presets vs the shipped per-mode `PRESETS`.
+- **Skill & rules** updated with a current-state callout, the new shared-option/`PRESETS`/
+  `MERGED_MODE_KEYS` patterns, and the mid-session reduce-motion caveat.
+- **tools/README** lists `run`/`test`/`lint`/`format`/`build-exe` (and the helper scripts)
+  as available.
+
+Verified: `ruff` + `black --check` + `mypy` clean; full pytest suite green; `--selftest`
+exits 0; exe builds and self-tests.
+
+---
+
 ## `00.0A.07` — Phase 10.07: mode consolidation + smarter options
 
 Merged closely-related modes into single, more flexible ones, cutting the mode list

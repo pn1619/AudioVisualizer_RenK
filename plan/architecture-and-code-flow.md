@@ -259,6 +259,12 @@ A mode declares `OPTIONS = (_SIZE, _THICKNESS, ...)`; it reads the live value wi
 bottom-row dropdowns from the new mode's `OPTIONS`, and dropdown changes call
 `set_option_index`. Adding an option is still **one file** — no central list.
 
+**Presets (v00.0A.07):** a mode may declare a `PRESETS` dict mapping a leading `preset`
+option's choice index → a `{option_key: choice_index}` combo. `BaseVisualizer.on_option_change`
+applies the combo when `preset` changes (and snaps `preset` back to "Custom" when the user
+edits another option). Subclasses overriding `on_option_change` must call `super()` —
+`Particles`, for example, also clears the inactive pool when its `emitter`/`preset` changes.
+
 ### 6.5 Shared draw helpers (`visuals/_helpers.py`)
 
 Underscore prefix → **skipped by discovery**, so this is the home for reusable
@@ -266,32 +272,43 @@ primitives (importing it from a mode is fine; importing one mode from another is
 
 - **Color:** `lerp_color`, `palette_color`, `scale_color`, `rainbow_color`, `themed_color`.
 - **Spectrum slicing:** `range_energies(bands, slices)` — the mean energy of each of
-  `slices` equal sub-ranges, used by the multi-ring modes (deduplicated here so both
-  multi-ring files share one implementation).
+  `slices` equal sub-ranges, used by Waveform Rings' multi-ring layout.
 - **Circular waveforms:** `ring_points`, `draw_ring`, and the reusable `RingPops`
-  pop-particle field (used by the `_2` circle modes).
+  pop-particle field (used by the Waveform Rings mode).
 - **Free particles:** `SparkField` — a reusable particle system in normalized (0..1)
   space with an optional fading "shadow" trail, plus the shared `TRAIL_OPTION`. Used by
-  the beam modes (`lightshow_2`, `laser_2`) for "shot out" / "emitted" particles.
+  the beam modes (`lightshow`, `laser`) for "shot out" / "emitted" particles.
+- **Shared option axes:** `PARTICLES_OPTION` (Off/Sparse/Dense), `MIRROR_OPTION`,
+  `GLOW_OPTION`, `COLOR_OPTION`, `THICKNESS_OPTION`, `SPEED_OPTION` — reused across modes
+  so a "+particles" or "+mirror" variant is an option, not a separate mode.
 
-### 6.6 The modes (12)
+### 6.6 The modes (19)
+
+Consolidated in v00.0A.07 (26 → 19): paired/family modes were merged behind options
+(see `plan/phase-0a07-mode-consolidation.md`). The registry (each class's
+`@register(key, display_name, order)`) is the single source of truth.
 
 | Order | Key | Display | Notes |
 |------:|-----|---------|-------|
-| 10 | `waveform` | Waveform | mono oscilloscope line |
-| 15 | `waveform_2` | Waveform 2 | line + popping particles |
-| 16 | `waveform_circle` | Waveform Circle | oscilloscope wrapped to a ring |
-| 17 | `waveform_circle_2` | Waveform Circle 2 | ring + `RingPops` |
-| 18 | `waveform_circle_multiple` | Waveform Circle x N | N per-band concentric rings |
-| 19 | `waveform_circle_multiple_2` | Waveform Circle x N 2 | multi-ring + `RingPops` |
-| 20 | `spectrum` | Spectrum | log bars + peak-hold caps |
-| 30 | `lightshow` | Light Show | radial beams + pulsing core (strobes) |
-| 35 | `lightshow_2` | Light Show 2 | beams of pulsing particles, shapeable core, emitted sparks (strobes) |
-| 40 | `particles` | Particles | onset bursts pushed by energy (strobes) |
-| 50 | `laser` | Laser | rotating beams + Lissajous (strobes) |
-| 55 | `laser_2` | Laser 2 | beams + selectable figure (Lissajous/rose/star/spiral/heart), emitted sparks (strobes) |
+| 10 | `waveform` | Waveform | oscilloscope line; Particles / Mirror options |
+| 16 | `waveform_circle` | Waveform Rings | ring(s) wrapped from the wave; Rings 1/3/6/12 + Particles |
+| 20 | `spectrum` | Spectrum | log bars + peak-hold caps; Mirror / Glow |
+| 22 | `radial_spectrum` | Audio Sun | bars radiating from a pulsing core |
+| 25 | `spectrogram` | Spectrogram | scrolling time-frequency heatmap |
+| 30 | `lightshow` | Light Show | radial beams; Particles toggles solid↔beaded (strobes) |
+| 40 | `particles` | Particles | Emitter = Field bursts or Spiral arms (strobes) |
+| 45 | `fireworks` | Fireworks | onset-launched shells (strobes) |
+| 50 | `laser` | Laser | rotating beams + selectable figure; Particles (strobes) |
 | 60 | `snowfall` | Snowfall | bass wind, mid-band flake size |
-| 70 | `particles_spiral` | Particles Spiral | per-band spiral arms |
+| 75 | `tunnel` | Tunnel Warp | forward-flying ring tunnel |
+| 80 | `plasma` | Plasma | classic sine-field plasma |
+| 90 | `kaleidoscope` | Kaleidoscope | mirrored radial segments |
+| 100 | `terrain` | Synthwave Horizon | scrolling wireframe terrain |
+| 105 | `vectorscope` | Vectorscope | L/R phase scope; Thickness / Mirror |
+| 110 | `meters` | VU Meters | per-band VU bars; Glow |
+| 115 | `matrix` | Dot Matrix | falling glyph columns; Glow |
+| 120 | `pulse_rings` | Pulse Rings | onset-spawned expanding rings; Color / Thickness |
+| 125 | `ripples` | Ripples | water-like ripples; Color / Speed |
 
 ---
 
@@ -316,11 +333,16 @@ mouse events forwarded to `ControlBar.handle_event`. Both call the same action m
 
 ## 8. Settings & persistence (`settings.py`)
 
-JSON at `%APPDATA%\AudioVisualizer\settings.json` with a `schema_version`. Persisted:
-active mode, sensitivity, smoothing, reduce-motion, fullscreen, window size,
-notice-acknowledged, size/speed scale, color scheme. Load **migrates or falls back to
-defaults** for unknown/corrupt files (never crashes); `App` re-clamps every value to its
-config range on construction, and `_current_settings()` snapshots state on exit.
+JSON at `%APPDATA%\AudioVisualizer\settings.json` with a `schema_version` (currently
+**7**; see `config.SETTINGS_SCHEMA_VERSION`). Persisted: active mode, sensitivity,
+smoothing, reduce-motion, fullscreen, window size, notice-acknowledged, size/speed scale,
+color scheme, **appearance** (UI style / accent / font), **background** (mode /
+sensitivity / opacity / height), and **RenK logo** prefs (show / color / transparency /
+size / position / spin / emit). Load **migrates or falls back to defaults** for
+unknown/corrupt files (never crashes); v00.0A.07 remaps deprecated mode keys to their
+survivor via `config.MERGED_MODE_KEYS` (e.g. `lightshow_2` → `lightshow`). Per-mode
+option/preset indices are **not** persisted. `App` re-clamps every value to its config
+range on construction, and `_current_settings()` snapshots state on exit.
 
 ---
 

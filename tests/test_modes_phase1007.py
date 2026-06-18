@@ -9,7 +9,12 @@ import pygame
 import pytest
 
 from audio_visualizer.audio.frame import AnalysisFrame
-from audio_visualizer.config import MERGED_MODE_KEYS, SETTINGS_SCHEMA_VERSION
+from audio_visualizer.config import (
+    MERGED_MODE_KEYS,
+    SETTINGS_SCHEMA_VERSION,
+    SPARK_MAX,
+    SPARK_MAX_REDUCED,
+)
 from audio_visualizer.settings import load as load_settings
 from audio_visualizer.visuals import registry
 from audio_visualizer.visuals.base import Theme
@@ -69,6 +74,33 @@ def test_preset_snaps_sibling_options(key: str) -> None:
         v.set_option_index("preset", preset_index)
         for opt_key, choice in mapping.items():
             assert v.option_index(opt_key) == choice
+
+
+@pytest.mark.parametrize("key", ("lightshow", "laser"))
+def test_reduce_motion_toggle_recaps_sparkfield(key: str) -> None:
+    surface = pygame.Surface((400, 400))
+    frame = _loud_frame()
+    v = registry.create(key, reduce_motion=False)
+    v.on_enter()
+    v.set_option_index("particles", 2)  # ensure the field is in use
+    v.draw(surface, frame, 0.02)
+    assert v._sparks.cap == SPARK_MAX
+    # Toggling reduce-motion mid-session must re-cap the live field on next draw.
+    v.reduce_motion = True
+    v.draw(surface, frame, 0.02)
+    assert v._sparks.cap == SPARK_MAX_REDUCED
+
+
+def test_particles_emitter_switch_clears_other_pool() -> None:
+    surface = pygame.Surface((400, 400))
+    frame = _loud_frame()
+    v = registry.create("particles")
+    v.on_enter()  # default emitter = Field
+    for _ in range(5):
+        v.draw(surface, frame, 0.02)
+    assert len(v._particles) > 0
+    v.set_option_index("emitter", 1)  # Spiral -> abandons the field pool
+    assert len(v._particles) == 0
 
 
 @pytest.mark.parametrize("key", _MERGED_KEYS)

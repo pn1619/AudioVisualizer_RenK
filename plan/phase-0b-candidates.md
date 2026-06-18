@@ -46,6 +46,12 @@ pyaudiowpatch host-API table; `--selftest` stays on `SyntheticSource`.
 **Goal.** Let the user **save the current mode + all its knobs** under a name, then
 re-select it later from a dropdown — like the built-in modes, but user-owned.
 
+> **Not the same as the shipped per-mode Preset dropdown.** v00.0A.07 added curated,
+> developer-authored `BaseVisualizer.PRESETS` (a leading **Preset** option that loads a
+> fixed combo of that mode's other options; session-only). 0B-b is **user-authored,
+> persisted** presets stored in `presets.json` — a layer on top of the registry, not a
+> mode's built-in `PRESETS`.
+
 **What a preset captures.** A JSON record, *not* code:
 `{ name, base_mode_key, options:{<opt_key>: index}, theme:{size, speed, color_scheme},
 sensitivity, smoothing }`. (Background/logo stay global — a preset is about the *mode*.)

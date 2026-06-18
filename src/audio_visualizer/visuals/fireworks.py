@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
-from audio_visualizer.config import PALETTE, REDUCE_MOTION_BURST_DIVISOR
+from audio_visualizer.config import ONSET_THRESHOLD, PALETTE, REDUCE_MOTION_BURST_DIVISOR
 from audio_visualizer.visuals._helpers import SparkField, clamp, scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice
 from audio_visualizer.visuals.registry import register
@@ -25,7 +25,6 @@ _GRAVITY = 0.55  # normalized units / s^2 pulling sparks (and rockets) down
 _ROCKET_VY = (-0.95, -0.7)  # initial upward speed range (normalized / s)
 _BURST_SPARKS = 60  # sparks per shell at full peak
 _BURST_SPEED = (0.08, 0.42)  # radial spark speed range
-_ONSET_THRESHOLD = 0.35
 _LAUNCH_COOLDOWN = 0.12  # min seconds between onset-triggered launches
 
 _BURSTS = ModeOption(
@@ -78,7 +77,7 @@ class Fireworks(BaseVisualizer):
     def _maybe_launch(self, frame: AnalysisFrame) -> None:
         max_rockets = 2 if self.reduce_motion else 5
         if (
-            frame.onset > _ONSET_THRESHOLD
+            frame.onset > ONSET_THRESHOLD
             and self._cooldown <= 0.0
             and len(self._rockets) < max_rockets
         ):

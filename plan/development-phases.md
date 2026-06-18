@@ -326,7 +326,7 @@ user-facing behavior change. Pure clarity/quality work.
 ### Exit criteria
 - [x] Light Show 2 and Laser 2 render, auto-discover, and expose their options (14 total).
 - [x] Particle Trail option works and is shared (one `SparkField`/`TRAIL_OPTION`).
-- [x] lint/mypy clean, `test.ps1` green (90), `--selftest --mode {lightshow_2,laser_2}` exit 0, exe builds + self-tests.
+- [x] lint/mypy clean, `test.ps1` green (90), `--selftest --mode {lightshow,laser}` exit 0, exe builds + self-tests. *(the standalone `*_2` files were later merged into the base modes in Phase 10.07.)*
 
 **Estimate: 1–2 days.** *(done)*
 
@@ -375,7 +375,47 @@ user-configurable and persisted, plus an About dialog and an ESC-quit fix.
 
 ---
 
-## Future phases (10+) — improvements & growth
+## Phase 10 — visual-mode expansion, background layer & consolidation (v `00.0A.xx`)
+
+**Goal:** grow the visual catalog, add a background layer behind every mode, and then
+consolidate near-duplicate modes behind smarter options. (Hex `0A` = phase 10; see
+`plan/git-and-versioning.md`.) Detailed specs live in `plan/phase-0a06-visual-modes.md`
+and `plan/phase-0a07-mode-consolidation.md`.
+
+### Scope (by sub-phase)
+- **10.00–10.01 — Background layer (`visuals/background.py`, `ui/background_panel.py`):**
+  a non-`@register`ed layer drawn **behind** the active mode (black / spectrum / filaments
+  / mirror / ribbon / gradient / aurora / starfield / vignette), with mode / sensitivity /
+  opacity / height controls (`BG` button), persisted.
+- **10.02 — Mode batch A:** `radial_spectrum` (Audio Sun), `spectrogram`, `fireworks`,
+  `tunnel`, `plasma`, `kaleidoscope` (peaks at **20 modes**).
+- **10.06 — Mode batch B:** `terrain` (Synthwave Horizon), `vectorscope`, `meters`
+  (VU Meters), `matrix` (Dot Matrix), `pulse_rings`, `ripples` — plus reusable shared
+  option presets (`COLOR_OPTION`, `MIRROR_OPTION`, `GLOW_OPTION`, `THICKNESS_OPTION`,
+  `SPEED_OPTION`, `mode_color`) in `_helpers.py` (peaks at **26 modes**).
+- **10.07 — Consolidation (26 → 19):** merged the `*_2` "+particles" pairs and the four
+  circle modes into their base modes behind a shared `PARTICLES_OPTION` axis + a `Rings`
+  count + a Field/Spiral `Emitter`; added per-mode **`PRESETS`** (handled in
+  `BaseVisualizer.on_option_change`/`_apply_preset`) and retrofitted **Mirror**/**Glow**.
+  Settings schema **v6 → v7** remaps deprecated mode keys via `config.MERGED_MODE_KEYS`
+  (per-mode option indices are not persisted).
+- **10.08 — Cleanup pass:** dead-constant/comment removal, live reduce-motion re-capping
+  for `RingPops`/`SparkField`, Particles emitter pool lifecycle, long-function splits, and
+  a full documentation/plan/skill/rule sync.
+
+### Tests
+- `test_background_phase{10,1001}.py`, `test_modes_phase{1002,1006,1007}.py` — new modes,
+  background layer, the 26→19 merges, v6→v7 key migration, preset snapping, and exhaustive
+  per-mode option sweeps.
+
+### Exit criteria
+- [x] 19 modes registered; merged modes expose Particles/Rings/Emitter/Preset options.
+- [x] Background layer + appearance modal persist; old mode keys migrate crash-free.
+- [x] lint/mypy clean, `test.ps1` green, `--selftest` exit 0, exe builds + self-tests.
+
+---
+
+## Future phases (11+) — improvements & growth
 
 Not scheduled; pull items in as priorities dictate. Each should still land behind tests and keep the "simple but works" bar.
 

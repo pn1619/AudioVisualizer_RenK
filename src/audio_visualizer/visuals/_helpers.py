@@ -271,7 +271,7 @@ class _RingPop:
 
 
 class RingPops:
-    """Reusable pop-particle field for the circular-waveform "2" modes.
+    """Reusable pop-particle field for the Waveform Rings mode.
 
     Particles spawn on a ring and drift radially while swelling then fading, so a
     mode just spawns on energy/onset and renders each frame. Polar coordinates keep
@@ -285,6 +285,15 @@ class RingPops:
 
     def clear(self) -> None:
         self._pops.clear()
+
+    @property
+    def cap(self) -> int:
+        return self._cap
+
+    @cap.setter
+    def cap(self, value: int) -> None:
+        """Update the live cap (e.g. when reduce-motion is toggled mid-session)."""
+        self._cap = max(0, int(value))
 
     @property
     def count(self) -> int:
@@ -377,6 +386,15 @@ class SparkField:
 
     def clear(self) -> None:
         self._sparks.clear()
+
+    @property
+    def cap(self) -> int:
+        return self._cap
+
+    @cap.setter
+    def cap(self, value: int) -> None:
+        """Update the live cap (e.g. when reduce-motion is toggled mid-session)."""
+        self._cap = max(0, int(value))
 
     @property
     def count(self) -> int:

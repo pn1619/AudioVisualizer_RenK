@@ -151,7 +151,7 @@ This is a first-class requirement, not a nice-to-have. The rules:
 | Fullscreen | ⛶ | `F11` | Toggle fullscreen |
 | Exit fullscreen | (overlay) | `Esc` | Leave fullscreen |
 | Debug overlay | — | `F3` | Toggle FPS/RMS overlay |
-| Quit | ✕ | `Esc` (windowed) / `Ctrl+Q` | Exit app |
+| Quit | `Menu` ▸ Quit | `Ctrl+Q` | Exit app (**`Esc` never quits** — it only closes a modal / leaves fullscreen) |
 
 Buttons are a **minimal custom `Button` widget** (clickable rect + label + hover state) — no extra UI dependency, keeps it simple. (`pygame_gui` is a documented future option if richer settings are wanted.)
 
@@ -171,7 +171,18 @@ is added or removed.
 | **Particles** | `particles` | 40 | **Emitter** Field (omnidirectional burst + gravity) or Spiral (per-band arms) | RMS, onset/flux | Phase 2 (merged 10.07) |
 | **Laser** | `laser` | 50 | Rotating beams + selectable figure (Lissajous/rose/star/spiral/heart); **Particles** controls emitted sparks | bands + RMS/onset | Phase 2 (merged 10.07) |
 | **Snowfall** | `snowfall` | 60 | Colorful flakes; bass blows the wind, mids size them | bands (low + mid) | Phase 3 |
-| *(Phase 10 modes)* | … | … | spectrogram, radial_spectrum, plasma, tunnel, fireworks, kaleidoscope, terrain, vectorscope, meters, matrix, pulse_rings, ripples | — | Phase 10.02 / 10.06 |
+| **Audio Sun** | `radial_spectrum` | 22 | Bars radiating from a pulsing core | FFT band energies | Phase 10.02 |
+| **Spectrogram** | `spectrogram` | 25 | Scrolling time-frequency heatmap | FFT band energies | Phase 10.02 |
+| **Fireworks** | `fireworks` | 45 | Onset-launched shells that burst into sparks | onset + RMS | Phase 10.02 |
+| **Tunnel Warp** | `tunnel` | 75 | Forward-flying ring tunnel | RMS / onset | Phase 10.06 |
+| **Plasma** | `plasma` | 80 | Classic sine-field plasma | bands / RMS | Phase 10.06 |
+| **Kaleidoscope** | `kaleidoscope` | 90 | Mirrored radial segments | bands | Phase 10.02 |
+| **Synthwave Horizon** | `terrain` | 100 | Scrolling wireframe terrain; **Speed** | bands | Phase 10.06 |
+| **Vectorscope** | `vectorscope` | 105 | L/R phase scope; **Thickness** + **Mirror** | waveform | Phase 10.06 |
+| **VU Meters** | `meters` | 110 | Per-band VU bars; **Glow** | band energies | Phase 10.06 |
+| **Dot Matrix** | `matrix` | 115 | Falling glyph columns; **Glow** | bands | Phase 10.06 |
+| **Pulse Rings** | `pulse_rings` | 120 | Onset-spawned expanding rings; **Color** + **Thickness** | onset / RMS | Phase 10.06 |
+| **Ripples** | `ripples` | 125 | Water-like ripples; **Color** + **Speed** | onset / RMS | Phase 10.06 |
 | *Shader-ish field* (stretch) | — | — | Fullscreen palette field reacting to spectrum | FFT texture | Stretch |
 
 > **Phase 10.07** merged the `*_2` "+particles" pairs and the four circle modes into the
@@ -192,7 +203,7 @@ All modes implement one interface and **auto-register**, so **adding a mode = ad
 - **Shared theme tunables** (live, persisted): **particle/flake size**, **animation speed**, and **color scheme** (classic palette / rainbow / **rainbow+**, the last cycling hue over time via a shared `Theme.color_phase`). The App owns one `Theme` and every active mode reads the same reference, so adjustments apply instantly.
 - **Per-mode options** (Phase 5): each mode declares its own discrete-choice tunables via `BaseVisualizer.OPTIONS` (`ModeOption`/`OptionChoice`), surfaced as bottom-row dropdowns rebuilt on mode switch (e.g. snowfall **Fall**/**Wind**/**Density**). Global tunables show their **current value inline** in the control bar.
 
-### 3.5 Visual-mode framework (add `lightshow_2.py` / `newvisuals.py` in one file)
+### 3.5 Visual-mode framework (add `new_mode.py` in one file)
 
 Extensibility is a design goal: dropping in a new mode tomorrow must be trivial and must **not** require editing the app loop, the registry, or other modes.
 
@@ -202,9 +213,9 @@ Extensibility is a design goal: dropping in a new mode tomorrow must be trivial 
 from audio_visualizer.visuals.base import BaseVisualizer
 from audio_visualizer.visuals.registry import register
 
-@register(key="lightshow2", display_name="Light Show 2", order=35)
-class LightShow2(BaseVisualizer):
-    """Second light-show variant."""
+@register(key="starfield", display_name="Star Field", order=130)
+class StarField(BaseVisualizer):
+    """A brand-new visual mode."""
 
     def draw(self, surface, frame, dt):
         w, h = surface.get_size()          # always size-relative -> resize-safe
@@ -213,9 +224,9 @@ class LightShow2(BaseVisualizer):
 
 That's the whole integration. To add a mode:
 
-1. Create **one file** in `visuals/` (e.g. `lightshow_2.py`).
+1. Create **one file** in `visuals/` (e.g. `starfield.py`).
 2. Subclass `BaseVisualizer`, decorate the class with `@register(...)`.
-3. Done — it's **auto-discovered**, appears in the cycle / `1`–`9` picker, and is selectable by `--mode lightshow2`. No edits anywhere else.
+3. Done — it's **auto-discovered**, appears in the cycle / `1`–`9` picker, and is selectable by `--mode starfield`. No edits anywhere else.
 
 **Why it stays easy (framework guarantees):**
 
@@ -327,13 +338,13 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 11 | **pre-commit (ruff + black)** + pinned deps + `.python-version` | Reproducible, style never rots |
 | 12 | **Capture spike (Phase 0.5) before UI**; build exe in Phase 1 | De-risk the two things that historically break late |
 | 13 | **Render at native window size; no `SCALED`/upscaled buffer.** Borderless desktop fullscreen by default | Crisp output on resize/fullscreen/high-DPI; instant toggle (§3.1.1) |
-| 14 | **Visual modes auto-register via `@register` + `discover()`** (one file, no central list) | Frictionless extension (`lightshow_2.py`, `newvisuals.py`) with zero coupling (§3.5) |
+| 14 | **Visual modes auto-register via `@register` + `discover()`** (one file, no central list) | Frictionless extension (one new file, e.g. `new_mode.py`) with zero coupling (§3.5) |
 | 15 | **Git flow + `PP.FF.BB` versioning + annotated per-phase tags** (`v<APP_VERSION>`, e.g. `v00.02.00`); feature branches → PR into a green `main` | Predictable history that maps 1:1 to the phased roadmap and the in-app version. Full convention in `plan/git-and-versioning.md` |
 | 16 | **Shared `Theme` (size / speed / color scheme)** passed live to every mode + a **mode-picker dropdown** | One small, persisted tunable surface that applies instantly across modes; dropdown scales past the `1`–`9` keys as modes grow (Phase 4) |
 | 17 | **Per-mode options** via `BaseVisualizer.OPTIONS` (discrete `ModeOption` choices) rendered as dropdowns; **inline value chips**; **color dropdown** with time-animated **rainbow+** (`Theme.color_phase`) | Each mode keeps its own knobs without a central list (still one file per mode); showing values makes Sensitivity/Smoothing/etc. self-explanatory; rainbow+ animates color over time per request (Phase 5) |
 | 18 | **Rainbow+ wraps hue before clamping** (`t % 1.0`); **idle banner debounced 5 s** and **never auto-quits**; **circular waveform** modes share `ring_points`/`draw_ring`/`RingPops` in `_helpers.py` | Pre-clamp modulo was sticking the sweep at red (discontinuous); brief track gaps shouldn't flash the banner and silence must not close the app; circular modes reuse shared helpers so each is still one small file (Phase 6) |
 | 19 | **Two-tier magic-number policy** (shared/cross-mode tunables `UPPER_SNAKE_CASE` in `config.py`; mode-local "feel" numbers as commented `_UPPER_SNAKE` module constants) + new **`architecture-and-code-flow.md`**; **kept black/ruff** and **declined the space-inside-brackets** style | Removes unexplained literals while keeping tunables both discoverable *and* close to use; the locked formatter (black/ruff-format) strips inside-bracket spacing (E201/E211) and no mainstream formatter supports it, so honoring the request would break pre-commit/CI (Phase 7) |
-| 20 | **Reusable `SparkField` + shared `TRAIL_OPTION`** in `_helpers.py` power the new beam modes' emitted particles and the optional fading "shadow" trail | One particle system (normalized space, optional trail) keeps `lightshow_2`/`laser_2` thin and lets any future mode opt into emitted particles + trails without duplicating logic (Phase 8) |
+| 20 | **Reusable `SparkField` + shared `TRAIL_OPTION`** in `_helpers.py` power the new beam modes' emitted particles and the optional fading "shadow" trail | One particle system (normalized space, optional trail) keeps the `lightshow`/`laser` beam modes thin and lets any future mode opt into emitted particles + trails without duplicating logic (Phase 8; the standalone `*_2` files were later merged into the base modes — D23) |
 | 21 | **RenK logo is a global overlay (`visuals/logo.py`), drawn by `app.py` over every mode — not a `@register`ed mode** — composited **additively**; configurable + persisted (`logo_*`, schema v2) via a `RenK` modal; bundled asset loaded through `resources.py` | Branding must appear in **all** modes without touching each one or the discovery list; additive blend makes neon-on-black art glow with no bounding box; a luminance tint gives Default↔Rainbow+ from one asset; `resources.py` + spec `datas` make the PNG resolve in dev and the frozen exe (Phase 9) |
 | 22 | **`Esc` no longer quits** — it only closes a modal or exits fullscreen; quit stays on the `Quit` button + `Ctrl+Q` | Accidental `Esc` quitting was hostile; modal/fullscreen dismissal is the expected behavior (Phase 9) |
 | 23 | **Mode consolidation (26 → 19)**: merged the `*_2` "+particles" pairs and the four circle modes into their base modes behind a shared `PARTICLES_OPTION` axis + a `Rings` count; added per-mode **`PRESETS`** (handled in `BaseVisualizer.on_option_change`/`_apply_preset`) and retrofitted shared **Mirror**/**Glow**. Since per-mode option indices are never persisted, only the saved `mode` key migrates via `MERGED_MODE_KEYS` (schema v6→v7) | Many modes differed only by "+ particles" or ring count, cluttering the picker; folding them into options (with one-click presets for the old looks) is more flexible and removes ~7 near-duplicate files, while the key-only migration keeps upgrades crash-free (Phase 10.07) |
@@ -393,8 +404,9 @@ WASAPI loopback frequently delivers **silence — or no callback at all — when
 ### 11.3 Settings persistence (decided)
 
 - Location: `%APPDATA%\AudioVisualizer\settings.json` (created on first write).
-- Include a top-level `schema_version` (int). On load, migrate or fall back to defaults if the version is unknown — never crash on a bad/old settings file.
-- Persisted: active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, first-run-notice acknowledged.
+- Include a top-level `schema_version` (int; currently **7** — `config.SETTINGS_SCHEMA_VERSION`). On load, migrate or fall back to defaults if the version is unknown — never crash on a bad/old settings file.
+- Persisted: active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, window size, first-run-notice acknowledged, size/speed scale, color scheme, **appearance** (UI style / accent / font), **background** (mode / sensitivity / opacity / height), and **RenK logo** prefs (show / color / transparency / size / position / spin / emit).
+- **Migration:** v00.0A.07 remaps deprecated mode keys to their survivor via `config.MERGED_MODE_KEYS` (e.g. `waveform_2` → `waveform`). Per-mode option/preset indices are **not** persisted.
 
 ### 11.4 High-DPI & window resize (Windows)
 

@@ -34,7 +34,10 @@ alwaysApply: true
 - Use **Hann window + rfft**, **log-spaced bands**, and **attack/release smoothing** on displayed values. Expose **sensitivity** and **smoothing** as tunables.
 - Every visual mode subclasses **`BaseVisualizer`** (`visuals/base.py`) and **auto-registers** with `@register(key, display_name, order)`; `registry.discover()` imports the package at startup. **Adding a mode = one new file, no other edits** — never reintroduce a hand-maintained central mode list. Shared draw helpers live in `visuals/_helpers.py` (underscore → skipped by discovery).
 - A visual's only input is the read-only `AnalysisFrame` + surface + `dt` (+ shared theme). Modes never touch capture, other modes, or global state. A mode that raises during `draw` must be caught (logged + fail-soft), never crash the app.
-- Respect a **reduce-motion** option; no seizure-risk strobing at default settings.
+- Respect a **reduce-motion** option; no seizure-risk strobing at default settings. Reduce-motion can toggle **mid-session**, so derive caps live (e.g. read a `cap` each frame / `RingPops.cap` / `SparkField.cap`) instead of freezing them at construction.
+- **Prefer options over near-duplicate modes.** Reuse the shared option axes in `_helpers.py` (`PARTICLES_OPTION` Off/Sparse/Dense, `MIRROR_OPTION`, `GLOW_OPTION`, `COLOR_OPTION`, `THICKNESS_OPTION`, `SPEED_OPTION`, `mode_color`) rather than shipping a "+particles"/"+mirror" variant as its own mode.
+- **Per-mode presets:** a mode may declare a `PRESETS` dict keyed by a leading `preset` `ModeOption`'s choice index → `{option_key: choice_index}`. Preset application + "Custom" snap-back live in `BaseVisualizer.on_option_change`/`_apply_preset`; a subclass overriding `on_option_change` **must call `super()`**.
+- **Consolidating/renaming a mode key** means remapping deprecated keys to the survivor in `config.MERGED_MODE_KEYS` and bumping `SETTINGS_SCHEMA_VERSION`; per-mode option/preset indices are session-only (not persisted).
 
 ## App structure
 
@@ -82,4 +85,4 @@ alwaysApply: true
 
 ## Documentation hygiene
 
-- When code or a decision changes, update the matching doc in the same change: `plan/audio-visualizer-plan.md` (esp. §8 decisions), `plan/repository-and-code-layout.md`, `plan/testing.md`, `plan/git-and-versioning.md`, and `.cursor/skills/audio-visualizer/SKILL.md`.
+- When code or a decision changes, update the matching doc in the same change: `plan/audio-visualizer-plan.md` (esp. §8 decisions **and the §3.3 modes table**), `plan/architecture-and-code-flow.md` (§6.6 modes table), `plan/repository-and-code-layout.md`, `plan/testing.md`, `plan/development-phases.md`, `plan/git-and-versioning.md`, `plan/visual-mode-ideas.md` (current mode catalog), and `.cursor/skills/audio-visualizer/SKILL.md`. The mode tables must match the registry (the single source of truth).

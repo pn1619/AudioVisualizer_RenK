@@ -117,6 +117,8 @@ class LightShow(BaseVisualizer):
         scheme = self.theme.color_scheme
         phase = self.theme.color_phase
 
+        # Honor a mid-session reduce-motion toggle (cap is fixed at construction).
+        self._sparks.cap = SPARK_MAX_REDUCED if self.reduce_motion else SPARK_MAX
         self._t += dt
         if not self.reduce_motion:
             self._angle = (self._angle + dt * _ROTATE_RATE * self.theme.speed_scale) % (
@@ -146,35 +148,64 @@ class LightShow(BaseVisualizer):
         scheme: str,
         phase: float,
     ) -> None:
-        bands = frame.band_energies
         beams = int(self.option("beams"))
-        rate = self.option("particles")
-        beaded = rate > 0
-        beads = int(6 + 4 * rate)
-        emit = beaded and not self.reduce_motion and frame.onset >= ONSET_THRESHOLD
+        if self.option("particles") > 0:
+            self._draw_bead_beams(surface, cx, cy, max_len, w, h, frame, beams, scheme, phase)
+        else:
+            self._draw_solid_beams(surface, cx, cy, max_len, frame, beams, scheme, phase)
+
+    def _draw_bead_beams(
+        self,
+        surface: pygame.Surface,
+        cx: float,
+        cy: float,
+        max_len: float,
+        w: int,
+        h: int,
+        frame: AnalysisFrame,
+        beams: int,
+        scheme: str,
+        phase: float,
+    ) -> None:
+        bands = frame.band_energies
+        beads = int(6 + 4 * self.option("particles"))
+        emit = not self.reduce_motion and frame.onset >= ONSET_THRESHOLD
         for i in range(beams):
             energy = float(bands[i * bands.size // beams])
-            if not beaded and energy <= 0.01:
+            angle = self._angle + (2.0 * math.pi * i / beams)
+            dx, dy = math.cos(angle), math.sin(angle)
+            length = max_len * (_BEAM_LENGTH_BASE + energy)
+            self._draw_beads(
+                surface, cx, cy, dx, dy, length, beads, i, beams, energy, scheme, phase
+            )
+            if emit:
+                self._emit_from_tip(cx + dx * length, cy + dy * length, dx, dy, w, h, i / beams)
+
+    def _draw_solid_beams(
+        self,
+        surface: pygame.Surface,
+        cx: float,
+        cy: float,
+        max_len: float,
+        frame: AnalysisFrame,
+        beams: int,
+        scheme: str,
+        phase: float,
+    ) -> None:
+        bands = frame.band_energies
+        for i in range(beams):
+            energy = float(bands[i * bands.size // beams])
+            if energy <= 0.01:
                 continue
             angle = self._angle + (2.0 * math.pi * i / beams)
             dx, dy = math.cos(angle), math.sin(angle)
-            if beaded:
-                length = max_len * (_BEAM_LENGTH_BASE + energy)
-                self._draw_beads(
-                    surface, cx, cy, dx, dy, length, beads, i, beams, energy, scheme, phase
-                )
-                if emit:
-                    self._emit_from_tip(cx + dx * length, cy + dy * length, dx, dy, w, h, i / beams)
-            else:
-                length = energy * max_len
-                color = scale_color(
-                    themed_color(scheme, i / max(1, beams - 1), PALETTE, phase),
-                    _BEAM_BRIGHTNESS_BASE + energy,
-                )
-                width = 1 if self.reduce_motion else max(1, int(1 + energy * _SOLID_WIDTH_GAIN))
-                pygame.draw.line(
-                    surface, color, (cx, cy), (cx + dx * length, cy + dy * length), width
-                )
+            length = energy * max_len
+            color = scale_color(
+                themed_color(scheme, i / max(1, beams - 1), PALETTE, phase),
+                _BEAM_BRIGHTNESS_BASE + energy,
+            )
+            width = 1 if self.reduce_motion else max(1, int(1 + energy * _SOLID_WIDTH_GAIN))
+            pygame.draw.line(surface, color, (cx, cy), (cx + dx * length, cy + dy * length), width)
 
     def _draw_beads(
         self,

@@ -34,13 +34,15 @@ in the HUD and `--version`. Format `PP.FF.BB` (zero-padded, two digits each):
 | Field | Meaning | Rule |
 |-------|---------|------|
 | `PP` | Pre-release marker | Stays `00` until the first public ship; bumps thereafter. |
-| `FF` | Development phase | `00` = Phase 0/0.5, `01` = Phase 1, `02` = Phase 2, `03` = Phase 3, … |
-| `BB` | Build/iteration within the phase | Starts at `00` each phase; bump for notable intra-phase builds. |
+| `FF` | Development phase (**hex**, two digits) | `00` = Phase 0/0.5, `01` = Phase 1, … `09` = Phase 9, **`0A` = Phase 10**, `0B` = Phase 11, … |
+| `BB` | Build/iteration within the phase (hex) | Starts at `00` each phase; bump for notable intra-phase builds. |
 
+- `FF`/`BB` are **two-digit hex** so phase 10+ stays two characters: Phase 10 is `0A`,
+  and its intra-phase builds count `…06`, `07`, `08` (Phase 10.08 → `BB = 08`).
 - **Bump `APP_VERSION` in the same change** that advances the phase/build, and add
   a matching `CHANGELOG.md` entry.
-- Examples: `00.00.00` (Phase 0), `00.01.00` (Phase 1), `00.02.00` (Phase 2),
-  `00.03.00` (Phase 3).
+- Examples: `00.00.00` (Phase 0), `00.01.00` (Phase 1), `00.03.00` (Phase 3),
+  `00.0A.07` (Phase 10.07), `00.0A.08` (Phase 10.08).
 
 ## 4. Tags & releases
 

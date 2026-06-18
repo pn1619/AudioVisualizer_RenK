@@ -120,6 +120,8 @@ class Laser(BaseVisualizer):
         scheme = self.theme.color_scheme
         phase_c = self.theme.color_phase
 
+        # Honor a mid-session reduce-motion toggle (cap is fixed at construction).
+        self._sparks.cap = SPARK_MAX_REDUCED if self.reduce_motion else SPARK_MAX
         rms = frame.rms if frame is not None else 0.0
         spin = _SPIN_REDUCED if self.reduce_motion else _SPIN_BASE + rms * _SPIN_RMS_GAIN
         self._phase = (self._phase + dt * spin * self.theme.speed_scale) % (2.0 * math.pi)
@@ -186,8 +188,9 @@ class Laser(BaseVisualizer):
     ) -> None:
         ax, ay = w * _EXTENT, h * _EXTENT
         bands = frame.band_energies
-        low = float(bands[: bands.size // 2].mean())
-        high = float(bands[bands.size // 2 :].mean())
+        mid = bands.size // 2
+        low = float(bands[:mid].mean()) if mid > 0 else float(bands.mean())
+        high = float(bands[mid:].mean())  # mid < size whenever size > 0 (guarded by caller)
         points = self._figure_points(int(self.option("shape")), cx, cy, ax, ay, low, high)
         if len(points) < 2:
             return

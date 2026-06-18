@@ -1,4 +1,4 @@
-"""Phase 4: color helpers, theme-driven size/speed, and the waveform_2 mode."""
+"""Phase 4: color helpers, theme-driven size/speed, and the Waveform mode's particles."""
 
 from __future__ import annotations
 

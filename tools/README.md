@@ -14,6 +14,18 @@ and ends with "next steps". Shared helpers live in `_Common.ps1`.
 |--------|--------------|
 | `check-deps.ps1` | Read-only check: Python ≥ 3.12, `.venv`, required packages import, audio output device present. Fixes nothing. |
 | `setup.ps1` | Create `.venv`, upgrade pip, install `requirements-dev.txt`, install the pre-commit hook. `-Recreate` rebuilds the venv. |
+| `run.ps1` | Launch the app in the venv. Forwards args, e.g. `--debug`, `--mode spectrum`, `--selftest`. |
+| `test.ps1` | Run pytest headless (sets `SDL_VIDEODRIVER`/`SDL_AUDIODRIVER` = `dummy`). |
+| `lint.ps1` | `ruff` + `black --check` (+ non-blocking `mypy`). |
+| `format.ps1` | Auto-fix: `black` + `ruff --fix`. |
+| `build-exe.ps1` | Build `dist\AudioVisualizer.exe` (PyInstaller `--onefile`, bundles the PortAudio DLL + icon/version) and validate it with `--selftest`. |
+
+### Helper scripts (run directly with Python)
+
+| Script | What it does |
+|--------|--------------|
+| `spike-loopback.py` | Phase 0.5 capture spike: open WASAPI loopback and print RMS for a few seconds. |
+| `prep_icon.py` | Dev-only (Pillow): bake `assets/renk_icon.png` + `assets/icon.ico` for the app/exe. |
 
 ## Typical first run
 
@@ -31,8 +43,7 @@ winget install -e --id Python.Python.3.12
 # or download from https://www.python.org/downloads/windows/  (tick "Add to PATH")
 ```
 
-## Planned (added as the project grows)
+## More
 
-`run.ps1`, `test.ps1`, `lint.ps1`, `format.ps1`, `build-exe.ps1`,
-`spike-loopback.py` — see `plan/audio-visualizer-plan.md` §4 and
-`plan/repository-and-code-layout.md`.
+Every script supports `-Help`. See `plan/audio-visualizer-plan.md` §4 and
+`plan/repository-and-code-layout.md` for how the tooling fits the workflow.

@@ -147,41 +147,54 @@ class Particles(BaseVisualizer):
         self._sparks.clear()
         self._rng.seed(self._seed)
 
+    def on_option_change(self, key: str) -> None:
+        super().on_option_change(key)
+        # Switching emitter (directly or via a preset) abandons the other pool so
+        # dormant particles don't reappear when switching back.
+        if key in ("emitter", "preset"):
+            self._particles.clear()
+            self._sparks.clear()
+
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
         w, h = surface.get_size()
         if w < 2 or h < 2:
             return
         if int(self.option("emitter")) == _EMITTER_SPIRAL:
-            self._draw_spiral(surface, frame, dt, w, h)
+            self._spawn_spiral(frame)
+            self._advance_spiral(dt)
+            self._render_spiral(surface, w, h)
         else:
-            self._draw_field(surface, frame, dt, w, h)
+            self._spawn_field(frame)
+            self._advance_field(dt)
+            self._render_field(surface, w, h)
 
     # -- field emitter --------------------------------------------------------
-    def _draw_field(
-        self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float, w: int, h: int
-    ) -> None:
+    def _spawn_field(self, frame: AnalysisFrame | None) -> None:
+        if frame is None or frame.is_silent or frame.onset < ONSET_THRESHOLD:
+            return
         cap = PARTICLE_MAX_REDUCED if self.reduce_motion else PARTICLE_MAX
-        if frame is not None and not frame.is_silent and frame.onset >= ONSET_THRESHOLD:
-            burst = max(1, int(PARTICLE_BURST * self.option("burst")))
-            if self.reduce_motion:
-                burst //= REDUCE_MOTION_BURST_DIVISOR
-            speed = _SPEED_BASE + frame.rms * _SPEED_RMS_GAIN
-            for _ in range(burst):
-                if len(self._particles) >= cap:
-                    break
-                angle = self._rng.uniform(0.0, 2.0 * math.pi)
-                mag = speed * self._rng.uniform(*_SPEED_SPREAD)
-                self._particles.append(
-                    _Particle(
-                        0.5,
-                        0.5,
-                        math.cos(angle) * mag,
-                        math.sin(angle) * mag,
-                        PARTICLE_LIFETIME,
-                        PARTICLE_LIFETIME,
-                        self._rng.random(),
-                    )
+        burst = max(1, int(PARTICLE_BURST * self.option("burst")))
+        if self.reduce_motion:
+            burst //= REDUCE_MOTION_BURST_DIVISOR
+        speed = _SPEED_BASE + frame.rms * _SPEED_RMS_GAIN
+        for _ in range(burst):
+            if len(self._particles) >= cap:
+                break
+            angle = self._rng.uniform(0.0, 2.0 * math.pi)
+            mag = speed * self._rng.uniform(*_SPEED_SPREAD)
+            self._particles.append(
+                _Particle(
+                    0.5,
+                    0.5,
+                    math.cos(angle) * mag,
+                    math.sin(angle) * mag,
+                    PARTICLE_LIFETIME,
+                    PARTICLE_LIFETIME,
+                    self._rng.random(),
                 )
+            )
+
+    def _advance_field(self, dt: float) -> None:
         move_dt = dt * self.theme.speed_scale
         gravity = self.option("gravity")
         alive: list[_Particle] = []
@@ -194,6 +207,8 @@ class Particles(BaseVisualizer):
             p.vy += gravity * move_dt
             alive.append(p)
         self._particles = alive
+
+    def _render_field(self, surface: pygame.Surface, w: int, h: int) -> None:
         for p in self._particles:
             t = clamp(p.life / p.max_life)
             radius = max(
@@ -206,34 +221,33 @@ class Particles(BaseVisualizer):
             )
 
     # -- spiral emitter -------------------------------------------------------
-    def _draw_spiral(
-        self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float, w: int, h: int
-    ) -> None:
+    def _spawn_spiral(self, frame: AnalysisFrame | None) -> None:
+        if frame is None or frame.is_silent or frame.band_energies.size == 0:
+            return
+        bands = frame.band_energies
         cap = SPIRAL_MAX_REDUCED if self.reduce_motion else SPIRAL_MAX
-        if frame is not None and not frame.is_silent and frame.band_energies.size > 0:
-            bands = frame.band_energies
-            base = (
-                SPIRAL_BURST // REDUCE_MOTION_BURST_DIVISOR if self.reduce_motion else SPIRAL_BURST
-            )
-            n_spawn = int(base * clamp(frame.rms * _SPIRAL_SPAWN_RMS_GAIN + frame.onset))
-            swirl = _SWIRL_REDUCED if self.reduce_motion else self.option("swirl")
-            spacing = self.option("spacing")
-            for _ in range(n_spawn):
-                if len(self._sparks) >= cap:
-                    break
-                bi = self._rng.randrange(bands.size)
-                energy = float(bands[bi])
-                self._sparks.append(
-                    _Spark(
-                        _BIRTH_RADIUS,
-                        self._rng.uniform(0.0, 2.0 * math.pi),
-                        swirl * (_ANGULAR_BASE + energy),
-                        (_RADIAL_BASE + energy * _RADIAL_ENERGY_GAIN) * spacing,
-                        SPIRAL_LIFETIME,
-                        SPIRAL_LIFETIME,
-                        bi / bands.size,
-                    )
+        base = SPIRAL_BURST // REDUCE_MOTION_BURST_DIVISOR if self.reduce_motion else SPIRAL_BURST
+        n_spawn = int(base * clamp(frame.rms * _SPIRAL_SPAWN_RMS_GAIN + frame.onset))
+        swirl = _SWIRL_REDUCED if self.reduce_motion else self.option("swirl")
+        spacing = self.option("spacing")
+        for _ in range(n_spawn):
+            if len(self._sparks) >= cap:
+                break
+            bi = self._rng.randrange(bands.size)
+            energy = float(bands[bi])
+            self._sparks.append(
+                _Spark(
+                    _BIRTH_RADIUS,
+                    self._rng.uniform(0.0, 2.0 * math.pi),
+                    swirl * (_ANGULAR_BASE + energy),
+                    (_RADIAL_BASE + energy * _RADIAL_ENERGY_GAIN) * spacing,
+                    SPIRAL_LIFETIME,
+                    SPIRAL_LIFETIME,
+                    bi / bands.size,
                 )
+            )
+
+    def _advance_spiral(self, dt: float) -> None:
         move_dt = dt * self.theme.speed_scale
         alive: list[_Spark] = []
         for s in self._sparks:
@@ -244,6 +258,8 @@ class Particles(BaseVisualizer):
             s.theta += s.ang_speed * move_dt
             alive.append(s)
         self._sparks = alive
+
+    def _render_spiral(self, surface: pygame.Surface, w: int, h: int) -> None:
         cx, cy = w / 2.0, h / 2.0
         scale = min(w, h) * 0.5 * self.option("reach")
         scheme = self.theme.color_scheme
