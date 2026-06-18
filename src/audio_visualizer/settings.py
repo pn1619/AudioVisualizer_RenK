@@ -36,6 +36,7 @@ from audio_visualizer.config import (
     LOGO_SIZES,
     LOGO_SPIN_DIR_DEFAULT,
     LOGO_SPIN_DIRS,
+    MERGED_MODE_KEYS,
     SETTINGS_FILENAME,
     SETTINGS_SCHEMA_VERSION,
     SIZE_SCALE_DEFAULT,
@@ -147,9 +148,10 @@ def _migrate(raw: dict) -> dict:
 def _from_dict(raw: dict) -> Settings:
     """Build Settings from a dict, type-checking each key and ignoring extras."""
     defaults = Settings()
+    mode = _str(raw.get("mode"), defaults.mode)
     return Settings(
         schema_version=SETTINGS_SCHEMA_VERSION,
-        mode=_str(raw.get("mode"), defaults.mode),
+        mode=MERGED_MODE_KEYS.get(mode, mode),  # remap modes merged in Phase 10.07
         sensitivity=_float(raw.get("sensitivity"), defaults.sensitivity),
         smoothing=_float(raw.get("smoothing"), defaults.smoothing),
         reduce_motion=_bool(raw.get("reduce_motion"), defaults.reduce_motion),

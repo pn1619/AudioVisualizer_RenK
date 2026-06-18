@@ -12,8 +12,16 @@ from audio_visualizer.config import (
     SNOW_FLAKES_REDUCED,
     SPIRAL_MAX_REDUCED,
 )
-from audio_visualizer.visuals.particles_spiral import ParticlesSpiral
+from audio_visualizer.visuals.particles import Particles
 from audio_visualizer.visuals.snowfall import Snowfall
+
+
+def _spiral(**kwargs) -> Particles:
+    """A Particles mode switched to its Spiral emitter (the old ParticlesSpiral)."""
+    v = Particles(**kwargs)
+    v.on_enter()
+    v.set_option_index("emitter", 1)  # Spiral
+    return v
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -66,8 +74,7 @@ def test_spiral_deterministic_with_seed() -> None:
     frame = _loud_frame()
     runs = []
     for _ in range(2):
-        p = ParticlesSpiral(seed=9)
-        p.on_enter()
+        p = _spiral(seed=9)
         for _ in range(20):
             p.draw(surface, frame, 0.01)
         runs.append([(round(s.r, 6), round(s.theta, 6)) for s in p._sparks])
@@ -78,8 +85,7 @@ def test_spiral_deterministic_with_seed() -> None:
 def test_spiral_reduce_motion_caps_count() -> None:
     surface = pygame.Surface((640, 360))
     frame = _loud_frame()
-    p = ParticlesSpiral(reduce_motion=True, seed=1)
-    p.on_enter()
+    p = _spiral(reduce_motion=True, seed=1)
     for _ in range(300):
         p.draw(surface, frame, 0.001)
     assert len(p._sparks) <= SPIRAL_MAX_REDUCED

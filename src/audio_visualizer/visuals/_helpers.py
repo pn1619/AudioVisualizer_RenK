@@ -34,7 +34,7 @@ _SPARK_RADIUS_BASE = 1.0
 _SPARK_RADIUS_GROWTH = 3.0
 
 # Shared per-mode option: give emitted particles a fading "shadow" trail (off/on).
-# Reused by any mode whose particles can leave trails (lightshow_2, laser_2, ...).
+# Reused by any mode whose particles can leave trails (lightshow, laser, ...).
 TRAIL_OPTION = ModeOption(
     "trails",
     "Trail",
@@ -83,6 +83,14 @@ SPEED_OPTION = ModeOption(
     "Speed",
     (OptionChoice("Slow", 0.5), OptionChoice("Normal", 1.0), OptionChoice("Fast", 2.0)),
     default_index=1,
+)
+# Shared "add particles" axis used by the merged base/"+particles" modes. The value
+# is a spawn-rate multiplier; ``Off`` (0.0) disables spawning entirely.
+PARTICLES_OPTION = ModeOption(
+    "particles",
+    "Particles",
+    (OptionChoice("Off", 0.0), OptionChoice("Sparse", 1.0), OptionChoice("Dense", 2.0)),
+    default_index=0,
 )
 
 
@@ -350,7 +358,7 @@ class _Spark:
 class SparkField:
     """Reusable free-particle field with an optional fading "shadow" trail.
 
-    Modes that "shoot out" / "emit" little particles (lightshow_2, laser_2) spawn
+    Modes that "shoot out" / "emit" little particles (lightshow, laser) spawn
     into this field and let it advance + render. Positions are normalized (0..1) so
     it is resolution-independent; ``render`` maps to pixels. When ``trails`` is on,
     each particle's recent positions are drawn dimmer and smaller behind its head.

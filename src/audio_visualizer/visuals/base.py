@@ -66,6 +66,10 @@ class BaseVisualizer:
     STROBES: bool = False
     # Per-mode tunables exposed as their own dropdowns; override in subclasses.
     OPTIONS: tuple[ModeOption, ...] = ()
+    # Optional curated presets: ``{preset_index: {option_key: choice_index}}``.
+    # A mode with presets declares a "preset" option (first choice = a no-op
+    # "Custom"); selecting another choice snaps the listed sibling options.
+    PRESETS: dict[int, dict[str, int]] = {}
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         self.reduce_motion = reduce_motion
@@ -96,7 +100,21 @@ class BaseVisualizer:
         self.on_option_change(key)
 
     def on_option_change(self, key: str) -> None:
-        """Hook for modes that must react to an option change (default no-op)."""
+        """React to an option change. Default: apply a chosen preset (if any).
+
+        Subclasses that override this should call ``super().on_option_change(key)``
+        to keep preset handling working.
+        """
+        if key == "preset" and self.PRESETS:
+            self._apply_preset()
+
+    def _apply_preset(self) -> None:
+        """Snap sibling options to the selected preset's choice indices."""
+        mapping = self.PRESETS.get(self.option_index("preset"), {})
+        for opt_key, choice in mapping.items():
+            if opt_key in self._option_index:
+                count = len(self._option_def(opt_key).choices)
+                self._option_index[opt_key] = max(0, min(choice, count - 1))
 
     def on_enter(self) -> None:
         """Called when this mode becomes active."""

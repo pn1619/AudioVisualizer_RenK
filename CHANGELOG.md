@@ -11,6 +11,43 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0A.07` — Phase 10.07: mode consolidation + smarter options
+
+Merged closely-related modes into single, more flexible ones, cutting the mode list
+from **26 to 19** while keeping every look reachable through options. Per-mode option
+indices were never persisted, so the only saved state affected is the active mode key,
+which is **remapped on load** (settings schema **v6 → v7**).
+
+- **Merged the `*_2` "+particles" pairs** into their base mode via a shared **Particles
+  (Off · Sparse · Dense)** axis:
+  - **Waveform** absorbs *Waveform 2* — `Off` is the clean trace; on adds popping sparks.
+    Also gains a **Mirror** option (Off · Horizontal · Vertical · Quad).
+  - **Light Show** absorbs *Light Show 2* — `Off` draws clean solid beams (classic), on
+    rebuilds beams from pulsing beads that emit trailing sparks. Keeps the shapeable
+    **Core** (Disc · Hollow · Waveform · Burst).
+  - **Laser** absorbs *Laser 2* — keeps the selectable **Shape** (Lissajous · Rose · Star ·
+    Spiral · Heart); Particles controls whether beams shoot sparks.
+- **Waveform Rings** (`waveform_circle`) replaces the **four** circle modes (single /
+  single+pops / ×N / ×N+pops) with one: a **Rings (1 · 3 · 6 · 12)** count (1 = single
+  oscilloscope ring, more = per-band concentric rings) plus the shared **Particles** axis.
+- **Particles** absorbs *Particles Spiral* via an **Emitter (Field · Spiral)** option —
+  Field bursts outward with gravity; Spiral blows per-band sparks along rotating arms.
+- **Presets** — every merged mode gains a **Preset** dropdown of curated option combos
+  (e.g. Waveform: *Plain · Sparks · Mirror*; Waveform Rings: *Single · Bloom · Galaxy*;
+  Laser: *Classic · Rose · Star*) for one-click looks; "Custom" leaves options untouched.
+- **Shared-option retrofit** — **Mirror** added to *Spectrum* and *Vectorscope*; **Glow**
+  (a cheap halo) added to *Spectrum* and *VU Meters*.
+
+**Migration** — old saved mode keys (`waveform_2`, `waveform_circle_2`,
+`waveform_circle_multiple[_2]`, `lightshow_2`, `laser_2`, `particles_spiral`) load as
+their canonical survivor; any other key (and a fresh install) is unaffected.
+
+**Verification** — ruff / black / mypy **clean**; full suite **passes** (new tests cover
+the merges, the v6→v7 remap, preset snapping, and an option-sweep over every merged
+mode); `--selftest` exit **0**; exe builds + self-tests.
+
+---
+
 ## `00.0A.06` — Phase 10.06: six new visual modes
 
 Six brand-new modes, each with deep per-mode options and built to a strict 1080p

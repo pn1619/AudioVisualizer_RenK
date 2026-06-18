@@ -7,7 +7,7 @@ import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
-from audio_visualizer.visuals._helpers import themed_color
+from audio_visualizer.visuals._helpers import GLOW_OPTION, MIRROR_OPTION, scale_color, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
@@ -50,7 +50,7 @@ _WIDTH = ModeOption(
 class Spectrum(BaseVisualizer):
     """Vertical bars, one per log-spaced band, with peak-hold caps."""
 
-    OPTIONS = (_CAPS, _GAP, _WIDTH)
+    OPTIONS = (_CAPS, _GAP, _WIDTH, MIRROR_OPTION, GLOW_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -76,6 +76,8 @@ class Spectrum(BaseVisualizer):
         scheme = self.theme.color_scheme
         phase = self.theme.color_phase
         show_caps = self.option("caps") >= 1
+        glow = int(self.option("glow")) == 1
+        mirror = int(self.option("mirror"))
         gap = int(self.option("gap"))
         slot_w = max(1.0, (w - gap * (count + 1)) / count)
         fill = float(self.option("width"))
@@ -84,11 +86,66 @@ class Spectrum(BaseVisualizer):
         usable_h = h - _TOP_MARGIN_PX
         for i in range(count):
             x = gap + i * (slot_w + gap) + inset
-            energy = float(bands[i])
-            bar_h = energy * usable_h
+            bar_h = float(bands[i]) * usable_h
             color = themed_color(scheme, i / max(1, count - 1), PALETTE, phase)
-            if bar_h >= 1:
-                pygame.draw.rect(surface, color, (x, h - bar_h, bar_w, bar_h))
-            if show_caps:
-                cap_y = h - float(self._peaks[i]) * usable_h
-                pygame.draw.rect(surface, _CAP_COLOR, (x, cap_y, bar_w, _CAP_HEIGHT_PX))
+            cap_y = h - float(self._peaks[i]) * usable_h
+            self._draw_column(surface, x, bar_w, bar_h, h, color, show_caps, cap_y, glow)
+            self._draw_mirrors(surface, x, bar_w, bar_h, w, h, color, glow, mirror)
+
+    def _draw_column(
+        self,
+        surface: pygame.Surface,
+        x: float,
+        bar_w: float,
+        bar_h: float,
+        h: int,
+        color: tuple[int, int, int],
+        show_caps: bool,
+        cap_y: float,
+        glow: bool,
+    ) -> None:
+        if bar_h >= 1:
+            self._bar(surface, x, h - bar_h, bar_w, bar_h, color, glow)
+        if show_caps:
+            pygame.draw.rect(surface, _CAP_COLOR, (x, cap_y, bar_w, _CAP_HEIGHT_PX))
+
+    def _draw_mirrors(
+        self,
+        surface: pygame.Surface,
+        x: float,
+        bar_w: float,
+        bar_h: float,
+        w: int,
+        h: int,
+        color: tuple[int, int, int],
+        glow: bool,
+        mirror: int,
+    ) -> None:
+        if bar_h < 1:
+            return
+        mx = w - x - bar_w  # left<->right reflection
+        if mirror in (1, 3):  # horizontal
+            self._bar(surface, mx, h - bar_h, bar_w, bar_h, color, glow)
+        if mirror in (2, 3):  # vertical: a copy hanging from the top edge
+            self._bar(surface, x, 0, bar_w, bar_h, color, glow)
+        if mirror == 3:  # quad: the fourth (top-right) bar
+            self._bar(surface, mx, 0, bar_w, bar_h, color, glow)
+
+    @staticmethod
+    def _bar(
+        surface: pygame.Surface,
+        x: float,
+        y: float,
+        bar_w: float,
+        bar_h: float,
+        color: tuple[int, int, int],
+        glow: bool,
+    ) -> None:
+        if glow:  # cheap halo: a couple of dimmer, slightly larger rects behind the bar
+            for pad, factor in ((4, 0.22), (2, 0.5)):
+                pygame.draw.rect(
+                    surface,
+                    scale_color(color, factor),
+                    (x - pad, y - pad, bar_w + 2 * pad, bar_h + 2 * pad),
+                )
+        pygame.draw.rect(surface, color, (x, y, bar_w, bar_h))

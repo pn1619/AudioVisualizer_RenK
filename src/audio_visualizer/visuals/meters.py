@@ -15,7 +15,12 @@ import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import COLOR_ACCENT, PALETTE
-from audio_visualizer.visuals._helpers import palette_color, range_energies
+from audio_visualizer.visuals._helpers import (
+    GLOW_OPTION,
+    palette_color,
+    range_energies,
+    scale_color,
+)
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
@@ -67,12 +72,13 @@ _COLOR = ModeOption(
 class Meters(BaseVisualizer):
     """Frequency-grouped level meters (ladder / bar / needle) with peak hold."""
 
-    OPTIONS = (_STYLE, _GROUPS, _SEGMENTS, _PEAK, _DECAY, _ORIENT, _COLOR)
+    OPTIONS = (_STYLE, _GROUPS, _SEGMENTS, _PEAK, _DECAY, _ORIENT, _COLOR, GLOW_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
         self._levels = np.zeros(0, dtype=np.float32)
         self._peaks = np.zeros(0, dtype=np.float32)
+        self._glow = False
 
     def on_enter(self) -> None:
         self._levels = np.zeros(0, dtype=np.float32)
@@ -84,6 +90,7 @@ class Meters(BaseVisualizer):
             return
         groups = int(self.option("groups"))
         self._update_levels(frame, groups, dt)
+        self._glow = int(self.option("glow")) == 1
 
         margin = int(min(w, h) * 0.06)
         horiz = int(self.option("orient")) == 1
@@ -157,6 +164,8 @@ class Meters(BaseVisualizer):
             seg_color = self._color_for(frac, i, groups)
             color = seg_color if on else tuple(int(c * 0.18) for c in seg_color)
             rect = self._segment_rect(cell, s, segments, horiz)
+            if on and self._glow:
+                self._glow_rect(surface, rect, seg_color)
             pygame.draw.rect(surface, color, rect)
             if s == peak_seg:
                 pygame.draw.rect(surface, (255, 255, 255), rect, 1)
@@ -190,6 +199,8 @@ class Meters(BaseVisualizer):
         else:
             fh = int(cell.height * level)
             fill = pygame.Rect(cell.left, cell.bottom - fh, cell.width, fh)
+        if self._glow and (fill.width > 0 and fill.height > 0):
+            self._glow_rect(surface, fill, color)
         pygame.draw.rect(surface, color, fill)
         if int(self.option("peak")) == 1:
             if horiz:
@@ -214,10 +225,23 @@ class Meters(BaseVisualizer):
         )
         angle = math.radians(150 - level * 120)  # 150deg (left/idle) -> 30deg (right/hot)
         tip = (pivot[0] + math.cos(angle) * radius, pivot[1] - math.sin(angle) * radius)
-        pygame.draw.line(surface, self._color_for(level, i, groups), pivot, tip, 3)
+        color = self._color_for(level, i, groups)
+        if self._glow:
+            pygame.draw.line(surface, scale_color(color, 0.4), pivot, tip, 7)
+        pygame.draw.line(surface, color, pivot, tip, 3)
 
     @staticmethod
     def _arc_rect(pivot: tuple[int, int], radius: float) -> pygame.Rect:
         return pygame.Rect(
             int(pivot[0] - radius), int(pivot[1] - radius), int(radius * 2), int(radius * 2)
         )
+
+    @staticmethod
+    def _glow_rect(surface: pygame.Surface, rect: pygame.Rect, color: tuple[int, int, int]) -> None:
+        """Cheap halo: a couple of dimmer, slightly larger rects behind ``rect``."""
+        for pad, factor in ((4, 0.22), (2, 0.5)):
+            pygame.draw.rect(
+                surface,
+                scale_color(color, factor),
+                (rect.x - pad, rect.y - pad, rect.width + 2 * pad, rect.height + 2 * pad),
+            )

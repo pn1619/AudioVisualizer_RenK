@@ -93,7 +93,7 @@ def test_settings_v5_persists_bg_sensitivity_and_opacity(tmp_path) -> None:
     path = tmp_path / "settings.json"
     assert settings_mod.save(Settings(bg_sensitivity=2.0, bg_opacity=0.5), path)
     loaded = settings_mod.load(path)
-    assert loaded.schema_version == 6
+    assert loaded.schema_version == 7
     assert loaded.bg_sensitivity == 2.0
     assert loaded.bg_opacity == 0.5
     # Out-of-grid stored values snap to the nearest preset.

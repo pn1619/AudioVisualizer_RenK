@@ -18,7 +18,7 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0A.06"
+APP_VERSION = "00.0A.07"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-17"
@@ -398,8 +398,21 @@ SETTINGS_FILENAME = "settings.json"
 # v2 added the RenK logo overlay preferences (logo_*). v3 added UI appearance
 # (ui_style, ui_font). v4 added the accent color + global background layer
 # (ui_accent, bg_mode, bg_height). v5 added per-backdrop reactivity + opacity
-# (bg_sensitivity, bg_opacity). Older files migrate by defaulting new keys.
-SETTINGS_SCHEMA_VERSION = 6
+# (bg_sensitivity, bg_opacity). v6 added logo_spin. v7 (Phase 10.07) merged several
+# modes, so a saved `mode` key is remapped to its canonical survivor on load.
+SETTINGS_SCHEMA_VERSION = 7
+
+# Phase 10.07 mode merges: old mode keys -> the canonical mode that absorbed them.
+# Per-mode option indices were never persisted, so only the active key is remapped.
+MERGED_MODE_KEYS: dict[str, str] = {
+    "waveform_2": "waveform",
+    "waveform_circle_2": "waveform_circle",
+    "waveform_circle_multiple": "waveform_circle",
+    "waveform_circle_multiple_2": "waveform_circle",
+    "lightshow_2": "lightshow",
+    "laser_2": "laser",
+    "particles_spiral": "particles",
+}
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error

@@ -14,7 +14,13 @@ import numpy as np
 import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
-from audio_visualizer.visuals._helpers import THICKNESS_OPTION, clamp, rainbow_color
+from audio_visualizer.visuals._helpers import (
+    MIRROR_OPTION,
+    THICKNESS_OPTION,
+    clamp,
+    mirror_points,
+    rainbow_color,
+)
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
@@ -58,7 +64,7 @@ _FADE = {1: 0.80, 2: 0.92}
 class Vectorscope(BaseVisualizer):
     """Lissajous XY scope with phosphor persistence and optional rotation."""
 
-    OPTIONS = (_DELAY, _PERSIST, _DRAW, THICKNESS_OPTION, _COLOR, _ROTATE, _GRID)
+    OPTIONS = (_DELAY, _PERSIST, _DRAW, THICKNESS_OPTION, _COLOR, _ROTATE, _GRID, MIRROR_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -81,17 +87,22 @@ class Vectorscope(BaseVisualizer):
         rate = 0.0 if self.reduce_motion else self.option("rotate")
         self._angle += dt * self.theme.speed_scale * rate * 2.0 * math.pi
 
+        mirror = int(self.option("mirror"))
         persist_mode = int(self.option("persist"))
         if persist_mode == 0:
             self._blit_grid(surface, w, h)
-            self._render(surface, self._trace_points(frame, w / 2.0, h / 2.0, min(w, h) * 0.4))
+            pts = self._trace_points(frame, w / 2.0, h / 2.0, min(w, h) * 0.4)
+            for copy in mirror_points(pts, w / 2.0, h / 2.0, mirror):
+                self._render(surface, copy)
             return
 
         # Persistence is confined to the scope's square so the full-canvas blends stay cheap.
         side = self._persist_side or 1
         target = self._ensure_persist(w, h)
         target.fill((int(255 * _FADE[persist_mode]),) * 3, special_flags=pygame.BLEND_RGB_MULT)
-        self._render(target, self._trace_points(frame, side / 2.0, side / 2.0, side * 0.45))
+        pts = self._trace_points(frame, side / 2.0, side / 2.0, side * 0.45)
+        for copy in mirror_points(pts, side / 2.0, side / 2.0, mirror):
+            self._render(target, copy)
         self._blit_grid(surface, w, h)
         off = ((w - side) // 2, (h - side) // 2)
         surface.blit(target, off, special_flags=pygame.BLEND_RGB_ADD)

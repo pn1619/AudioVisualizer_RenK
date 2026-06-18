@@ -9,11 +9,8 @@ import pytest
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.visuals._helpers import RingPops, rainbow_color, ring_points
 from audio_visualizer.visuals.base import Theme
-from audio_visualizer.visuals.particles_spiral import ParticlesSpiral
+from audio_visualizer.visuals.particles import Particles
 from audio_visualizer.visuals.waveform_circle import WaveformCircle
-from audio_visualizer.visuals.waveform_circle_2 import WaveformCircle2
-from audio_visualizer.visuals.waveform_circle_multiple import WaveformCircleMultiple
-from audio_visualizer.visuals.waveform_circle_multiple_2 import WaveformCircleMultiple2
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -49,15 +46,20 @@ def test_rainbow_wraps_continuously() -> None:
     assert all(abs(a - b) <= 2 for a, b in wrapped)
 
 
-# -- spiral options -----------------------------------------------------------
+# -- spiral options (Particles mode, Spiral emitter) --------------------------
+def _spiral(**kwargs) -> Particles:
+    v = Particles(**kwargs)
+    v.on_enter()
+    v.set_option_index("emitter", 1)  # Spiral
+    return v
+
+
 def test_spiral_reach_scales_render_radius() -> None:
     surface = pygame.Surface((400, 400))
     frame = _loud_frame()
-    small = ParticlesSpiral(seed=5)
-    small.on_enter()
+    small = _spiral(seed=5)
     small.set_option_index("reach", 0)  # Small
-    big = ParticlesSpiral(seed=5)
-    big.on_enter()
+    big = _spiral(seed=5)
     big.set_option_index("reach", 2)  # Large
     for _ in range(6):
         small.draw(surface, frame, 0.02)
@@ -67,7 +69,7 @@ def test_spiral_reach_scales_render_radius() -> None:
 
 
 def test_spiral_has_size_and_spacing_options() -> None:
-    keys = {opt.key for opt in ParticlesSpiral.OPTIONS}
+    keys = {opt.key for opt in Particles.OPTIONS}
     assert {"swirl", "reach", "spacing"} <= keys
 
 
@@ -96,27 +98,27 @@ def test_ring_pops_spawn_advance_decay() -> None:
     assert pops.count == 0  # all expired past their lifetime
 
 
-# -- circular waveform modes render ------------------------------------------
-@pytest.mark.parametrize(
-    "cls",
-    [WaveformCircle, WaveformCircle2, WaveformCircleMultiple, WaveformCircleMultiple2],
-)
-def test_circle_modes_render_without_error(cls) -> None:
+# -- merged Waveform Rings: single/multiple rings, with/without particles -----
+@pytest.mark.parametrize("rings_index", [0, 1, 3])  # 1, 3, 12 rings
+@pytest.mark.parametrize("particles_index", [0, 2])  # Off, Dense
+def test_circle_modes_render_without_error(rings_index: int, particles_index: int) -> None:
     surface = pygame.Surface((480, 360))
     frame = _loud_frame()
-    v = cls()
+    v = WaveformCircle()
     v.theme = Theme(color_scheme="rainbow_plus")
     v.on_enter()
+    v.set_option_index("rings", rings_index)
+    v.set_option_index("particles", particles_index)
     for _ in range(10):
         v.draw(surface, frame, 0.02)
     # Also render the idle (no-frame) path.
     v.draw(surface, None, 0.02)
 
 
-def test_circle_multiple_ring_count_option() -> None:
+def test_circle_ring_count_option() -> None:
     surface = pygame.Surface((480, 360))
     frame = _loud_frame()
-    v = WaveformCircleMultiple()
-    v.set_option_index("rings", 6)  # 10 rings
-    assert v.option("rings") == 10
+    v = WaveformCircle()
+    v.set_option_index("rings", 3)  # 12 rings
+    assert v.option("rings") == 12
     v.draw(surface, frame, 0.02)

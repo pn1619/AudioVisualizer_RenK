@@ -17,7 +17,7 @@ This document is the **single source of truth** for the project. Companion docs:
 
 ## 0. Vision
 
-A **Windows desktop app** that captures **what you hear** (system playback / loopback) and renders **real-time visuals**: waveform, waveform 2, spectrum, light show, particles, laser, snowfall, and particles spiral (full list in §3.3). Runs locally, no cloud. Ships as a **single `.exe`**.
+A **Windows desktop app** that captures **what you hear** (system playback / loopback) and renders **real-time visuals**: waveform, spectrum, light show, particles, laser, snowfall, and many more (full list in §3.3). Runs locally, no cloud. Ships as a **single `.exe`**.
 
 **User story:** *"I play music or a game and get a responsive visualization on screen — fullscreen optional — without needing a microphone."*
 
@@ -164,21 +164,20 @@ is added or removed.
 
 | Mode | `key` | order | Description | Driven by | Since |
 |------|-------|-------|-------------|-----------|-------|
-| **Waveform** | `waveform` | 10 | Oscilloscope; mono samples as a line (rainbow-aware) | raw samples | Phase 1 |
-| **Waveform 2** | `waveform_2` | 15 | Waveform trace + particles popping in/out of the line | samples + RMS/onset | Phase 4 |
-| **Waveform Circle** | `waveform_circle` | 16 | Oscilloscope wrapped around a ring (Size/Line options) | raw samples | Phase 6 |
-| **Waveform Circle 2** | `waveform_circle_2` | 17 | Ring + particles popping off it | samples + RMS/onset | Phase 6 |
-| **Waveform Circle x N** | `waveform_circle_multiple` | 18 | Up to 10 concentric rings, one per equal spectrum slice | samples + bands | Phase 6 |
-| **Waveform Circle x N 2** | `waveform_circle_multiple_2` | 19 | Multi-ring + per-ring popping particles | samples + bands | Phase 6 |
-| **Spectrum** | `spectrum` | 20 | Log-spaced frequency bars + falling peak caps | FFT band energies | Phase 1 |
-| **Light Show** | `lightshow` | 30 | Radial beams from center + pulsing core | bands + RMS/peak | Phase 1 |
-| **Light Show 2** | `lightshow_2` | 35 | Radial beams of pulsing particles, shapeable core, emitted sparks | bands + RMS/onset | Phase 8 |
-| **Particles** | `particles` | 40 | Bursts spawned by onsets, pushed outward by energy | RMS, onset/flux | Phase 2 |
-| **Laser** | `laser` | 50 | Rotating beams + Lissajous figure | bands + phase | Phase 2 |
-| **Laser 2** | `laser_2` | 55 | Rotating beams + selectable figure (Lissajous/rose/star/spiral/heart), emitted sparks | bands + RMS/onset | Phase 8 |
+| **Waveform** | `waveform` | 10 | Oscilloscope line; optional popping **Particles** + **Mirror** | samples + RMS/onset | Phase 1 (merged 10.07) |
+| **Waveform Rings** | `waveform_circle` | 16 | **Rings (1·3·6·12)**: 1 = single oscilloscope ring, more = per-band concentric rings; optional shed **Particles** | samples + bands | Phase 6 (merged 10.07) |
+| **Spectrum** | `spectrum` | 20 | Log-spaced frequency bars + peak caps; **Mirror** + **Glow** | FFT band energies | Phase 1 |
+| **Light Show** | `lightshow` | 30 | Radial beams + shapeable core; **Particles** Off = solid beams, on = bead beams that emit sparks | bands + RMS/onset | Phase 1 (merged 10.07) |
+| **Particles** | `particles` | 40 | **Emitter** Field (omnidirectional burst + gravity) or Spiral (per-band arms) | RMS, onset/flux | Phase 2 (merged 10.07) |
+| **Laser** | `laser` | 50 | Rotating beams + selectable figure (Lissajous/rose/star/spiral/heart); **Particles** controls emitted sparks | bands + RMS/onset | Phase 2 (merged 10.07) |
 | **Snowfall** | `snowfall` | 60 | Colorful flakes; bass blows the wind, mids size them | bands (low + mid) | Phase 3 |
-| **Particles Spiral** | `particles_spiral` | 70 | Sparks blow out along spiral arms, one hue per band | bands + RMS/onset | Phase 3 |
+| *(Phase 10 modes)* | … | … | spectrogram, radial_spectrum, plasma, tunnel, fireworks, kaleidoscope, terrain, vectorscope, meters, matrix, pulse_rings, ripples | — | Phase 10.02 / 10.06 |
 | *Shader-ish field* (stretch) | — | — | Fullscreen palette field reacting to spectrum | FFT texture | Stretch |
+
+> **Phase 10.07** merged the `*_2` "+particles" pairs and the four circle modes into the
+> rows above (**26 → 19** registered modes); a shared `PARTICLES_OPTION` axis and per-mode
+> **Preset** dropdowns replace the duplicate modes. Per-mode option indices were never
+> persisted, so only the saved `mode` key migrates (schema v6→v7).
 
 All modes implement one interface and **auto-register**, so **adding a mode = adding one file** — see §3.5 and the layout doc.
 
@@ -337,6 +336,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 20 | **Reusable `SparkField` + shared `TRAIL_OPTION`** in `_helpers.py` power the new beam modes' emitted particles and the optional fading "shadow" trail | One particle system (normalized space, optional trail) keeps `lightshow_2`/`laser_2` thin and lets any future mode opt into emitted particles + trails without duplicating logic (Phase 8) |
 | 21 | **RenK logo is a global overlay (`visuals/logo.py`), drawn by `app.py` over every mode — not a `@register`ed mode** — composited **additively**; configurable + persisted (`logo_*`, schema v2) via a `RenK` modal; bundled asset loaded through `resources.py` | Branding must appear in **all** modes without touching each one or the discovery list; additive blend makes neon-on-black art glow with no bounding box; a luminance tint gives Default↔Rainbow+ from one asset; `resources.py` + spec `datas` make the PNG resolve in dev and the frozen exe (Phase 9) |
 | 22 | **`Esc` no longer quits** — it only closes a modal or exits fullscreen; quit stays on the `Quit` button + `Ctrl+Q` | Accidental `Esc` quitting was hostile; modal/fullscreen dismissal is the expected behavior (Phase 9) |
+| 23 | **Mode consolidation (26 → 19)**: merged the `*_2` "+particles" pairs and the four circle modes into their base modes behind a shared `PARTICLES_OPTION` axis + a `Rings` count; added per-mode **`PRESETS`** (handled in `BaseVisualizer.on_option_change`/`_apply_preset`) and retrofitted shared **Mirror**/**Glow**. Since per-mode option indices are never persisted, only the saved `mode` key migrates via `MERGED_MODE_KEYS` (schema v6→v7) | Many modes differed only by "+ particles" or ring count, cluttering the picker; folding them into options (with one-click presets for the old looks) is more flexible and removes ~7 near-duplicate files, while the key-only migration keeps upgrades crash-free (Phase 10.07) |
 
 **Open questions** (record answers as they're decided):
 

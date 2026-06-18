@@ -9,8 +9,8 @@ import pytest
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.visuals._helpers import TRAIL_OPTION, SparkField
 from audio_visualizer.visuals.base import Theme
-from audio_visualizer.visuals.laser_2 import Laser2
-from audio_visualizer.visuals.lightshow_2 import LightShow2
+from audio_visualizer.visuals.laser import Laser
+from audio_visualizer.visuals.lightshow import LightShow
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -75,15 +75,15 @@ def test_sparkfield_render_paths(trails: bool) -> None:
 
 # -- shared trail option ------------------------------------------------------
 def test_both_modes_expose_trail_option() -> None:
-    assert TRAIL_OPTION in LightShow2.OPTIONS
-    assert TRAIL_OPTION in Laser2.OPTIONS
+    assert TRAIL_OPTION in LightShow.OPTIONS
+    assert TRAIL_OPTION in Laser.OPTIONS
 
 
-# -- Light Show 2 -------------------------------------------------------------
-def test_lightshow2_renders_loud_and_idle() -> None:
+# -- Light Show (merged: Particles axis adds beads + emit) --------------------
+def test_lightshow_renders_loud_and_idle() -> None:
     surface = pygame.Surface((480, 360))
     frame = _loud_frame()
-    v = LightShow2(seed=7)
+    v = LightShow(seed=7)
     v.theme = Theme(color_scheme="rainbow_plus")
     v.on_enter()
     for _ in range(10):
@@ -92,46 +92,46 @@ def test_lightshow2_renders_loud_and_idle() -> None:
 
 
 @pytest.mark.parametrize("core_index", [0, 1, 2, 3])
-def test_lightshow2_core_shapes_render(core_index: int) -> None:
+def test_lightshow_core_shapes_render(core_index: int) -> None:
     surface = pygame.Surface((400, 400))
-    v = LightShow2(seed=1)
+    v = LightShow(seed=1)
     v.on_enter()
     v.set_option_index("core", core_index)
     v.draw(surface, _loud_frame(), 0.02)
 
 
-def test_lightshow2_emit_on_spawns_sparks() -> None:
+def test_lightshow_particles_on_spawns_sparks() -> None:
     surface = pygame.Surface((400, 400))
     frame = _loud_frame()
-    v = LightShow2(seed=3)
+    v = LightShow(seed=3)
     v.on_enter()
-    v.set_option_index("emit", 1)  # On
+    v.set_option_index("particles", 2)  # Dense -> bead beams that emit
     for _ in range(5):
         v.draw(surface, frame, 0.02)
     assert v._sparks.count > 0
 
 
-def test_lightshow2_reduce_motion_no_emission() -> None:
+def test_lightshow_reduce_motion_no_emission() -> None:
     surface = pygame.Surface((400, 400))
     frame = _loud_frame()
-    v = LightShow2(reduce_motion=True, seed=3)
+    v = LightShow(reduce_motion=True, seed=3)
     v.on_enter()
-    v.set_option_index("emit", 1)
+    v.set_option_index("particles", 2)
     for _ in range(5):
         v.draw(surface, frame, 0.02)
     assert v._sparks.count == 0  # reduce-motion disables shooting
 
 
-def test_lightshow2_has_expected_options() -> None:
-    keys = {opt.key for opt in LightShow2.OPTIONS}
-    assert {"beams", "particles", "core", "emit", "trails"} <= keys
+def test_lightshow_has_expected_options() -> None:
+    keys = {opt.key for opt in LightShow.OPTIONS}
+    assert {"beams", "particles", "core", "trails"} <= keys
 
 
-# -- Laser 2 ------------------------------------------------------------------
+# -- Laser (merged: Particles axis controls emit) -----------------------------
 @pytest.mark.parametrize("shape_index", [0, 1, 2, 3, 4])
-def test_laser2_all_shapes_render(shape_index: int) -> None:
+def test_laser_all_shapes_render(shape_index: int) -> None:
     surface = pygame.Surface((480, 360))
-    v = Laser2(seed=2)
+    v = Laser(seed=2)
     v.theme = Theme(color_scheme="rainbow")
     v.on_enter()
     v.set_option_index("shape", shape_index)
@@ -140,20 +140,20 @@ def test_laser2_all_shapes_render(shape_index: int) -> None:
     v.draw(surface, None, 0.02)  # idle path
 
 
-def test_laser2_emit_on_spawns_sparks() -> None:
+def test_laser_particles_on_spawns_sparks() -> None:
     surface = pygame.Surface((400, 400))
     frame = _loud_frame()
-    v = Laser2(seed=9)
+    v = Laser(seed=9)
     v.on_enter()
-    v.set_option_index("emit", 1)
+    v.set_option_index("particles", 2)  # Dense -> beams emit sparks
     v.set_option_index("trails", 1)
     for _ in range(5):
         v.draw(surface, frame, 0.02)
     assert v._sparks.count > 0
 
 
-def test_laser2_tiny_surface_safe() -> None:
-    v = Laser2(seed=1)
+def test_laser_tiny_surface_safe() -> None:
+    v = Laser(seed=1)
     v.on_enter()
     v.draw(pygame.Surface((1, 1)), _loud_frame(), 0.02)  # below min, returns early
     v.draw(pygame.Surface((40, 30)), _loud_frame(), 0.02)

@@ -20,19 +20,12 @@ numpy. Flashing modes set `STROBES = True`. Respect `reduce_motion`. **One mode 
 
 | Key | Name | Gist |
 |---|---|---|
-| `waveform` | Waveform | Centered horizontal oscilloscope trace. |
-| `waveform_2` | Waveform 2 | Oscilloscope line + onset/energy popping particles. |
-| `waveform_circle` | Waveform Circle | Single oscilloscope ring; radius wobbles with samples. |
-| `waveform_circle_2` | Waveform Circle 2 | Oscilloscope ring + popping particles. |
-| `waveform_circle_multiple` | Waveform Circle x N | N concentric rings, each driven by a spectrum slice. |
-| `waveform_circle_multiple_2` | Waveform Circle x N 2 | N per-band rings + shed particles. |
-| `spectrum` | Spectrum | Vertical log-band bars with peak-hold caps. |
-| `lightshow` | Light Show | Beams radiate from center; length/brightness = band energy. |
-| `lightshow_2` | Light Show 2 | Radial beams of pulsing particles + shapeable core + emit. |
-| `laser` | Laser | Sweeping beams + a Lissajous curve tracing the spectrum. |
-| `laser_2` | Laser 2 | Rotating beams + selectable parametric figure + emit. |
-| `particles` | Particles | Onset-driven particle field. |
-| `particles_spiral` | Particles Spiral | Spiral particle emitter; per-band hue. |
+| `waveform` | Waveform | Oscilloscope trace; optional popping **Particles** + **Mirror**. |
+| `waveform_circle` | Waveform Rings | **Rings 1/3/6/12** (single ring → per-band concentric) + optional shed **Particles**. |
+| `spectrum` | Spectrum | Vertical log-band bars with peak-hold caps; **Mirror** + **Glow**. |
+| `lightshow` | Light Show | Radial beams + shapeable core; **Particles** Off=solid beams / on=bead beams + emit. |
+| `laser` | Laser | Sweeping beams + selectable parametric figure; **Particles** = emitted sparks. |
+| `particles` | Particles | Onset-driven sparks; **Emitter** Field (burst+gravity) or Spiral (per-band arms). |
 | `snowfall` | Snowfall | Calm resolution-independent flake field. |
 | `spectrogram` | Spectrogram | Scrolling magnitude heatmap (freq Y, time X). |
 | `radial_spectrum` | Audio Sun | Spectrum bars radiating from a glowing core + osc ring. |
@@ -60,3 +53,7 @@ aurora, starfield, vignette). Don't propose a *mode* that merely duplicates a ba
 
 _(Shipped in `v00.0A.06`: VU meters, dot-matrix, scrolling terrain, pulse rings, XY
 vectorscope, bloom ripples — see the Shipped table above.)_
+
+_(Consolidated in `v00.0A.07`: the old `waveform_2`, `waveform_circle_2`,
+`waveform_circle_multiple[_2]`, `lightshow_2`, `laser_2`, and `particles_spiral`
+modes were folded into their base modes as options/presets — don't re-propose them.)_
