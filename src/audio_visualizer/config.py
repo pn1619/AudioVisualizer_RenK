@@ -18,7 +18,7 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0A.08"
+APP_VERSION = "00.0B.00"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-18"

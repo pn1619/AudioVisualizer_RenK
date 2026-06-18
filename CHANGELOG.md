@@ -11,6 +11,25 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.00` — Phase 0B kickoff: custom-preset design
+
+Planning checkpoint that opens Phase 0B (`FF = 0B`). **No runtime/behavior change** — only
+the design plan and the version stamp move.
+
+- **`plan/phase-0b-candidates.md` — expanded 0B-b ("My modes" user presets).** A preset now
+  captures a complete *look* (mode + knobs + theme) and can **optionally** include the global
+  **Background** and **Logo**, chosen **per domain** as **Local** (frozen snapshot baked into
+  the preset) or **Global** (follow live global).
+- **Core invariant recorded:** a preset is a **read-only overlay** — applying/switching one
+  **never writes into live global** (a small "effective config" **resolver** sits between the
+  overlays and `Settings`). This is what lets a Global-linked domain always re-derive from the
+  true, untouched global after another preset pinned it.
+- Captured the editing rules (edit a pinned aspect → marks the preset dirty; edit a
+  Global-linked domain → edits real global), the JSON record shape, `None / Live` deselect,
+  last-active-preset restore on relaunch, degradation rules, and an invariant-focused test list.
+
+---
+
 ## `00.0A.08` — Phase 10.08: code cleanup + documentation sync
 
 A maintenance pass: no new modes or user-facing features. Focused on code-quality
