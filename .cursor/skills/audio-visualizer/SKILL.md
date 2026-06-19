@@ -17,15 +17,19 @@ description: >-
 > **Current state (v00.0A.07):** **19 visual modes** (consolidated from 26 in 10.07) + a global
 > RenK logo overlay and a background layer (both drawn by `app.py`, neither a `@register`ed
 > mode). Modes share option axes (`PARTICLES_OPTION`, `MIRROR_OPTION`, `GLOW_OPTION`, …) and
-> per-mode `PRESETS`. Settings schema is **9** (v8 adds the selectable capture `source_id`;
-> v9 adds `active_look`).
+> per-mode `PRESETS`. Settings schema is **10** (v8 adds the selectable capture `source_id`;
+> v9 adds `active_look`; v10 adds the auto-cycle `random_pool`/`random_interval`).
 A `Src` button opens a **Sound source** modal to pick the capture device (default / output
 loopback / mic) — enumerated in `audio/devices.py`, opened on a pinned device via
 `LoopbackSource(device_id=...)`. **User looks ("My Looks", v00.0B.02):** a `My Looks` dropdown
 + `Save…` button (row 1, distinct from the per-mode `Preset` dropdown) save/load a complete
 look (mode + options + theme + sensitivity/smoothing + Background/Logo snapshot) via the
 `looks.py` store (own `looks.json`); applying a look overlays live global and `None / Live`
-restores it. The full, current mode catalog is
+restores it. **Auto-cycle ("shuffle", v00.0B.03):** an `Auto` toggle + `Shuffle…` modal (`A`
+key) auto-switch the active built-in mode every interval with a **cross-fade**
+(`visuals/_transition.py` `ModeTransition`; reduce-motion = hard cut). The rotation persists
+as `random_pool` (tagged `mode:<key>`) + `random_interval`; Auto is never persisted on. Saved
+looks in the rotation come in a later build. The full, current mode catalog is
 > `plan/visual-mode-ideas.md`; the build-order list below is a per-phase history.
 
 ## Read first (canonical docs)

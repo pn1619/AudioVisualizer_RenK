@@ -62,6 +62,10 @@ class ControlActions:
     select_look: Callable[[str], None] = lambda _id: None
     # Opens the Save/Manage Looks modal. Defaulted likewise.
     open_looks: Callable[[], None] = lambda: None
+    # Toggles auto-cycle (shuffle) on/off. Defaulted likewise.
+    toggle_auto: Callable[[], None] = lambda: None
+    # Opens the Shuffle settings modal (interval + mode pool). Defaulted likewise.
+    open_shuffle: Callable[[], None] = lambda: None
 
 
 @dataclass(frozen=True)
@@ -92,6 +96,11 @@ class ControlBar:
         self._looks = Dropdown(actions.select_look, title="My Looks")
         self._looks.set_options([("", "None / Live")])
         self._save_look = Button("Save\u2026", actions.open_looks)
+
+        # Auto-cycle ("shuffle"): an on/off toggle + a settings button (interval +
+        # which modes are in the rotation). The toggle paints accent-filled when on.
+        self._auto = Button("Auto", actions.toggle_auto)
+        self._shuffle = Button("Shuffle\u2026", actions.open_shuffle)
 
         # Compact steppers: [-] <Name value> [+]; the chip carries the name+value so
         # the tiny buttons stay unambiguous without long labels (which the wider
@@ -128,6 +137,8 @@ class ControlBar:
             (self._next, step),
             (self._looks, 168),
             (self._save_look, 64),
+            (self._auto, 60),
+            (self._shuffle, 84),
             (self._sens_down, step),
             (self._sens_chip, 96),
             (self._sens_up, step),
@@ -173,6 +184,7 @@ class ControlBar:
         smoothing: float,
         size_scale: float,
         speed_scale: float,
+        auto_on: bool = False,
     ) -> None:
         self._menu.set_options(
             [
@@ -183,6 +195,7 @@ class ControlBar:
             ]
         )
         self._dropdown.set_selected(mode_key)
+        self._auto.active = auto_on
         self._reduce.label = "Motion-" if reduce_motion else "Motion+"
         self._color.set_selected(color_scheme)
         self._sens_chip.text = f"Sens {sensitivity:.2f}"

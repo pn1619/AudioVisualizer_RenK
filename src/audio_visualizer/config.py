@@ -18,7 +18,7 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0B.02"
+APP_VERSION = "00.0B.03"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-18"
@@ -399,7 +399,8 @@ SETTINGS_FILENAME = "settings.json"
 # modes, so a saved `mode` key is remapped to its canonical survivor on load.
 # v8 (Phase 0B-a) added the selectable capture source (source_id).
 # v9 (Phase 0B-b) added the last-active user look id (active_look).
-SETTINGS_SCHEMA_VERSION = 9
+# v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
+SETTINGS_SCHEMA_VERSION = 10
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad
@@ -420,6 +421,20 @@ MERGED_MODE_KEYS: dict[str, str] = {
     "laser_2": "laser",
     "particles_spiral": "particles",
 }
+
+# --- Auto-cycle / shuffle (Phase 0B-c build 1: built-in modes only) -----------
+# An optional "shuffle" that auto-switches the active mode every interval seconds,
+# cross-fading rather than hard-cutting. Modes-only auto-cycle touches no global
+# state (Background/Logo/theme are untouched by a mode swap), so it needs no
+# overlay resolver. Saved looks join the pool in a later build.
+RANDOM_INTERVAL_DEFAULT = 20.0  # seconds between auto-switches
+RANDOM_INTERVAL_MIN = 3.0
+RANDOM_INTERVAL_MAX = 300.0
+RANDOM_INTERVAL_STEP = 5.0
+# Cross-fade length when auto-switching. Two modes are rendered to offscreen
+# surfaces only while a fade is in flight, so steady-state cost is unchanged.
+# Reduce-motion shortens this to a hard cut (no double-render).
+TRANSITION_DURATION = 0.6
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error

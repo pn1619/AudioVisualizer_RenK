@@ -349,6 +349,7 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 21 | **RenK logo is a global overlay (`visuals/logo.py`), drawn by `app.py` over every mode — not a `@register`ed mode** — composited **additively**; configurable + persisted (`logo_*`, schema v2) via a `RenK` modal; bundled asset loaded through `resources.py` | Branding must appear in **all** modes without touching each one or the discovery list; additive blend makes neon-on-black art glow with no bounding box; a luminance tint gives Default↔Rainbow+ from one asset; `resources.py` + spec `datas` make the PNG resolve in dev and the frozen exe (Phase 9) |
 | 22 | **`Esc` no longer quits** — it only closes a modal or exits fullscreen; quit stays on the `Quit` button + `Ctrl+Q` | Accidental `Esc` quitting was hostile; modal/fullscreen dismissal is the expected behavior (Phase 9) |
 | 23 | **Mode consolidation (26 → 19)**: merged the `*_2` "+particles" pairs and the four circle modes into their base modes behind a shared `PARTICLES_OPTION` axis + a `Rings` count; added per-mode **`PRESETS`** (handled in `BaseVisualizer.on_option_change`/`_apply_preset`) and retrofitted shared **Mirror**/**Glow**. Since per-mode option indices are never persisted, only the saved `mode` key migrates via `MERGED_MODE_KEYS` (schema v6→v7) | Many modes differed only by "+ particles" or ring count, cluttering the picker; folding them into options (with one-click presets for the old looks) is more flexible and removes ~7 near-duplicate files, while the key-only migration keeps upgrades crash-free (Phase 10.07) |
+| 24 | **Auto-cycle split into builds — build 1 (`v00.0B.03`) is built-in modes only** (`random_pool` of `mode:<key>` ids, schema v10), cross-fading via offscreen-composited `ModeTransition` (reduce-motion = hard cut); **saved looks join the rotation in build 2, after the 0B-b overlay resolver** | A modes-only shuffle touches **no global state** (a mode swap leaves Background/Logo/theme alone), so it ships immediately with no resolver dependency; looks mutate live global per tick and need a clean pre-shuffle snapshot/restore, so they wait for the resolver to avoid clobbering the user's global state (Phase 0B-c) |
 
 **Open questions** (record answers as they're decided):
 
@@ -405,11 +406,12 @@ WASAPI loopback frequently delivers **silence — or no callback at all — when
 ### 11.3 Settings persistence (decided)
 
 - Location: `%APPDATA%\AudioVisualizer\settings.json` (created on first write).
-- Include a top-level `schema_version` (int; currently **9** — `config.SETTINGS_SCHEMA_VERSION`). On load, migrate or fall back to defaults if the version is unknown — never crash on a bad/old settings file.
+- Include a top-level `schema_version` (int; currently **10** — `config.SETTINGS_SCHEMA_VERSION`). On load, migrate or fall back to defaults if the version is unknown — never crash on a bad/old settings file.
 - Persisted: active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, window size, first-run-notice acknowledged, size/speed scale, color scheme, **appearance** (UI style / accent / font), **background** (mode / sensitivity / opacity / height), and **RenK logo** prefs (show / color / transparency / size / position / spin / emit).
 - **Migration:** v00.0A.07 remaps deprecated mode keys to their survivor via `config.MERGED_MODE_KEYS` (e.g. `waveform_2` → `waveform`). Per-mode option/preset indices are **not** persisted.
 - **Selectable source (v8, Phase 0B-a):** `source_id` (`""` ⇒ default render-device loopback; otherwise a device *name*). A missing device falls back to the default loopback on load.
 - **User looks (v9, Phase 0B-b):** `active_look` (`""` ⇒ None/Live; otherwise the stable *id* of the last active look). The looks themselves live in a separate `looks.json` (`audio_visualizer.looks`, own `schema_version`), never in `settings.json`.
+- **Auto-cycle (v10, Phase 0B-c):** `random_pool` (list of tagged `mode:<key>` ids in the shuffle rotation; `look:<id>` reserved for a later build, unknown/stale entries skipped) + `random_interval` (seconds, clamped). Auto is **never persisted on** — it starts off each launch.
 
 ### 11.4 High-DPI & window resize (Windows)
 

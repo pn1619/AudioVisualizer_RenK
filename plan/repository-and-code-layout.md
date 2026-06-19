@@ -17,7 +17,7 @@ AudioVisualizer/
 │     ├─ main.py                # parse args, configure logging, install excepthook, build & run App
 │     ├─ app.py                 # App: window, main loop, input, mode switching (wiring only)
 │     ├─ config.py              # constants & defaults (APP_VERSION, FFT size, FPS, colors, smoothing keys)
-│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=9, migrate-or-default; v7 remaps merged mode keys, v8 adds source_id, v9 adds active_look)
+│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=10, migrate-or-default; v7 remaps merged mode keys, v8 adds source_id, v9 adds active_look, v10 adds random_pool+random_interval)
 │     ├─ looks.py               # Phase 0B-b: user looks ("My Looks") store — Look dataclass + load/save/CRUD/export/import (own looks.json, schema_version=1)
 │     ├─ platform_win.py        # DPI awareness + Windows-specific shims (guarded, no-op off Windows)
 │     ├─ resources.py           # Phase 9: locate bundled assets/ in dev + frozen (_MEIPASS) runs
@@ -38,6 +38,7 @@ AudioVisualizer/
 │     │  ├─ base.py             # BaseVisualizer + lifecycle hooks; Theme + ModeOption/OptionChoice (per-mode options)
 │     │  ├─ registry.py         # @register decorator + discover() auto-import; ordered mode list
 │     │  ├─ _helpers.py         # shared draw utils (color lerp, ring_points/draw_ring, RingPops, SparkField); skipped by discovery
+│     │  ├─ _transition.py       # Phase 0B-c: ModeTransition (auto-cycle cross-fade clock/alpha); skipped by discovery
 │     │  ├─ logo.py             # Phase 9: RenkLogo global overlay (NOT a mode; drawn by app over every mode)
 │     │  ├─ background.py       # Phase 10: Background layer (NOT a mode; drawn by app BEHIND every mode): black/spectrum/filaments/mirror/ribbon/gradient/aurora/starfield/vignette + sensitivity/opacity
 │     │  ├─ waveform.py         # @register("waveform"); optional Particles + Mirror (absorbed waveform_2, 10.07)
@@ -74,6 +75,7 @@ AudioVisualizer/
 │        ├─ source_panel.py     # Phase 0B-a: Sound-source modal (selectable capture device; opened by Src button)
 │        ├─ looks_panel.py      # Phase 0B-b: My Looks save/manage modal (name + Save/Update, load/Dup/Del)
 │        ├─ text_input.py       # Phase 0B-b: reusable single-line text input (look naming)
+│        ├─ shuffle_panel.py    # Phase 0B-c: auto-cycle modal (Auto toggle + interval + mode checklist)
 │        ├─ about.py            # Phase 9: About modal (owner/license/version/build date)
 │        └─ hud.py              # status line + debug overlay (F3)
 │
@@ -93,6 +95,8 @@ AudioVisualizer/
 │  ├─ test_modes_phase{1002,1006,1007}.py # Phase 10 mode batches + 10.07 merges/migration/presets/sweeps
 │  ├─ test_background_phase{10,1001}.py    # background layer modes + panel/persistence
 │  ├─ test_devices_phase0b01.py # Phase 0B-a: source enumeration/resolution + panel + v8 migration
+│  ├─ test_looks_phase0b02.py   # Phase 0B-b: My Looks store/persistence + app capture/apply + panel + v9 migration
+│  ├─ test_autocycle_phase0b03.py # Phase 0B-c: auto-cycle scheduler/cross-fade + Shuffle panel + v10 migration
 │  ├─ test_ui_phase903.py       # appearance (style/accent/font) panel
 │  ├─ test_logo_phase9.py       # RenK logo overlay + settings migration + panel/About modals
 │  └─ test_smoke.py             # headless App build + N ticks (incl. idle/resize)

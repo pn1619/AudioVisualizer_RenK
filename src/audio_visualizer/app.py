@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import random
 from typing import TypeVar
 
 import numpy as np
@@ -48,6 +49,9 @@ from audio_visualizer.config import (
     LOGO_SPIN_DIRS,
     MERGED_MODE_KEYS,
     MIN_WINDOW_SIZE,
+    RANDOM_INTERVAL_MAX,
+    RANDOM_INTERVAL_MIN,
+    RANDOM_INTERVAL_STEP,
     SENSITIVITY_MAX,
     SENSITIVITY_MIN,
     SENSITIVITY_STEP,
@@ -63,6 +67,7 @@ from audio_visualizer.config import (
     SPEED_SCALE_MIN,
     SPEED_SCALE_STEP,
     TARGET_FPS,
+    TRANSITION_DURATION,
     UI_ACCENT_LABELS,
     UI_ACCENTS,
     UI_FONT_LABELS,
@@ -82,9 +87,11 @@ from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
 from audio_visualizer.ui.logo_panel import LogoPanel, LogoPanelActions
 from audio_visualizer.ui.looks_panel import LooksActions, LooksPanel
+from audio_visualizer.ui.shuffle_panel import ShuffleActions, ShufflePanel
 from audio_visualizer.ui.source_panel import SourceActions, SourcePanel
 from audio_visualizer.ui.style import STYLE
 from audio_visualizer.visuals import registry
+from audio_visualizer.visuals._transition import ModeTransition
 from audio_visualizer.visuals.background import Background
 from audio_visualizer.visuals.base import BaseVisualizer, Theme
 from audio_visualizer.visuals.logo import RenkLogo
@@ -204,6 +211,22 @@ class App:
         self._look_baseline: Look | None = None
         self._looks_panel = LooksPanel(self._build_looks_actions())
 
+        # Auto-cycle ("shuffle", Phase 0B-c build 1): rotate the active built-in
+        # mode every interval, cross-fading. The pool is a set of mode keys
+        # (empty pool ⇒ no shuffle); a live ModeTransition holds the fade.
+        self._auto = False  # never persisted on; off each launch
+        self._auto_pool: set[str] = {
+            tag.removeprefix("mode:")
+            for tag in self._settings.random_pool
+            if tag.startswith("mode:") and tag.removeprefix("mode:") in self._mode_keys
+        }
+        self._auto_interval = float(
+            min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, self._settings.random_interval))
+        )
+        self._auto_elapsed = 0.0
+        self._transition: ModeTransition | None = None
+        self._shuffle_panel = ShufflePanel(self._build_shuffle_actions())
+
         self._hud = Hud()
         self._controls = ControlBar(self._build_actions(), registry.options())
         self._refresh_mode_options()  # populates option dropdowns + lays out the bar
@@ -267,6 +290,17 @@ class App:
             open_source=self._open_source_panel,
             select_look=self._select_look,
             open_looks=self._open_looks_panel,
+            toggle_auto=self._toggle_auto,
+            open_shuffle=self._open_shuffle_panel,
+        )
+
+    def _build_shuffle_actions(self) -> ShuffleActions:
+        return ShuffleActions(
+            toggle_auto=self._toggle_auto,
+            interval_down=lambda: self._adjust_interval(-RANDOM_INTERVAL_STEP),
+            interval_up=lambda: self._adjust_interval(RANDOM_INTERVAL_STEP),
+            toggle_mode=self._toggle_pool_mode,
+            set_all=self._set_pool_all,
         )
 
     def _build_looks_actions(self) -> LooksActions:
@@ -583,6 +617,94 @@ class App:
         if self._persist:
             looks_mod.save(self._looks_store)
 
+    # -- auto-cycle ("shuffle") ----------------------------------------------
+    def _open_shuffle_panel(self) -> None:
+        self._shuffle_panel.set_state(self._shuffle_rows(), self._interval_label(), self._auto)
+        self._shuffle_panel.toggle()
+
+    def _shuffle_rows(self) -> list[tuple[str, str, bool]]:
+        """(mode_key, display_name, in_pool) rows for the Shuffle checklist."""
+        return [(key, name, key in self._auto_pool) for key, name in registry.options()]
+
+    def _interval_label(self) -> str:
+        return f"Every {self._auto_interval:g}s"
+
+    def _toggle_auto(self) -> None:
+        """Flip auto-cycle. Turning it on with an empty pool selects every mode."""
+        self._auto = not self._auto
+        if self._auto and not self._auto_pool:
+            self._auto_pool = set(self._mode_keys)
+        self._auto_elapsed = 0.0
+        logger.debug("Auto-cycle = %s (pool=%d)", self._auto, len(self._auto_pool))
+
+    def _adjust_interval(self, delta: float) -> None:
+        self._auto_interval = float(
+            min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, self._auto_interval + delta))
+        )
+
+    def _toggle_pool_mode(self, key: str) -> None:
+        if key not in self._mode_keys:
+            return
+        if key in self._auto_pool:
+            self._auto_pool.discard(key)
+        else:
+            self._auto_pool.add(key)
+
+    def _set_pool_all(self, on: bool) -> None:
+        self._auto_pool = set(self._mode_keys) if on else set()
+
+    def _valid_pool_indices(self) -> list[int]:
+        """Mode indices currently in the shuffle pool (stale keys excluded)."""
+        return [i for i, key in enumerate(self._mode_keys) if key in self._auto_pool]
+
+    def _update_auto(self, dt: float) -> None:
+        """Advance any active fade, else tick the timer and start the next switch."""
+        if self._transition is not None:
+            if self._transition.advance(dt):
+                self._finish_transition()
+            return
+        if not self._auto or self._modal_open() or self._notice_visible():
+            return
+        if not self._valid_pool_indices():
+            return
+        self._auto_elapsed += dt
+        if self._auto_elapsed >= self._auto_interval:
+            self._auto_elapsed = 0.0
+            self._auto_advance()
+
+    def _auto_advance(self) -> None:
+        """Pick the next pooled mode (no immediate repeat) and start the switch."""
+        choices = [i for i in self._valid_pool_indices() if i != self._mode_index]
+        if not choices:
+            return
+        target = random.choice(choices)
+        incoming = registry.create(self._mode_keys[target], reduce_motion=self._reduce_motion)
+        incoming.theme = self._theme
+        incoming.on_resize(self._layout.canvas.size)
+        incoming.on_enter()
+        if self._reduce_motion or TRANSITION_DURATION <= 0.0:
+            self._commit_incoming(target, incoming)  # reduce-motion: hard cut
+        else:
+            self._transition = ModeTransition(
+                outgoing=self._visual,
+                incoming=incoming,
+                target_index=target,
+                duration=TRANSITION_DURATION,
+            )
+
+    def _commit_incoming(self, target: int, incoming: BaseVisualizer) -> None:
+        """Retire the outgoing mode and make ``incoming`` the active visual."""
+        self._visual.on_exit()
+        self._visual = incoming
+        self._mode_index = target
+        self._refresh_mode_options()
+
+    def _finish_transition(self) -> None:
+        trans = self._transition
+        self._transition = None
+        if trans is not None:
+            self._commit_incoming(trans.target_index, trans.incoming)
+
     def _cycle_mode(self, delta: int) -> None:
         self._set_mode_index((self._mode_index + delta) % len(self._mode_keys))
 
@@ -591,6 +713,12 @@ class App:
             self._set_mode_index(self._mode_keys.index(key))
 
     def _set_mode_index(self, index: int) -> None:
+        # Any manual/programmatic switch cancels an in-flight fade and resets the
+        # auto timer so a shuffle never yanks a mode the user just chose.
+        self._auto_elapsed = 0.0
+        if self._transition is not None:
+            self._transition.incoming.on_exit()
+            self._transition = None
         if index == self._mode_index:
             return
         self._mode_index = index
@@ -785,6 +913,7 @@ class App:
             or self._background_panel.open
             or self._source_panel.open
             or self._looks_panel.open
+            or self._shuffle_panel.open
         )
 
     def _close_modals(self) -> None:
@@ -794,6 +923,7 @@ class App:
         self._background_panel.open = False
         self._source_panel.open = False
         self._looks_panel.open = False
+        self._shuffle_panel.open = False
 
     # -- loop body ------------------------------------------------------------
     def _handle_events(self) -> None:
@@ -819,6 +949,7 @@ class App:
                     self._background_panel.handle_event(event, canvas)
                     self._source_panel.handle_event(event, canvas)
                     self._looks_panel.handle_event(event, canvas)
+                    self._shuffle_panel.handle_event(event, canvas)
                     self._about.handle_event(event, canvas)
                 continue
             if event.type == pygame.VIDEORESIZE and not self._fullscreen:
@@ -871,6 +1002,8 @@ class App:
             self._controls.toggle_mode_dropdown()
         elif key == pygame.K_m:
             self._toggle_reduce_motion()
+        elif key == pygame.K_a:
+            self._toggle_auto()
         elif pygame.K_1 <= key <= pygame.K_9:
             self._set_mode_index(min(key - pygame.K_1, len(self._mode_keys) - 1))
 
@@ -881,8 +1014,12 @@ class App:
         self._layout = Layout.compute(size, show_control_bar=show, control_bar_height=bar_h)
         self._controls.relayout(self._layout.control_bar)
         self._visual.on_resize(self._layout.canvas.size)
+        if self._transition is not None:
+            self._transition.incoming.on_resize(self._layout.canvas.size)
 
     def _update(self, dt: float = 0.0) -> None:
+        # Auto-cycle runs regardless of capture/silence (it's a visual choice).
+        self._update_auto(dt)
         if not self._capturing:
             return
         self._error = self._source.status is SourceStatus.ERROR
@@ -918,9 +1055,12 @@ class App:
         canvas = self._layout.canvas
         try:
             sub = screen.subsurface(canvas)
-            # The background layer is composited first, behind the active mode.
-            self._background.draw(sub, self._frame, dt)
-            self._visual.draw(sub, self._frame, dt)
+            if self._transition is not None:
+                self._draw_transition(sub, dt)
+            else:
+                # The background layer is composited first, behind the active mode.
+                self._background.draw(sub, self._frame, dt)
+                self._visual.draw(sub, self._frame, dt)
             # The RenK logo is a global overlay: drawn over every mode's output.
             self._logo.draw(sub, self._frame, dt)
         except Exception:  # fail-soft: a broken mode must not crash the app
@@ -936,6 +1076,7 @@ class App:
                 self._smoothing,
                 self._theme.size_scale,
                 self._theme.speed_scale,
+                self._auto,
             )
             self._controls.set_looks(self._looks_rows(), self._active_look_id)
             self._controls.draw(screen, self._layout.control_bar, self._font)
@@ -954,7 +1095,31 @@ class App:
         self._source_panel.draw(screen, canvas, self._font, self._font_small)
         self._looks_panel.update(dt)
         self._looks_panel.draw(screen, canvas, self._font, self._font_small)
+        self._shuffle_panel.set_state(self._shuffle_rows(), self._interval_label(), self._auto)
+        self._shuffle_panel.draw(screen, canvas, self._font, self._font_small)
         self._about.draw(screen, canvas, self._font, self._font_small)
+
+    def _draw_transition(self, sub: pygame.Surface, dt: float) -> None:
+        """Cross-fade the outgoing→incoming mode over the (shared) background.
+
+        Both modes render onto opaque copies of a single background layer, so the
+        background is advanced once and the dissolve covers the whole scene. Only
+        runs while a fade is in flight, so steady-state cost is unchanged.
+        """
+        trans = self._transition
+        if trans is None:
+            return
+        size = sub.get_size()
+        bg_layer = pygame.Surface(size)
+        bg_layer.fill(COLOR_BG)
+        self._background.draw(bg_layer, self._frame, dt)
+        out_layer = bg_layer.copy()
+        trans.outgoing.draw(out_layer, self._frame, dt)
+        in_layer = bg_layer.copy()
+        trans.incoming.draw(in_layer, self._frame, dt)
+        sub.blit(out_layer, (0, 0))
+        in_layer.set_alpha(trans.alpha())
+        sub.blit(in_layer, (0, 0))
 
     def _hud_state(self) -> HudState:
         idle = self._capturing and self._silent_seconds >= IDLE_BANNER_DELAY
@@ -1010,6 +1175,8 @@ class App:
             bg_opacity=self._background.opacity,
             source_id=self._source_id,
             active_look=self._active_look_id,
+            random_pool=[f"mode:{key}" for key in self._mode_keys if key in self._auto_pool],
+            random_interval=self._auto_interval,
         )
 
     def _shutdown(self) -> None:

@@ -11,6 +11,40 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.03` — Phase 0B-c (build 1): auto-cycle ("shuffle")
+
+The visualizer can now **shuffle itself** — automatically switching the active mode
+every few seconds with a smooth **cross-fade** instead of a hard cut.
+
+- **New `Auto` toggle + `Shuffle…` button** in the control bar's top row (and the **`A`**
+  key toggles Auto). `Auto` paints accent-filled while running.
+- **`Shuffle…` modal**: an Auto on/off row, an **interval stepper** (`Every Ns`, clamped to
+  `RANDOM_INTERVAL_MIN..MAX`), and a **checklist of which built-in modes are in the rotation**
+  (with `All` / `None`). An empty rotation means nothing auto-switches; turning Auto on with
+  an empty pool selects every mode so it works out of the box.
+- **Scheduler** (`app.py`): while Auto is on, a timer fires every interval and picks the next
+  pooled mode at random with **no immediate repeat**. Any **manual** mode change (keys, picker,
+  applying a look) **resets the timer and cancels an in-flight fade**, so a shuffle never yanks a
+  mode you just chose. Auto-advance **pauses while a modal is open** or the safety notice is up.
+- **Cross-fade** (`visuals/_transition.py` + `App._draw_transition`): the outgoing and incoming
+  modes render onto opaque copies of a **single** background layer (advanced once) and the whole
+  scene dissolves; the RenK logo draws once on top. Two modes are rendered **only** while a fade
+  is in flight, so steady-state cost is unchanged. **Reduce-motion** switches with a hard **cut**
+  (no double-render).
+- **Persistence (settings schema v9 → v10):** the rotation persists as `random_pool` (tagged
+  `mode:<key>` ids; `look:<id>` is reserved for a later build, and unknown/stale entries are
+  skipped) and `random_interval`. **Auto is never persisted on** — it starts off each launch.
+- Tests (`tests/test_autocycle_phase0b03.py`, 15 cases): v9→v10 migration, pool/interval
+  round-trip + junk/clamp handling, transition alpha progression, pool toggle / All-None /
+  valid-index filtering, interval clamp, cut vs cross-fade, transition lifecycle (exactly one
+  active mode), manual-switch cancels a fade, a fade frame renders without error, and the
+  Shuffle modal routes its clicks.
+- **Deferred to build 2 (after the 0B-b overlay resolver):** **saved looks in the rotation**
+  (they mutate live global per tick, so they need the clean pre-shuffle snapshot/restore the
+  resolver provides), plus optional dip-to-black / beat-synced transition styles.
+
+---
+
 ## `00.0B.02` — Phase 0B-b (build 1): user looks ("My Looks")
 
 You can now **save the current visual look under a name and re-load it later** — the

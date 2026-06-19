@@ -37,6 +37,9 @@ from audio_visualizer.config import (
     LOGO_SPIN_DIR_DEFAULT,
     LOGO_SPIN_DIRS,
     MERGED_MODE_KEYS,
+    RANDOM_INTERVAL_DEFAULT,
+    RANDOM_INTERVAL_MAX,
+    RANDOM_INTERVAL_MIN,
     SETTINGS_FILENAME,
     SETTINGS_SCHEMA_VERSION,
     SIZE_SCALE_DEFAULT,
@@ -94,6 +97,11 @@ class Settings:
     # Last active user look (Phase 0B-b / schema v9). "" -> None/Live (no look).
     # Stores the look's stable *id* (not name) so a rename never breaks restore.
     active_look: str = ""
+    # Auto-cycle / shuffle (Phase 0B-c / schema v10). The pool is a list of tagged
+    # identifiers ("mode:<key>"; "look:<id>" is reserved for a later build); an
+    # empty pool means no shuffle. Auto is never persisted on (off each launch).
+    random_pool: list[str] = field(default_factory=list)
+    random_interval: float = RANDOM_INTERVAL_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -185,11 +193,27 @@ def _from_dict(raw: dict) -> Settings:
         bg_opacity=_snap(raw.get("bg_opacity"), BG_OPACITY_CHOICES, defaults.bg_opacity),
         source_id=_str(raw.get("source_id"), defaults.source_id),
         active_look=_str(raw.get("active_look"), defaults.active_look),
+        random_pool=_str_list(raw.get("random_pool"), defaults.random_pool),
+        random_interval=_interval(raw.get("random_interval"), defaults.random_interval),
     )
 
 
 def _str(value: object, default: str) -> str:
     return value if isinstance(value, str) else default
+
+
+def _str_list(value: object, default: list[str]) -> list[str]:
+    """Keep only the string entries of a stored list (lenient on junk)."""
+    if not isinstance(value, list):
+        return list(default)
+    return [item for item in value if isinstance(item, str)]
+
+
+def _interval(value: object, default: float) -> float:
+    """Clamp a stored auto-cycle interval into the allowed range (lenient)."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return default
+    return float(min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, float(value))))
 
 
 def _bool(value: object, default: bool) -> bool:
