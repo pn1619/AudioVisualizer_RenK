@@ -58,6 +58,10 @@ class ControlActions:
     open_background: Callable[[], None] = lambda: None
     # Opens the Source panel (selectable capture device). Defaulted likewise.
     open_source: Callable[[], None] = lambda: None
+    # Selects a user look by id ("" -> None/Live). Defaulted likewise.
+    select_look: Callable[[str], None] = lambda _id: None
+    # Opens the Save/Manage Looks modal. Defaulted likewise.
+    open_looks: Callable[[], None] = lambda: None
 
 
 @dataclass(frozen=True)
@@ -81,6 +85,13 @@ class ControlBar:
         self._dropdown = Dropdown(actions.select_mode)
         self._dropdown.set_options(mode_options)
         self._next = Button(">", actions.next_mode)
+
+        # User looks ("My Looks"): a load dropdown + a Save/Manage button. Kept in
+        # row 1 (global controls), distinct from the per-mode "Preset" dropdown in
+        # row 2, so the two never read alike.
+        self._looks = Dropdown(actions.select_look, title="My Looks")
+        self._looks.set_options([("", "None / Live")])
+        self._save_look = Button("Save\u2026", actions.open_looks)
 
         # Compact steppers: [-] <Name value> [+]; the chip carries the name+value so
         # the tiny buttons stay unambiguous without long labels (which the wider
@@ -115,6 +126,8 @@ class ControlBar:
             (self._prev, step),
             (self._dropdown, 156),
             (self._next, step),
+            (self._looks, 168),
+            (self._save_look, 64),
             (self._sens_down, step),
             (self._sens_chip, 96),
             (self._sens_up, step),
@@ -176,6 +189,11 @@ class ControlBar:
         self._smooth_chip.text = f"Smooth {smoothing:.2f}"
         self._size_chip.text = f"Size {size_scale:.2f}"
         self._speed_chip.text = f"Speed {speed_scale:.2f}"
+
+    def set_looks(self, rows: list[tuple[str, str]], selected_id: str) -> None:
+        """Refresh the ``My Looks`` dropdown contents + current selection."""
+        self._looks.set_options(rows)
+        self._looks.set_selected(selected_id)
 
     def set_mode_options(self, specs: list[OptionSpec]) -> None:
         """Rebuild the per-mode option dropdowns for the active visual mode."""
@@ -242,7 +260,7 @@ class ControlBar:
 
     # -- input ----------------------------------------------------------------
     def _all_dropdowns(self) -> list[Dropdown]:
-        return [self._menu, self._dropdown, self._color, *self._option_dropdowns]
+        return [self._menu, self._dropdown, self._looks, self._color, *self._option_dropdowns]
 
     def handle_event(self, event: pygame.event.Event) -> bool:
         for dd in self._all_dropdowns():

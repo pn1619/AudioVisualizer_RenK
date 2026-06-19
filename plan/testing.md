@@ -34,6 +34,7 @@ Because `App` and `Analyzer` depend on the **interface**, tests and `--selftest`
 | Phase 9/9.03 UI | `tests/test_logo_phase9.py`, `tests/test_ui_phase903.py` | RenK logo overlay + settings migration + panel/About modals; appearance (style/accent/font) panel |
 | Background layer | `tests/test_background_phase{10,1001}.py` | Background modes render; panel/persistence round-trip |
 | Selectable source | `tests/test_devices_phase0b01.py` | Device enumeration (loopback-first, inputs filtered/deduped); `LoopbackSource` device resolution + default fallback; settings v7→v8 migration; Source panel select/dismiss |
+| User looks ("My Looks") | `tests/test_looks_phase0b02.py` | Store CRUD/duplicate/reorder/cap/dedupe; JSON round-trip + unknown-key preservation; malformed-record skip; corrupt/missing → empty; `.bak` rotation; export/import fresh-id; settings v8→v9 migration; app capture/apply round-trip, dirty tracking, baseline restore, non-fatal missing mode; panel save action |
 | Phase 10 modes | `tests/test_modes_phase{1002,1006,1007}.py` | New mode batches; the **26→19 merges** (registration), **v6→v7 mode-key migration**, **preset snapping**, and exhaustive **per-mode option sweeps** |
 | Dropdown | `tests/test_dropdown.py` | Open/select/click-outside behavior |
 | Headless smoke | `tests/test_smoke.py` | `App` constructs and renders **N frames** with `SyntheticSource` and **does not crash**; renders an **idle (silent) frame**; **cycles through all registered modes** (currently 19) without error |

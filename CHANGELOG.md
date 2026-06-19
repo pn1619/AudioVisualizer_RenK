@@ -11,6 +11,38 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.02` — Phase 0B-b (build 1): user looks ("My Looks")
+
+You can now **save the current visual look under a name and re-load it later** — the
+first slice of the "My Looks" feature designed in `00.0B.00`.
+
+- **New `My Looks` dropdown + `Save…` button** in the control bar's top row (global
+  controls, deliberately separate from the per-mode **`Preset`** dropdown in row 2 so the
+  two never read alike). The dropdown starts with **`None / Live`**, then your saved looks;
+  the active look shows a trailing `*` when it has unsaved edits.
+- **A *look* captures a complete look:** the mode + its option indices, the theme
+  (size/speed/color), sensitivity/smoothing, and a snapshot of the Background and Logo state.
+- **`Save…` modal** to name + save (create-new or **Update** the active look), and manage
+  saved looks (load, **Dup**licate, **Del**ete with a click-twice confirm). A small reusable
+  **text-input** widget backs the name field (`ui/text_input.py`).
+- **Applying a look is an overlay, not a clobber:** entering a look snapshots your live
+  state, and selecting **`None / Live`** restores it. Unknown option keys / out-of-range
+  values are ignored or clamped, and a missing/renamed mode degrades gracefully.
+- **Persistence:** looks live in their own **`looks.json`** (sibling to `settings.json`) with
+  their own `schema_version`, atomic writes + a `.bak`, and a lenient load that **skips one
+  malformed look** rather than dropping the file. Unknown future keys **round-trip** intact.
+  The store also supports export/import a single `.look.json` and guard rails (count cap, name
+  sanitize, id dedupe). The last active look persists via **settings schema v8 → v9**
+  (`active_look`, stores the stable **id** so a rename never breaks restore).
+- Tests (`tests/test_looks_phase0b02.py`, 17 cases): store CRUD/duplicate/reorder/cap,
+  JSON round-trip + unknown-key preservation, malformed-record skip, corrupt/missing →
+  empty, `.bak` rotation, export/import fresh-id, settings v8→v9 migration, and app-level
+  capture/apply round-trip, dirty tracking, baseline restore, and non-fatal missing mode.
+- **Deferred to build 2:** per-domain Background/Logo **Local | Global** linking, reorder /
+  export / import in the modal UI, name-collision prompts, and shipped read-only starter looks.
+
+---
+
 ## `00.0B.01` — Phase 0B-a: selectable sound source
 
 You can now choose **which audio device drives the visuals** instead of always

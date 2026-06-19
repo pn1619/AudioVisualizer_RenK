@@ -13,6 +13,7 @@ from typing import TypeVar
 import numpy as np
 import pygame
 
+from audio_visualizer import looks as looks_mod
 from audio_visualizer import settings as settings_mod
 from audio_visualizer.audio.analysis import Analyzer
 from audio_visualizer.audio.capture import LoopbackSource
@@ -45,6 +46,7 @@ from audio_visualizer.config import (
     LOGO_SIZES,
     LOGO_SPIN_DIR_LABELS,
     LOGO_SPIN_DIRS,
+    MERGED_MODE_KEYS,
     MIN_WINDOW_SIZE,
     SENSITIVITY_MAX,
     SENSITIVITY_MIN,
@@ -68,6 +70,7 @@ from audio_visualizer.config import (
     UI_STYLE_LABELS,
     UI_STYLES,
 )
+from audio_visualizer.looks import LINK_LOCAL, Look
 from audio_visualizer.resources import asset_path
 from audio_visualizer.settings import Settings
 from audio_visualizer.ui.about import AboutDialog
@@ -78,6 +81,7 @@ from audio_visualizer.ui.fonts import get_ui_fonts
 from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
 from audio_visualizer.ui.logo_panel import LogoPanel, LogoPanelActions
+from audio_visualizer.ui.looks_panel import LooksActions, LooksPanel
 from audio_visualizer.ui.source_panel import SourceActions, SourcePanel
 from audio_visualizer.ui.style import STYLE
 from audio_visualizer.visuals import registry
@@ -100,6 +104,13 @@ def _smoothing_to_coeffs(level: float) -> tuple[float, float]:
     attack = SMOOTHING_ATTACK_AT_0 + (SMOOTHING_ATTACK_AT_1 - SMOOTHING_ATTACK_AT_0) * level
     release = SMOOTHING_RELEASE_AT_0 + (SMOOTHING_RELEASE_AT_1 - SMOOTHING_RELEASE_AT_0) * level
     return attack, release
+
+
+def _nearest(value: object, choices: tuple[float, ...], default: float) -> float:
+    """Snap a stored number to the nearest allowed choice (lenient on type)."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return default
+    return min(choices, key=lambda choice: abs(choice - float(value)))
 
 
 class App:
@@ -181,9 +192,26 @@ class App:
         self._source_panel = SourcePanel(SourceActions(select=self._select_source))
         self._about = AboutDialog()
 
+        # User looks ("My Looks", Phase 0B-b): a saved-look store + its modal. The
+        # active look is an overlay on the live global; entering one snapshots the
+        # live state so deselecting ("None / Live") restores it untouched.
+        self._looks_store = looks_mod.load()
+        self._active_look_id = (
+            self._settings.active_look
+            if self._looks_store.get(self._settings.active_look) is not None
+            else ""
+        )
+        self._look_baseline: Look | None = None
+        self._looks_panel = LooksPanel(self._build_looks_actions())
+
         self._hud = Hud()
         self._controls = ControlBar(self._build_actions(), registry.options())
         self._refresh_mode_options()  # populates option dropdowns + lays out the bar
+
+        # Re-apply the last active look now that the visual/theme/overlays exist.
+        if self._active_look_id:
+            self._look_baseline = self._capture_look("baseline")
+            self._apply_look(self._looks_store.get(self._active_look_id))
 
         self._running = False
 
@@ -237,6 +265,17 @@ class App:
             open_appearance=lambda: self._appearance.toggle(),
             open_background=lambda: self._background_panel.toggle(),
             open_source=self._open_source_panel,
+            select_look=self._select_look,
+            open_looks=self._open_looks_panel,
+        )
+
+    def _build_looks_actions(self) -> LooksActions:
+        return LooksActions(
+            save_new=self._save_new_look,
+            update_active=self._update_active_look,
+            load=self._select_look,
+            delete=self._delete_look,
+            duplicate=self._duplicate_look,
         )
 
     def _build_appearance_actions(self) -> AppearanceActions:
@@ -350,6 +389,199 @@ class App:
         self._source = LoopbackSource(device_id=source_id)
         self._start_capture()
         logger.info("Selected source %r", source_id or "(default)")
+
+    # -- user looks ("My Looks") ---------------------------------------------
+    def _capture_look(self, name: str, look_id: str = "") -> Look:
+        """Snapshot the current live look into a :class:`Look` record."""
+        return Look(
+            id=look_id or looks_mod.new_id(),
+            name=name,
+            base_mode_key=self._mode_keys[self._mode_index],
+            options={
+                opt.key: self._visual.option_index(opt.key) for opt in type(self._visual).OPTIONS
+            },
+            theme={
+                "size_scale": self._theme.size_scale,
+                "speed_scale": self._theme.speed_scale,
+                "color_scheme": self._theme.color_scheme,
+            },
+            sensitivity=self._sensitivity,
+            smoothing=self._smoothing,
+            background={
+                "link": LINK_LOCAL,
+                "value": {
+                    "bg_mode": self._background.mode,
+                    "bg_height": self._background.height_key,
+                    "bg_sensitivity": self._background.sensitivity,
+                    "bg_opacity": self._background.opacity,
+                },
+            },
+            logo={
+                "link": LINK_LOCAL,
+                "value": {
+                    "logo_enabled": self._logo.enabled,
+                    "logo_size": self._logo.size_key,
+                    "logo_position": self._logo.position,
+                    "logo_opacity": self._logo.opacity,
+                    "logo_color": self._logo.color_mode,
+                    "logo_emit": self._logo.emit,
+                    "logo_spin": self._logo.spin_dir,
+                },
+            },
+            app_version=APP_VERSION,
+        )
+
+    def _apply_look(self, look: Look | None) -> None:
+        """Push a saved look onto the live global (mode, options, theme, overlays).
+
+        Unknown option keys and out-of-range values are ignored/clamped, never
+        fatal; a missing/renamed mode falls back gracefully.
+        """
+        if look is None:
+            return
+        key = MERGED_MODE_KEYS.get(look.base_mode_key, look.base_mode_key)
+        if key in self._mode_keys:
+            self._set_mode_index(self._mode_keys.index(key))
+        for opt in type(self._visual).OPTIONS:
+            if opt.key in look.options:
+                self._visual.set_option_index(opt.key, int(look.options[opt.key]))
+        self._refresh_mode_options()
+        self._apply_look_theme(look.theme)
+        self._sensitivity = float(np.clip(look.sensitivity, SENSITIVITY_MIN, SENSITIVITY_MAX))
+        self._smoothing = float(np.clip(look.smoothing, 0.0, 1.0))
+        self._analyzer.set_smoothing(*_smoothing_to_coeffs(self._smoothing))
+        if look.background.get("link") == LINK_LOCAL:
+            self._apply_bg_value(look.background.get("value"))
+        if look.logo.get("link") == LINK_LOCAL:
+            self._apply_logo_value(look.logo.get("value"))
+
+    def _apply_look_theme(self, theme: dict[str, object]) -> None:
+        size = theme.get("size_scale")
+        if isinstance(size, int | float) and not isinstance(size, bool):
+            self._theme.size_scale = float(np.clip(size, SIZE_SCALE_MIN, SIZE_SCALE_MAX))
+        speed = theme.get("speed_scale")
+        if isinstance(speed, int | float) and not isinstance(speed, bool):
+            self._theme.speed_scale = float(np.clip(speed, SPEED_SCALE_MIN, SPEED_SCALE_MAX))
+        scheme = theme.get("color_scheme")
+        if isinstance(scheme, str) and scheme in COLOR_SCHEMES:
+            self._theme.color_scheme = scheme
+
+    def _apply_bg_value(self, value: object) -> None:
+        if not isinstance(value, dict):
+            return
+        if value.get("bg_mode") in BG_MODES:
+            self._background.mode = value["bg_mode"]
+        if value.get("bg_height") in BG_HEIGHTS:
+            self._background.height_key = value["bg_height"]
+        self._background.sensitivity = _nearest(
+            value.get("bg_sensitivity"), BG_SENSITIVITY_CHOICES, self._background.sensitivity
+        )
+        self._background.opacity = _nearest(
+            value.get("bg_opacity"), BG_OPACITY_CHOICES, self._background.opacity
+        )
+
+    def _apply_logo_value(self, value: object) -> None:
+        if not isinstance(value, dict):
+            return
+        if isinstance(value.get("logo_enabled"), bool):
+            self._logo.enabled = value["logo_enabled"]
+        if value.get("logo_size") in LOGO_SIZES:
+            self._logo.size_key = value["logo_size"]
+        if value.get("logo_position") in LOGO_POSITIONS:
+            self._logo.position = value["logo_position"]
+        self._logo.opacity = _nearest(value.get("logo_opacity"), LOGO_OPACITIES, self._logo.opacity)
+        if value.get("logo_color") in LOGO_COLOR_MODES:
+            self._logo.color_mode = value["logo_color"]
+        if isinstance(value.get("logo_emit"), bool):
+            self._logo.emit = value["logo_emit"]
+        if value.get("logo_spin") in LOGO_SPIN_DIRS:
+            self._logo.spin_dir = value["logo_spin"]
+
+    def _open_looks_panel(self) -> None:
+        self._looks_panel.set_state(
+            self._saved_look_rows(), self._active_look_id, self._active_look_name()
+        )
+        self._looks_panel.toggle()
+
+    def _saved_look_rows(self) -> list[tuple[str, str]]:
+        """(id, name) rows for saved looks only (the modal's managed list)."""
+        return [(look.id, look.name) for look in self._looks_store.looks]
+
+    def _looks_rows(self) -> list[tuple[str, str]]:
+        """Dropdown rows: None/Live first, then saved looks (active marked dirty)."""
+        rows: list[tuple[str, str]] = [("", "None / Live")]
+        for look in self._looks_store.looks:
+            name = look.name
+            if look.id == self._active_look_id and self._is_active_dirty():
+                name += " *"
+            rows.append((look.id, name))
+        return rows
+
+    def _active_look_name(self) -> str:
+        look = self._looks_store.get(self._active_look_id)
+        return look.name if look else ""
+
+    def _is_active_dirty(self) -> bool:
+        """True when the live look differs from the stored active look."""
+        look = self._looks_store.get(self._active_look_id)
+        if look is None:
+            return False
+        return not self._capture_look(look.name).matches_payload(look)
+
+    def _select_look(self, look_id: str) -> None:
+        """Activate a saved look, or restore the live baseline for None/Live."""
+        if look_id == self._active_look_id:
+            return
+        if not look_id:
+            self._apply_look(self._look_baseline)
+            self._look_baseline = None
+            self._active_look_id = ""
+            return
+        look = self._looks_store.get(look_id)
+        if look is None:
+            return
+        if not self._active_look_id:
+            self._look_baseline = self._capture_look("baseline")
+        self._apply_look(look)
+        self._active_look_id = look_id
+
+    def _save_new_look(self, name: str) -> None:
+        if self._look_baseline is None:
+            self._look_baseline = self._capture_look("baseline")
+        created = self._looks_store.add(self._capture_look(name or "My look"))
+        if created is not None:
+            self._active_look_id = created.id
+            self._persist_looks()
+
+    def _update_active_look(self) -> None:
+        if not self._active_look_id:
+            return
+        cap = self._capture_look(self._active_look_name(), self._active_look_id)
+        self._looks_store.update(
+            self._active_look_id,
+            base_mode_key=cap.base_mode_key,
+            options=cap.options,
+            theme=cap.theme,
+            sensitivity=cap.sensitivity,
+            smoothing=cap.smoothing,
+            background=cap.background,
+            logo=cap.logo,
+        )
+        self._persist_looks()
+
+    def _delete_look(self, look_id: str) -> None:
+        if look_id == self._active_look_id:
+            self._select_look("")  # deselect first so the live baseline is restored
+        if self._looks_store.delete(look_id):
+            self._persist_looks()
+
+    def _duplicate_look(self, look_id: str) -> None:
+        if self._looks_store.duplicate(look_id) is not None:
+            self._persist_looks()
+
+    def _persist_looks(self) -> None:
+        if self._persist:
+            looks_mod.save(self._looks_store)
 
     def _cycle_mode(self, delta: int) -> None:
         self._set_mode_index((self._mode_index + delta) % len(self._mode_keys))
@@ -552,6 +784,7 @@ class App:
             or self._appearance.open
             or self._background_panel.open
             or self._source_panel.open
+            or self._looks_panel.open
         )
 
     def _close_modals(self) -> None:
@@ -560,6 +793,7 @@ class App:
         self._appearance.open = False
         self._background_panel.open = False
         self._source_panel.open = False
+        self._looks_panel.open = False
 
     # -- loop body ------------------------------------------------------------
     def _handle_events(self) -> None:
@@ -584,6 +818,7 @@ class App:
                     self._appearance.handle_event(event, canvas)
                     self._background_panel.handle_event(event, canvas)
                     self._source_panel.handle_event(event, canvas)
+                    self._looks_panel.handle_event(event, canvas)
                     self._about.handle_event(event, canvas)
                 continue
             if event.type == pygame.VIDEORESIZE and not self._fullscreen:
@@ -702,6 +937,7 @@ class App:
                 self._theme.size_scale,
                 self._theme.speed_scale,
             )
+            self._controls.set_looks(self._looks_rows(), self._active_look_id)
             self._controls.draw(screen, self._layout.control_bar, self._font)
 
         self._hud.draw(screen, canvas, self._hud_state(), self._font_small)
@@ -716,6 +952,8 @@ class App:
         self._background_panel.set_state(self._background_values())
         self._background_panel.draw(screen, canvas, self._font, self._font_small)
         self._source_panel.draw(screen, canvas, self._font, self._font_small)
+        self._looks_panel.update(dt)
+        self._looks_panel.draw(screen, canvas, self._font, self._font_small)
         self._about.draw(screen, canvas, self._font, self._font_small)
 
     def _hud_state(self) -> HudState:
@@ -771,6 +1009,7 @@ class App:
             bg_sensitivity=self._background.sensitivity,
             bg_opacity=self._background.opacity,
             source_id=self._source_id,
+            active_look=self._active_look_id,
         )
 
     def _shutdown(self) -> None:

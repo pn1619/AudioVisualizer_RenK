@@ -17,10 +17,15 @@ description: >-
 > **Current state (v00.0A.07):** **19 visual modes** (consolidated from 26 in 10.07) + a global
 > RenK logo overlay and a background layer (both drawn by `app.py`, neither a `@register`ed
 > mode). Modes share option axes (`PARTICLES_OPTION`, `MIRROR_OPTION`, `GLOW_OPTION`, …) and
-> per-mode `PRESETS`. Settings schema is **8** (v8 adds the selectable capture `source_id`).
+> per-mode `PRESETS`. Settings schema is **9** (v8 adds the selectable capture `source_id`;
+> v9 adds `active_look`).
 A `Src` button opens a **Sound source** modal to pick the capture device (default / output
 loopback / mic) — enumerated in `audio/devices.py`, opened on a pinned device via
-`LoopbackSource(device_id=...)`. The full, current mode catalog is
+`LoopbackSource(device_id=...)`. **User looks ("My Looks", v00.0B.02):** a `My Looks` dropdown
++ `Save…` button (row 1, distinct from the per-mode `Preset` dropdown) save/load a complete
+look (mode + options + theme + sensitivity/smoothing + Background/Logo snapshot) via the
+`looks.py` store (own `looks.json`); applying a look overlays live global and `None / Live`
+restores it. The full, current mode catalog is
 > `plan/visual-mode-ideas.md`; the build-order list below is a per-phase history.
 
 ## Read first (canonical docs)

@@ -405,10 +405,11 @@ WASAPI loopback frequently delivers **silence — or no callback at all — when
 ### 11.3 Settings persistence (decided)
 
 - Location: `%APPDATA%\AudioVisualizer\settings.json` (created on first write).
-- Include a top-level `schema_version` (int; currently **7** — `config.SETTINGS_SCHEMA_VERSION`). On load, migrate or fall back to defaults if the version is unknown — never crash on a bad/old settings file.
+- Include a top-level `schema_version` (int; currently **9** — `config.SETTINGS_SCHEMA_VERSION`). On load, migrate or fall back to defaults if the version is unknown — never crash on a bad/old settings file.
 - Persisted: active mode, sensitivity, smoothing, reduce-motion, fullscreen pref, window size, first-run-notice acknowledged, size/speed scale, color scheme, **appearance** (UI style / accent / font), **background** (mode / sensitivity / opacity / height), and **RenK logo** prefs (show / color / transparency / size / position / spin / emit).
 - **Migration:** v00.0A.07 remaps deprecated mode keys to their survivor via `config.MERGED_MODE_KEYS` (e.g. `waveform_2` → `waveform`). Per-mode option/preset indices are **not** persisted.
 - **Selectable source (v8, Phase 0B-a):** `source_id` (`""` ⇒ default render-device loopback; otherwise a device *name*). A missing device falls back to the default loopback on load.
+- **User looks (v9, Phase 0B-b):** `active_look` (`""` ⇒ None/Live; otherwise the stable *id* of the last active look). The looks themselves live in a separate `looks.json` (`audio_visualizer.looks`, own `schema_version`), never in `settings.json`.
 
 ### 11.4 High-DPI & window resize (Windows)
 

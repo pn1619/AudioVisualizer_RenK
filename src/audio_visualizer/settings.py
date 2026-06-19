@@ -91,6 +91,9 @@ class Settings:
     # Selectable capture source (Phase 0B-a / schema v8). "" -> default render
     # device loopback; otherwise a device *name* from audio.devices.
     source_id: str = ""
+    # Last active user look (Phase 0B-b / schema v9). "" -> None/Live (no look).
+    # Stores the look's stable *id* (not name) so a rename never breaks restore.
+    active_look: str = ""
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -181,6 +184,7 @@ def _from_dict(raw: dict) -> Settings:
         ),
         bg_opacity=_snap(raw.get("bg_opacity"), BG_OPACITY_CHOICES, defaults.bg_opacity),
         source_id=_str(raw.get("source_id"), defaults.source_id),
+        active_look=_str(raw.get("active_look"), defaults.active_look),
     )
 
 
