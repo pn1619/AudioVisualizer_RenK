@@ -88,6 +88,7 @@ from audio_visualizer.ui.appearance_panel import AppearanceActions, AppearancePa
 from audio_visualizer.ui.background_panel import BackgroundActions, BackgroundPanel
 from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
 from audio_visualizer.ui.fonts import get_ui_fonts
+from audio_visualizer.ui.hotkeys import HotkeysDialog
 from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
 from audio_visualizer.ui.logo_panel import LogoPanel, LogoPanelActions
@@ -216,6 +217,7 @@ class App:
         self._background_panel = BackgroundPanel(self._build_background_actions())
         self._source_panel = SourcePanel(SourceActions(select=self._select_source))
         self._about = AboutDialog()
+        self._hotkeys = HotkeysDialog()
 
         # User looks ("My Looks", Phase 0B-b): a saved-look store + its modal. The
         # active look is an overlay on the live global; entering one snapshots the
@@ -249,6 +251,11 @@ class App:
         # When on, shuffling to a built-in mode also randomizes that mode's own
         # options (Background/Logo stay put; saved looks keep their captured options).
         self._auto_random_options = bool(self._settings.random_options)
+        # Randomize "locks": a locked item is held (not re-rolled) by Rnd / Next / auto.
+        # Global locks persist across mode switches; per-mode option locks reset on a
+        # mode switch (the new mode has a different option set).
+        self._locked_globals: set[str] = set()
+        self._locked_options: set[str] = set()
         self._transition: ModeTransition | None = None
         self._shuffle_panel = ShufflePanel(self._build_shuffle_actions())
 
@@ -323,6 +330,9 @@ class App:
             set_smoothing_value=self._set_smoothing_text,
             set_size_value=self._set_size_text,
             set_speed_value=self._set_speed_text,
+            toggle_global_lock=self._toggle_global_lock,
+            toggle_option_lock=self._toggle_option_lock,
+            open_hotkeys=lambda: self._hotkeys.toggle(),
         )
 
     def _build_shuffle_actions(self) -> ShuffleActions:
@@ -350,6 +360,11 @@ class App:
             export_library=self._export_looks,
             import_library=self._import_looks,
             library_path=lambda: str(looks_mod.default_library_path()),
+            refresh_state=lambda: (
+                self._saved_look_rows(),
+                self._active_look_id,
+                self._active_look_name(),
+            ),
         )
 
     def _build_appearance_actions(self) -> AppearanceActions:
@@ -876,6 +891,8 @@ class App:
         untouched here by design.
         """
         for opt in type(self._visual).OPTIONS:
+            if opt.key in self._locked_options:
+                continue  # held by the user's lock toggle
             if opt.key == "preset":
                 self._visual.set_option_index(opt.key, 0)
             elif len(opt.choices) > 1:
@@ -888,11 +905,15 @@ class App:
         Drawn from continuous uniform ranges (not a couple of preset steps) so each
         shuffle/Randomize genuinely varies — the chips will rarely repeat a value.
         """
-        self._sensitivity = round(random.uniform(SENSITIVITY_MIN, SENSITIVITY_MAX), 2)
-        self._smoothing = round(random.uniform(0.0, 0.9), 2)
-        self._analyzer.set_smoothing(*_smoothing_to_coeffs(self._smoothing))
-        self._theme.size_scale = round(random.uniform(SIZE_SCALE_MIN, SIZE_SCALE_MAX), 2)
-        self._theme.speed_scale = round(random.uniform(SPEED_SCALE_MIN, SPEED_SCALE_MAX), 2)
+        if "sensitivity" not in self._locked_globals:
+            self._sensitivity = round(random.uniform(SENSITIVITY_MIN, SENSITIVITY_MAX), 2)
+        if "smoothing" not in self._locked_globals:
+            self._smoothing = round(random.uniform(0.0, 0.9), 2)
+            self._analyzer.set_smoothing(*_smoothing_to_coeffs(self._smoothing))
+        if "size" not in self._locked_globals:
+            self._theme.size_scale = round(random.uniform(SIZE_SCALE_MIN, SIZE_SCALE_MAX), 2)
+        if "speed" not in self._locked_globals:
+            self._theme.speed_scale = round(random.uniform(SPEED_SCALE_MIN, SPEED_SCALE_MAX), 2)
         logger.debug(
             "Randomized globals: sens=%.2f smooth=%.2f size=%.2f speed=%.2f",
             self._sensitivity,
@@ -909,6 +930,16 @@ class App:
         """
         self._randomize_mode_options()
         self._randomize_globals()
+
+    def _toggle_global_lock(self, key: str) -> None:
+        """Toggle a global-feel lock (sensitivity/smoothing/size/speed)."""
+        self._locked_globals ^= {key}
+        logger.debug("Global lock %s -> %s", key, key in self._locked_globals)
+
+    def _toggle_option_lock(self, key: str) -> None:
+        """Toggle a per-mode option lock (cleared automatically on a mode switch)."""
+        self._locked_options ^= {key}
+        logger.debug("Option lock %s -> %s", key, key in self._locked_options)
 
     def _cycle_mode(self, delta: int) -> None:
         self._set_mode_index((self._mode_index + delta) % len(self._mode_keys))
@@ -928,6 +959,7 @@ class App:
         if index == self._mode_index:
             return
         self._mode_index = index
+        self._locked_options.clear()  # per-mode locks don't carry to a new mode
         self._visual.on_exit()
         self._visual = self._make_visual()
         self._visual.on_resize(self._layout.canvas.size)
@@ -942,6 +974,10 @@ class App:
                 opt.label,
                 tuple(choice.label for choice in opt.choices),
                 self._visual.option_index(opt.key),
+                # Only options that Rnd actually re-rolls can be locked (a single-choice
+                # option or the "preset" selector isn't randomized, so no lock).
+                lockable=opt.key != "preset" and len(opt.choices) > 1,
+                locked=opt.key in self._locked_options,
             )
             for opt in type(self._visual).OPTIONS
         ]
@@ -1145,6 +1181,7 @@ class App:
             or self._source_panel.open
             or self._looks_panel.open
             or self._shuffle_panel.open
+            or self._hotkeys.open
         )
 
     def _close_modals(self) -> None:
@@ -1155,6 +1192,7 @@ class App:
         self._source_panel.open = False
         self._looks_panel.open = False
         self._shuffle_panel.open = False
+        self._hotkeys.open = False
 
     # -- loop body ------------------------------------------------------------
     def _handle_events(self) -> None:
@@ -1182,6 +1220,7 @@ class App:
                     self._looks_panel.handle_event(event, canvas)
                     self._shuffle_panel.handle_event(event, canvas)
                     self._about.handle_event(event, canvas)
+                    self._hotkeys.handle_event(event, canvas)
                 continue
             if event.type == pygame.VIDEORESIZE and not self._fullscreen:
                 size = (max(MIN_WINDOW_SIZE[0], event.w), max(MIN_WINDOW_SIZE[1], event.h))
@@ -1319,6 +1358,7 @@ class App:
                 self._theme.size_scale,
                 self._theme.speed_scale,
                 self._auto,
+                self._locked_globals,
             )
             self._controls.set_looks(self._looks_rows(), self._active_look_id)
             self._controls.draw(screen, self._layout.control_bar, self._font)
@@ -1347,6 +1387,7 @@ class App:
         )
         self._shuffle_panel.draw(screen, canvas, self._font, self._font_small)
         self._about.draw(screen, canvas, self._font, self._font_small)
+        self._hotkeys.draw(screen, canvas, self._font, self._font_small)
 
     def _draw_transition(
         self, sub: pygame.Surface, dt: float, bg_copy: pygame.Surface | None

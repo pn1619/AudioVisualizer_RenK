@@ -68,6 +68,14 @@ control-bar Sens/Smooth/Size/Speed chips and the Shuffle `Every…s`/`Fade…s` 
 (Enter/click-away applies, clamped, invalid input ignored; typing suppresses key shortcuts via
 `ControlBar.is_editing()`).
 
+**Build 8 (v00.0B.10):** **Randomize locks** — a `LockToggle` padlock (`ui/lock_toggle.py`) beside each
+randomizable control holds its value through **Rnd/Next/auto** (default unlocked). Covers the global
+feel chips and per-mode option dropdowns (not `preset`/single-choice). `App._locked_globals` persist
+across mode switches; `App._locked_options` clear on a mode switch (honored in `_randomize_globals`/
+`_randomize_mode_options`). **Menu → Hotkeys…** modal (`ui/hotkeys.py`) lists shortcuts (mirror
+`_handle_key`). **My Looks** Del/Dup/Import now refresh the list live via `LooksActions.refresh_state`
+→ `LooksPanel._refresh` (no close-reopen).
+
 ## Read first (canonical docs)
 
 | Topic | Path |

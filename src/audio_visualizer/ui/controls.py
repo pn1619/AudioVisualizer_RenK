@@ -23,8 +23,10 @@ from audio_visualizer.config import (
 from audio_visualizer.ui.button import Button
 from audio_visualizer.ui.chip import Chip
 from audio_visualizer.ui.dropdown import Dropdown
+from audio_visualizer.ui.lock_toggle import LockToggle
 
 _OPTION_W = 150  # width of the color + per-mode option dropdowns
+_LOCK_W = 26  # width of a lock toggle
 
 
 @dataclass
@@ -76,6 +78,13 @@ class ControlActions:
     set_smoothing_value: Callable[[str], None] = lambda _s: None
     set_size_value: Callable[[str], None] = lambda _s: None
     set_speed_value: Callable[[str], None] = lambda _s: None
+    # Toggle a randomize-lock: held items aren't re-rolled by Rnd/Next/auto. The
+    # global variant takes a feel key (sensitivity/smoothing/size/speed); the option
+    # variant takes a per-mode option key. Defaulted likewise.
+    toggle_global_lock: Callable[[str], None] = lambda _k: None
+    toggle_option_lock: Callable[[str], None] = lambda _k: None
+    # Opens the Hotkeys reference modal. Defaulted likewise.
+    open_hotkeys: Callable[[], None] = lambda: None
 
 
 @dataclass(frozen=True)
@@ -86,6 +95,10 @@ class OptionSpec:
     label: str
     choice_labels: tuple[str, ...]
     current_index: int
+    # Whether this option gets a lock toggle (only options Rnd actually re-rolls), and
+    # whether it is currently locked. Defaulted so existing callers/tests still work.
+    lockable: bool = False
+    locked: bool = False
 
 
 class ControlBar:
@@ -136,6 +149,17 @@ class ControlBar:
         self._smooth_chip.prefix = "Smooth "
         self._size_chip.prefix = "Size "
         self._speed_chip.prefix = "Speed "
+        # A lock toggle per global-feel chip; locked feel stays put through Rnd/Next/auto.
+        self._sens_lock = LockToggle(lambda: actions.toggle_global_lock("sensitivity"))
+        self._smooth_lock = LockToggle(lambda: actions.toggle_global_lock("smoothing"))
+        self._size_lock = LockToggle(lambda: actions.toggle_global_lock("size"))
+        self._speed_lock = LockToggle(lambda: actions.toggle_global_lock("speed"))
+        self._global_locks: dict[str, LockToggle] = {
+            "sensitivity": self._sens_lock,
+            "smoothing": self._smooth_lock,
+            "size": self._size_lock,
+            "speed": self._speed_lock,
+        }
 
         self._reduce = Button("Motion+", actions.toggle_reduce_motion)
         self._src = Button("Src", actions.open_source)
@@ -148,7 +172,7 @@ class ControlBar:
 
         # (widget, width) in display order for each row.
         step = 28  # width of a -/+ stepper button
-        self._row1: list[tuple[Button | Dropdown | Chip, int]] = [
+        self._row1: list[tuple[Button | Dropdown | Chip | LockToggle, int]] = [
             (self._menu, 84),
             (self._prev, step),
             (self._dropdown, 156),
@@ -162,15 +186,19 @@ class ControlBar:
             (self._sens_down, step),
             (self._sens_chip, 96),
             (self._sens_up, step),
+            (self._sens_lock, _LOCK_W),
             (self._smooth_down, step),
             (self._smooth_chip, 116),
             (self._smooth_up, step),
+            (self._smooth_lock, _LOCK_W),
             (self._size_down, step),
             (self._size_chip, 96),
             (self._size_up, step),
+            (self._size_lock, _LOCK_W),
             (self._speed_down, step),
             (self._speed_chip, 104),
             (self._speed_up, step),
+            (self._speed_lock, _LOCK_W),
             (self._reduce, 90),
             (self._src, 50),
             (self._bg, 48),
@@ -178,18 +206,21 @@ class ControlBar:
             (self._about, 68),
         ]
         self._option_dropdowns: list[Dropdown] = []
+        self._option_locks: list[tuple[Dropdown, LockToggle]] = []
         self._bar: pygame.Rect | None = None
         self._buttons = [w for w, _ in self._row1 if isinstance(w, Button)]
         self._chips: list[Chip] = [w for w, _ in self._row1 if isinstance(w, Chip)]
 
     def _on_menu_select(self, key: str) -> None:
-        """Route a Menu item to its action (Start/Stop, Fullscreen, Appearance, Quit)."""
+        """Route a Menu item to its action (Start/Stop, Fullscreen, Appearance, etc.)."""
         if key == "capture":
             self._actions.toggle_capture()
         elif key == "fullscreen":
             self._actions.toggle_fullscreen()
         elif key == "appearance":
             self._actions.open_appearance()
+        elif key == "hotkeys":
+            self._actions.open_hotkeys()
         elif key == "quit":
             self._actions.quit()
 
@@ -205,12 +236,14 @@ class ControlBar:
         size_scale: float,
         speed_scale: float,
         auto_on: bool = False,
+        locked_globals: set[str] | None = None,
     ) -> None:
         self._menu.set_options(
             [
                 ("capture", "Stop" if capturing else "Start"),
                 ("fullscreen", "Fullscreen"),
                 ("appearance", "Appearance\u2026"),
+                ("hotkeys", "Hotkeys\u2026"),
                 ("quit", "Quit"),
             ]
         )
@@ -222,6 +255,9 @@ class ControlBar:
         self._smooth_chip.text = f"Smooth {smoothing:.2f}"
         self._size_chip.text = f"Size {size_scale:.2f}"
         self._speed_chip.text = f"Speed {speed_scale:.2f}"
+        locked = locked_globals or set()
+        for lock_key, lock in self._global_locks.items():
+            lock.locked = lock_key in locked
 
     def set_looks(self, rows: list[tuple[str, str]], selected_id: str) -> None:
         """Refresh the ``My Looks`` dropdown contents + current selection."""
@@ -229,30 +265,45 @@ class ControlBar:
         self._looks.set_selected(selected_id)
 
     def set_mode_options(self, specs: list[OptionSpec]) -> None:
-        """Rebuild the per-mode option dropdowns for the active visual mode."""
+        """Rebuild the per-mode option dropdowns (+ lock toggles) for the active mode."""
         self._option_dropdowns = []
+        self._option_locks = []  # (dropdown, lock) pairs, parallel to lockable options
         for spec in specs:
             dd = Dropdown(self._make_option_callback(spec.key), title=spec.label)
             dd.set_options([(str(i), label) for i, label in enumerate(spec.choice_labels)])
             dd.set_selected(str(spec.current_index))
             self._option_dropdowns.append(dd)
+            if spec.lockable:
+                lock = LockToggle(self._make_lock_callback(spec.key))
+                lock.locked = spec.locked
+                self._option_locks.append((dd, lock))
         if self._bar is not None:
             self.relayout(self._bar)
 
     def _make_option_callback(self, key: str) -> Callable[[str], None]:
         return lambda index_str: self._actions.option_change(key, int(index_str))
 
+    def _make_lock_callback(self, key: str) -> Callable[[], None]:
+        return lambda: self._actions.toggle_option_lock(key)
+
     def toggle_mode_dropdown(self) -> None:
         self._dropdown.toggle()
 
     # -- layout ---------------------------------------------------------------
-    def _row2_items(self) -> list[tuple[Button | Dropdown | Chip, int]]:
-        """Bottom group: color scheme + one dropdown per active-mode option."""
-        return [(self._color, _OPTION_W), *[(dd, _OPTION_W) for dd in self._option_dropdowns]]
+    def _row2_items(self) -> list[tuple[Button | Dropdown | Chip | LockToggle, int]]:
+        """Bottom group: color scheme + each option dropdown (with its lock toggle)."""
+        locks = {id(dd): lock for dd, lock in self._option_locks}
+        items: list[tuple[Button | Dropdown | Chip | LockToggle, int]] = [(self._color, _OPTION_W)]
+        for dd in self._option_dropdowns:
+            items.append((dd, _OPTION_W))
+            lock = locks.get(id(dd))
+            if lock is not None:
+                items.append((lock, _LOCK_W))
+        return items
 
     def _flow(
         self,
-        items: list[tuple[Button | Dropdown | Chip, int]],
+        items: list[tuple[Button | Dropdown | Chip | LockToggle, int]],
         left: int,
         right: int,
         top: int,
@@ -314,11 +365,17 @@ class ControlBar:
                         if other_chip is not chip:
                             other_chip.cancel_edit()
                 return True
+        for lock in self._all_locks():
+            if lock.handle_event(event):
+                return True
         clicked = False
         for btn in self._buttons:
             if btn.handle_event(event):
                 clicked = True
         return clicked
+
+    def _all_locks(self) -> list[LockToggle]:
+        return [*self._global_locks.values(), *(lock for _dd, lock in self._option_locks)]
 
     # -- draw -----------------------------------------------------------------
     def draw(self, surface: pygame.Surface, bar: pygame.Rect, font: pygame.font.Font) -> None:
@@ -328,6 +385,8 @@ class ControlBar:
             btn.draw(surface, font)
         for chip in self._chips:
             chip.draw(surface, font)
+        for lock in self._all_locks():
+            lock.draw(surface, font)
         # Draw closed dropdowns first, then the open one last so its list is on top.
         dropdowns = self._all_dropdowns()
         open_dd = next((dd for dd in dropdowns if dd.open), None)

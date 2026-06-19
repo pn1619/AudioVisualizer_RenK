@@ -45,6 +45,10 @@ class LooksActions:
     export_library: Callable[[], str] = lambda: ""
     import_library: Callable[[], str] = lambda: ""
     library_path: Callable[[], str] = lambda: ""
+    # Re-read the current saved-look list + active look so the panel updates live after
+    # Delete / Duplicate / Import (no close-reopen needed). Returns (rows, active_id,
+    # active_name). Defaulted so older callers/tests keep working.
+    refresh_state: Callable[[], tuple[list[tuple[str, str]], str, str]] = lambda: ([], "", "")
 
 
 @dataclass(frozen=True)
@@ -210,6 +214,7 @@ class LooksPanel:
             return True
         if lay.import_.collidepoint(pos):
             self._status = self._actions.import_library()
+            self._refresh()  # imported looks appear immediately
             return True
         for row in lay.rows:
             if row.name.collidepoint(pos):
@@ -219,11 +224,13 @@ class LooksPanel:
             if row.dup.collidepoint(pos):
                 self._actions.duplicate(row.look_id)
                 self._confirm_delete_id = ""
+                self._refresh()  # the copy shows up without reopening
                 return True
             if row.delete.collidepoint(pos):
                 if self._confirm_delete_id == row.look_id:
                     self._actions.delete(row.look_id)
                     self._confirm_delete_id = ""
+                    self._refresh()  # the row disappears immediately
                 else:
                     self._confirm_delete_id = row.look_id  # arm "Sure?" on first click
                 return True
@@ -233,6 +240,12 @@ class LooksPanel:
         if not lay.panel.collidepoint(pos):
             self.open = False
         return True
+
+    def _refresh(self) -> None:
+        """Pull the latest saved-look list + active look from the store (live update)."""
+        self._rows, self._active_id, self._active_name = self._actions.refresh_state()
+        max_scroll = max(0, len(self._rows) - self._visible_rows())
+        self._scroll = min(self._scroll, max_scroll)
 
     def _submit_save(self, force_new: bool = False) -> None:
         name = self._name.text.strip()

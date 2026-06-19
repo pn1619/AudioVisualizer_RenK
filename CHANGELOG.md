@@ -11,6 +11,28 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.10` — Phase 0B-c (build 8): randomize locks, Hotkeys modal, live looks refresh
+
+- **Per-option randomize locks.** Each option that **Rnd / Next / auto-shuffle** would re-roll now
+  has a small **padlock toggle** beside it (default **unlocked** → still randomized). Locking an
+  option *holds* its current value. This covers the **global feel** chips (Sens/Smooth/Size/Speed)
+  and each per-mode option dropdown (single-choice options and the `Preset` selector aren't
+  randomized, so they get no lock). (`ui/lock_toggle.py`, `App._locked_globals`/`_locked_options`.)
+- **Lock scope matches the value's scope.** **Global** locks persist across mode switches (the feel
+  carries over), so `Next` keeps them held. **Per-mode** option locks **clear on a mode switch**
+  (the new mode has a different option set), so `Next` lands on a freshly randomized mode while your
+  locked feel stays put. Locks apply equally to the `Rnd` button/`R` key, `Next`, and auto-cycle.
+- **Menu → `Hotkeys…`.** A new modal lists every keyboard shortcut (mirrors `App._handle_key`).
+  (`ui/hotkeys.py`.)
+- **My Looks reacts live.** After **Del** (confirm) or **Dup** — and after **Import** — the saved-look
+  list updates **immediately** (no more close-and-reopen to see the change). (`LooksPanel._refresh`
+  via `LooksActions.refresh_state`.)
+- Tests: locked global/option held across many rolls, per-mode locks cleared on mode switch while
+  global locks persist, control-bar lock click + state reflection, no lock for preset/single-choice
+  options, Hotkeys toggle, looks-panel live refresh on delete.
+
+---
+
 ## `00.0B.09` — Phase 0B-c (build 7): per-mode polish + editable value chips
 
 - **Pulse Rings: `Shoot` on/off + `Shoot %` transparency.** The expanding beat circles are now a
