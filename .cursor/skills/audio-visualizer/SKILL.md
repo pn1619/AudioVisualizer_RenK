@@ -57,6 +57,17 @@ whole library to `AudioVisualizer-looks.json` **next to the app** (`looks.export
 `platform_win.get_app_dir`); the `Save…` modal shows the file location + a status line. Library import is
 fully lenient (missing/corrupt → imports nothing, never crashes); a failed live save logs a delete/reset hint.
 
+**Build 7 (v00.0B.09):** **Pulse Rings** split the shoot-out into a `Shoot` toggle + `Shoot %`
+opacity (drawn through a black-keyed alpha layer). **VU Meters** `Spark` is now `Off`/`Fine`/`Bold`
+(size multiplier), sparks are ~½ the old size, and low meters get an emission boost so bass shoots.
+**Snowfall** added `Drift`/`Light` wind steps (Light default) + a low-passed `React` (`Off`/`Subtle`/
+`Strong`) so bass steers the lean smoothly. **Laser** dropped Star/Spiral/Heart for `Spiro`
+(hypotrochoid), `Web` (harmonograph), `Bloom` (epicycloid). **Audio Sun** `Core` is now `Orbit`/`Dust`
+(rings of orbiting particles) + a ray-tip `Spark`. **Editable value chips** (`ui/chip.py`): the
+control-bar Sens/Smooth/Size/Speed chips and the Shuffle `Every…s`/`Fade…s` chips are click-to-type
+(Enter/click-away applies, clamped, invalid input ignored; typing suppresses key shortcuts via
+`ControlBar.is_editing()`).
+
 ## Read first (canonical docs)
 
 | Topic | Path |

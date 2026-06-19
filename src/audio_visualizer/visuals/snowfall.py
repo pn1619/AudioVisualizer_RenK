@@ -31,6 +31,9 @@ _SWAY_RANGE = (0.01, 0.05)  # gentle horizontal sway amplitude
 # Oscillation rates (Hz) for the global wind direction and per-flake sway.
 _WIND_DRIFT_HZ = 0.3
 _SWAY_HZ = 1.5
+# How fast the smoothed music "push" eases toward its target (per second). Low keeps
+# the music-driven direction change gentle and natural rather than jittery.
+_PUSH_EASE = 1.8
 # Flake count for the "High" density choice.
 _HIGH_DENSITY = 360
 # Fraction of the spectrum (lowest 1/Nth) treated as "bass" for the wind driver.
@@ -47,7 +50,21 @@ _FALL_SPEED = ModeOption(
 _WIND_SPEED = ModeOption(
     "wind_speed",
     "Wind",
-    (OptionChoice("Calm", 0.0), OptionChoice("Breezy", 1.0), OptionChoice("Windy", 2.5)),
+    (
+        OptionChoice("Calm", 0.0),
+        OptionChoice("Drift", 0.35),
+        OptionChoice("Light", 0.65),
+        OptionChoice("Breezy", 1.0),
+        OptionChoice("Windy", 2.5),
+    ),
+    default_index=2,
+)
+# How strongly the music steers the wind direction (smoothly). Off keeps the classic
+# slow sway; Subtle/Strong let bass nudge the lean for a livelier-but-natural drift.
+_REACT = ModeOption(
+    "react",
+    "React",
+    (OptionChoice("Off", 0.0), OptionChoice("Subtle", 0.7), OptionChoice("Strong", 1.5)),
     default_index=1,
 )
 _DENSITY = ModeOption(
@@ -70,12 +87,13 @@ class Snowfall(BaseVisualizer):
     scaled by the global speed control); density picks the flake count.
     """
 
-    OPTIONS = (_FALL_SPEED, _WIND_SPEED, _DENSITY)
+    OPTIONS = (_FALL_SPEED, _WIND_SPEED, _REACT, _DENSITY)
 
     def __init__(self, reduce_motion: bool = False, seed: int = 2024) -> None:
         super().__init__(reduce_motion)
         self._seed = seed
         self._t = 0.0
+        self._push = 0.0  # smoothed music-driven wind, eased for natural motion
         self._init_pool()
 
     @property
@@ -96,6 +114,7 @@ class Snowfall(BaseVisualizer):
 
     def on_enter(self) -> None:
         self._t = 0.0
+        self._push = 0.0
         self._init_pool()
 
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
@@ -109,13 +128,22 @@ class Snowfall(BaseVisualizer):
 
         fall_speed = self.option("fall_speed")
         wind_speed = self.option("wind_speed")
+        react = float(self.option("react"))
         low, size_energy = self._band_drivers(frame)
         wind_scale = SNOW_WIND_SCALE_REDUCED if self.reduce_motion else SNOW_WIND_SCALE
-        wind = low * wind_scale * float(np.sin(self._t * _WIND_DRIFT_HZ)) * wind_speed
+        lean = float(np.sin(self._t * _WIND_DRIFT_HZ))  # slow back-and-forth lean
+        wind = low * wind_scale * lean * wind_speed
+        # Ease a bass-driven gust toward its target so the music steers the lean
+        # direction smoothly (never a jerky snap), then add it to the base wind. The
+        # push rides the chosen wind strength, so "Calm" stays truly still air.
+        target_push = low * react * wind_scale * lean * wind_speed
+        self._push += (target_push - self._push) * min(1.0, dt * _PUSH_EASE)
+        wind += self._push
 
         move_dt = dt * self.theme.speed_scale
         self._y += self._fall * fall_speed * move_dt
-        sway = self._sway * wind_speed * np.sin(self._t * _SWAY_HZ + self._phase)
+        sway_gain = 1.0 + size_energy * react * 0.5  # mids give a gentle extra flutter
+        sway = self._sway * wind_speed * sway_gain * np.sin(self._t * _SWAY_HZ + self._phase)
         self._x += (wind + sway) * move_dt
         self._y = np.where(self._y > 1.0, self._y - 1.0, self._y)
         self._x = np.mod(self._x, 1.0)

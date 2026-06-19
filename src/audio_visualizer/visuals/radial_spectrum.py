@@ -1,23 +1,31 @@
 """Audio Sun: spectrum bars radiating outward in a full circle.
 
 One ray per spectrum slice points out from a glowing core; ray length follows that
-band's energy and hue sweeps around the ring. The core is built from two smooth
-concentric rings (plus a soft glow) whose colors flow around the circumference — they
-can rotate together, counter-rotate, sit as a plain glow, or radiate beat rings. A
-faint oscilloscope ring threads the ray bases.
+band's energy and hue sweeps around the ring. The core can be a hue-flowing ring of
+orbiting particles (Orbit), two counter-spinning particle rings (Dust), a plain glow,
+or radiating beat rings. With ``Spark = On`` the brightest rays also fling small
+particles off their tips on onsets. A faint oscilloscope ring threads the ray bases.
 """
 
 from __future__ import annotations
 
 import math
+import random
 
 import numpy as np
 import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
-from audio_visualizer.config import COLOR_ACCENT, PALETTE
+from audio_visualizer.config import (
+    COLOR_ACCENT,
+    ONSET_THRESHOLD,
+    PALETTE,
+    SPARK_MAX,
+    SPARK_MAX_REDUCED,
+)
 from audio_visualizer.visuals._helpers import (
     SIZE_OPTION,
+    SparkField,
     clamp,
     draw_ring,
     resample_to,
@@ -32,8 +40,10 @@ _CORE_FRACTION = 0.16  # ray-base radius as a fraction of min(w, h)/2
 _LEN_FRACTION = 0.62  # max ray length as a fraction of min(w, h)/2
 _ROTATE_RATE = 0.04  # base ray-ring revolutions per second (scaled by speed)
 _DISK_RATE = 0.12  # base core-ring color-flow revolutions per second
-_RING_POINTS = 180  # smoothness of the core rings
-_CIRCLE = np.zeros(_RING_POINTS, dtype=np.float32)  # flat values -> a perfect circle
+_CORE_DOTS = 36  # particles around the orbit core ring
+_SPARK_RAY_FLOOR = 0.5  # rays above this energy fling sparks on onsets
+_SPARK_STRIDE = 6  # only every Nth ray emits, to keep the spray sparse
+_SPARK_SPEED = 0.16  # outward speed of a flung spark (fraction of canvas/sec)
 
 _MIRROR = ModeOption(
     "mirror", "Mirror", (OptionChoice("On", 1), OptionChoice("Off", 0)), default_index=0
@@ -44,25 +54,29 @@ _THICKNESS = ModeOption(
     (OptionChoice("Thin", 2), OptionChoice("Normal", 3), OptionChoice("Bold", 5)),
     default_index=1,
 )
-# How the two core rings behave.
+# How the core behaves: Orbit/Dust are rings of orbiting particles.
 _DISKS = ModeOption(
     "disks",
     "Core",
     (
-        OptionChoice("Rings", 0),
-        OptionChoice("Counter", 1),
+        OptionChoice("Orbit", 0),
+        OptionChoice("Dust", 1),
         OptionChoice("Glow", 2),
         OptionChoice("Radiate", 3),
     ),
     default_index=0,
 )
+# Fling small particles off the brightest ray tips on onsets.
+_SPARK = ModeOption(
+    "spark", "Spark", (OptionChoice("Off", 0), OptionChoice("On", 1)), default_index=0
+)
 
 
 @register(key="radial_spectrum", display_name="Audio Sun", order=22)
 class RadialSpectrum(BaseVisualizer):
-    """Radial spectrum rays around a glowing two-ring core + an oscilloscope ring."""
+    """Radial spectrum rays around a particle/glow core + an oscilloscope ring."""
 
-    OPTIONS = (_MIRROR, _THICKNESS, _DISKS, SIZE_OPTION)
+    OPTIONS = (_MIRROR, _THICKNESS, _DISKS, _SPARK, SIZE_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -70,10 +84,14 @@ class RadialSpectrum(BaseVisualizer):
         self._outer = 0.0  # outer-ring color-flow offset (0..1)
         self._inner = 0.0  # inner-ring color-flow offset (0..1)
         self._rings: list[float] = []  # normalized radii of radiating beat rings
+        cap = SPARK_MAX_REDUCED if reduce_motion else SPARK_MAX
+        self._sparks = SparkField(cap)
+        self._rng = random.Random(909)
 
     def on_enter(self) -> None:
         self._angle = self._outer = self._inner = 0.0
         self._rings.clear()
+        self._sparks.clear()
 
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
         w, h = surface.get_size()
@@ -95,6 +113,9 @@ class RadialSpectrum(BaseVisualizer):
 
         rays = self._ray_energies(frame)
         width = int(self.option("thickness"))
+        spark_on = int(self.option("spark")) == 1 and not self.reduce_motion
+        onset = 0.0 if frame is None else frame.onset
+        fire = spark_on and onset >= ONSET_THRESHOLD
         for i, energy in enumerate(rays):
             ang = self._angle + (i / _RAYS) * math.tau
             length = core_r + float(energy) * max_len
@@ -102,6 +123,26 @@ class RadialSpectrum(BaseVisualizer):
             ox, oy = cx + math.cos(ang) * length, cy + math.sin(ang) * length
             color = themed_color(scheme, i / _RAYS, PALETTE, phase)
             pygame.draw.line(surface, color, (ix, iy), (ox, oy), width)
+            if fire and energy > _SPARK_RAY_FLOOR and i % _SPARK_STRIDE == 0:
+                self._emit_tip(ox, oy, math.cos(ang), math.sin(ang), i / _RAYS, w, h)
+
+        if spark_on:
+            self._sparks.advance(dt, self.theme.speed_scale)
+            self._sparks.render(surface, scheme, phase, w, h, self.theme.size_scale, trails=False)
+
+    def _emit_tip(
+        self, ox: float, oy: float, dx: float, dy: float, hue: float, w: int, h: int
+    ) -> None:
+        speed = _SPARK_SPEED * self._rng.uniform(0.7, 1.3)
+        spread = self._rng.uniform(-0.12, 0.12)
+        self._sparks.spawn(
+            x=ox / w,
+            y=oy / h,
+            vx=(dx + spread) * speed,
+            vy=(dy + spread) * speed,
+            hue=hue,
+            size=self._rng.uniform(0.5, 0.9),
+        )
 
     def _ray_energies(self, frame: AnalysisFrame | None) -> np.ndarray:
         if frame is None or frame.band_energies.size == 0:
@@ -135,34 +176,48 @@ class RadialSpectrum(BaseVisualizer):
         if mode == 3:
             self._update_rings(surface, cx, cy, core_r, scale, onset, dt, scheme, phase)
         if mode in (0, 1):
-            self._ring(
-                surface, cx, cy, core_r, max(3, int(core_r * 0.22)), scheme, phase, self._outer
-            )
-            self._ring(
-                surface,
-                cx,
-                cy,
-                core_r * 0.58,
-                max(2, int(core_r * 0.16)),
-                scheme,
-                phase,
-                self._inner,
+            self._particle_core(surface, cx, cy, core_r, level, scheme, phase, dual=mode == 1)
+
+    def _particle_core(
+        self,
+        surface: pygame.Surface,
+        cx: float,
+        cy: float,
+        core_r: float,
+        level: float,
+        scheme: str,
+        phase: float,
+        dual: bool,
+    ) -> None:
+        """Render the core as a ring of orbiting particles whose hue flows around it."""
+        self._dots(surface, cx, cy, core_r, level, scheme, phase, self._outer, _CORE_DOTS, 0.16)
+        if dual:  # Dust: a denser, counter-spinning inner ring
+            self._dots(
+                surface, cx, cy, core_r * 0.6, level, scheme, phase, self._inner, _CORE_DOTS, 0.11
             )
 
     @staticmethod
-    def _ring(
+    def _dots(
         surface: pygame.Surface,
         cx: float,
         cy: float,
         radius: float,
-        width: int,
+        level: float,
         scheme: str,
         phase: float,
-        hue_offset: float,
+        offset: float,
+        count: int,
+        dot_frac: float,
     ) -> None:
-        """A smooth circle whose hue flows around the circumference (no gaps)."""
-        pts = ring_points(cx, cy, radius, 0.0, _CIRCLE, points=_RING_POINTS)
-        draw_ring(surface, scheme, phase, pts, width, hue_offset=hue_offset)
+        dot_r = max(2, int(radius * dot_frac * (0.8 + 0.5 * level)))
+        for k in range(count):
+            base = k / count
+            ang = (base + offset) * math.tau
+            rr = radius * (1.0 + 0.06 * math.sin(ang * 3.0 + offset * math.tau))
+            x = cx + math.cos(ang) * rr
+            y = cy + math.sin(ang) * rr
+            color = themed_color(scheme, (base + offset) % 1.0, PALETTE, phase)
+            pygame.draw.circle(surface, color, (int(x), int(y)), dot_r)
 
     @staticmethod
     def _glow(surface: pygame.Surface, cx: float, cy: float, core_r: float, level: float) -> None:

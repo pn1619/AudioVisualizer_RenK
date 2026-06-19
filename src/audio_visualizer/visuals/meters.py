@@ -30,8 +30,9 @@ _ZONE_GREEN = (60, 220, 90)
 _ZONE_AMBER = (240, 200, 50)
 _ZONE_RED = (240, 70, 60)
 _PEAK_DECAY = 0.35  # peak-hold pip fall speed (level fraction per second)
-_SPARK_LEVEL_FLOOR = 0.12  # below this level a meter emits no sparks
-_SPARK_RATE = 42.0  # expected sparks/second from a meter at full level
+_SPARK_LEVEL_FLOOR = 0.05  # below this level a meter emits no sparks
+_SPARK_RATE = 50.0  # expected sparks/second from a meter at full level
+_SPARK_LOW_GAIN = 0.7  # extra emission for the lowest meters (bass shoots more)
 
 _STYLE = ModeOption(
     "style",
@@ -72,9 +73,13 @@ _COLOR = ModeOption(
 )
 # Emit little particles from each meter: needles shoot sparks off the tip, ladders/
 # bars spray them up off the level. Hues sweep per band for a rainbow-across-boxes
-# look (full rainbow under a rainbow color scheme).
+# look (full rainbow under a rainbow color scheme). The value doubles as a particle
+# size multiplier so the user can pick fine vs bold sparks (or turn them off).
 _SPARK = ModeOption(
-    "spark", "Spark", (OptionChoice("Off", 0), OptionChoice("On", 1)), default_index=0
+    "spark",
+    "Spark",
+    (OptionChoice("Off", 0.0), OptionChoice("Fine", 0.55), OptionChoice("Bold", 1.0)),
+    default_index=0,
 )
 
 
@@ -92,6 +97,7 @@ class Meters(BaseVisualizer):
         self._sparks = SparkField(cap=0, lifetime=0.6, trail_len=0)
         self._rng = random.Random(11)
         self._hue_drift = 0.0
+        self._spark_mult = 0.0
 
     def on_enter(self) -> None:
         self._levels = np.zeros(0, dtype=np.float32)
@@ -110,7 +116,8 @@ class Meters(BaseVisualizer):
         margin = int(min(w, h) * 0.06)
         horiz = int(self.option("orient")) == 1
         style = int(self.option("style"))
-        spark_on = int(self.option("spark")) == 1 and not self.reduce_motion
+        self._spark_mult = float(self.option("spark"))
+        spark_on = self._spark_mult > 0.0 and not self.reduce_motion
         if spark_on:
             self._sparks.cap = max(48, groups * 12)
             self._hue_drift = (self._hue_drift + dt * 0.15) % 1.0
@@ -274,7 +281,9 @@ class Meters(BaseVisualizer):
         """Spawn sparks for one meter, with count rising with its level."""
         if level < _SPARK_LEVEL_FLOOR:
             return
-        expected = (level - _SPARK_LEVEL_FLOOR) * _SPARK_RATE * dt
+        # Bass meters (low i) get a gentle emission boost so they visibly shoot too.
+        low_gain = 1.0 + _SPARK_LOW_GAIN * (1.0 - i / max(1, groups - 1))
+        expected = (level - _SPARK_LEVEL_FLOOR) * _SPARK_RATE * low_gain * dt
         count = int(expected) + (1 if self._rng.random() < expected - int(expected) else 0)
         if count <= 0:
             return
@@ -303,7 +312,7 @@ class Meters(BaseVisualizer):
                 (dir_x + spread) * speed,
                 (dir_y + spread) * speed,
                 hue + self._rng.uniform(-0.04, 0.04),
-                size=self._rng.uniform(0.7, 1.3),
+                size=self._rng.uniform(0.5, 0.95) * self._spark_mult,
             )
 
     def _emit_bar(
@@ -325,7 +334,7 @@ class Meters(BaseVisualizer):
                 vx,
                 vy,
                 hue + self._rng.uniform(-0.04, 0.04),
-                size=self._rng.uniform(0.6, 1.2),
+                size=self._rng.uniform(0.45, 0.85) * self._spark_mult,
             )
 
     def _render_sparks(
@@ -333,7 +342,7 @@ class Meters(BaseVisualizer):
     ) -> None:
         gravity = 0.6 if style == 2 else 0.2  # needle embers fall harder than rising bar sparks
         self._sparks.advance(dt, self.theme.speed_scale, gravity)
-        size_scale = max(1.0, min(w, h) / 260.0)
+        size_scale = max(1.0, min(w, h) / 520.0)  # finer sparks than the old /260
         self._sparks.render(
             surface, self.theme.color_scheme, self.theme.color_phase, w, h, size_scale, trails=False
         )

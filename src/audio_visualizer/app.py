@@ -125,6 +125,19 @@ def _nearest(value: object, choices: tuple[float, ...], default: float) -> float
     return min(choices, key=lambda choice: abs(choice - float(value)))
 
 
+def _parse_float(text: str) -> float | None:
+    """Parse user-typed text to a finite float, or None if it isn't a usable number.
+
+    Used by the editable value chips: a blank or nonsense entry is simply ignored
+    (returns None) so a bad keystroke never raises or crashes the app.
+    """
+    try:
+        value = float(text.strip())
+    except (TypeError, ValueError):
+        return None
+    return value if math.isfinite(value) else None
+
+
 class App:
     """The application window and main loop."""
 
@@ -306,6 +319,10 @@ class App:
             open_shuffle=self._open_shuffle_panel,
             shuffle_next=self._shuffle_next,
             randomize_current=self._randomize_current_mode,
+            set_sensitivity_value=self._set_sensitivity_text,
+            set_smoothing_value=self._set_smoothing_text,
+            set_size_value=self._set_size_text,
+            set_speed_value=self._set_speed_text,
         )
 
     def _build_shuffle_actions(self) -> ShuffleActions:
@@ -319,6 +336,8 @@ class App:
             toggle_item=self._toggle_pool_item,
             set_all=self._set_pool_all,
             toggle_random_options=self._toggle_random_options,
+            set_interval_value=self._set_interval_text,
+            set_fade_value=self._set_fade_text,
         )
 
     def _build_looks_actions(self) -> LooksActions:
@@ -741,6 +760,16 @@ class App:
         value = round((self._auto_fade + delta) / RANDOM_FADE_STEP) * RANDOM_FADE_STEP
         self._auto_fade = float(min(RANDOM_FADE_MAX, max(RANDOM_FADE_MIN, value)))
 
+    def _set_interval_text(self, text: str) -> None:
+        value = _parse_float(text)
+        if value is not None:
+            self._auto_interval = float(min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, value)))
+
+    def _set_fade_text(self, text: str) -> None:
+        value = _parse_float(text)
+        if value is not None:
+            self._auto_fade = float(min(RANDOM_FADE_MAX, max(RANDOM_FADE_MIN, value)))
+
     def _toggle_pool_item(self, tag: str) -> None:
         if tag not in self._all_pool_tags():
             return
@@ -947,6 +976,31 @@ class App:
         )
         logger.debug("Speed scale = %.2f", self._theme.speed_scale)
 
+    def _set_sensitivity_text(self, text: str) -> None:
+        value = _parse_float(text)
+        if value is not None:
+            self._sensitivity = float(np.clip(value, SENSITIVITY_MIN, SENSITIVITY_MAX))
+            logger.debug("Sensitivity = %.2f (typed)", self._sensitivity)
+
+    def _set_smoothing_text(self, text: str) -> None:
+        value = _parse_float(text)
+        if value is not None:
+            self._smoothing = float(np.clip(value, 0.0, 1.0))
+            self._analyzer.set_smoothing(*_smoothing_to_coeffs(self._smoothing))
+            logger.debug("Smoothing = %.2f (typed)", self._smoothing)
+
+    def _set_size_text(self, text: str) -> None:
+        value = _parse_float(text)
+        if value is not None:
+            self._theme.size_scale = float(np.clip(value, SIZE_SCALE_MIN, SIZE_SCALE_MAX))
+            logger.debug("Size scale = %.2f (typed)", self._theme.size_scale)
+
+    def _set_speed_text(self, text: str) -> None:
+        value = _parse_float(text)
+        if value is not None:
+            self._theme.speed_scale = float(np.clip(value, SPEED_SCALE_MIN, SPEED_SCALE_MAX))
+            logger.debug("Speed scale = %.2f (typed)", self._theme.speed_scale)
+
     def _cycle_color_scheme(self) -> None:
         idx = (
             COLOR_SCHEMES.index(self._theme.color_scheme)
@@ -1134,7 +1188,10 @@ class App:
                 self._screen = pygame.display.set_mode(size, pygame.RESIZABLE)
                 self._relayout(size)
             elif event.type == pygame.KEYDOWN:
-                self._handle_key(event)
+                # While a value chip is capturing typed input, keystrokes belong to it
+                # (don't let single-key shortcuts fire under the typist).
+                if not (self._layout.show_control_bar and self._controls.is_editing()):
+                    self._handle_key(event)
             if self._layout.show_control_bar:
                 self._controls.handle_event(event)
 

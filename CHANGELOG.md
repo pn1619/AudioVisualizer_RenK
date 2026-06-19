@@ -11,6 +11,36 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.09` — Phase 0B-c (build 7): per-mode polish + editable value chips
+
+- **Pulse Rings: `Shoot` on/off + `Shoot %` transparency.** The expanding beat circles are now a
+  dedicated `Shoot` toggle (independent of the ring-brightness `Beat` boost), and a `Shoot %`
+  opacity option (`25`/`50`/`75`/`100`) draws them through a transparent layer so they read as real
+  shot-out energy over the rings/background. (`visuals/pulse_rings.py`)
+- **VU Meters: finer, sizeable sparks + bass now shoots.** The `Spark` option is now `Off` / `Fine`
+  / `Bold` (a particle-size multiplier), the sparks render about half the old size, and the lowest
+  meters get an emission boost (lower floor + a bass gain) so low frequencies visibly throw
+  particles too. (`visuals/meters.py`)
+- **Snowfall: more `Wind` steps + smooth music `React`.** Added `Drift` and `Light` between `Calm`
+  and `Breezy` (Light is the new default), plus a `React` option (`Off`/`Subtle`/`Strong`) that lets
+  bass steer the wind lean — eased through a low-pass so the motion stays natural, never jerky.
+  (`visuals/snowfall.py`)
+- **Laser: dropped Star/Spiral/Heart for modern shapes.** New `Spiro` (audio-reactive hypotrochoid
+  web), `Web` (decaying-Lissajous harmonograph net), and `Bloom` (epicycloid flower) replace the old
+  three, keeping `Lissajous` + `Rose`. (`visuals/laser.py`)
+- **Audio Sun: particle core + ray sparks.** The `Core` modes `Rings`/`Counter` are now `Orbit` and
+  `Dust` — hue-flowing rings of orbiting particles (Dust adds a counter-spinning inner ring). A new
+  `Spark` option flings small particles off the brightest ray tips on onsets. (`visuals/radial_spectrum.py`)
+- **Editable value chips.** The control-bar `Sens`/`Smooth`/`Size`/`Speed` chips and the Shuffle
+  modal's `Every …s` / `Fade …s` chips are now click-to-type: enter any number (e.g. `1.25`), press
+  Enter (or click away) to apply. Values are clamped to range and **invalid input is silently
+  ignored** — no error, no crash. Typing also suppresses single-key shortcuts. (`ui/chip.py`,
+  `ui/controls.py`, `ui/shuffle_panel.py`, `App._set_*_text`)
+- Tests: updated-mode option sweeps, pulse shoot/beat spawn gating, snowfall React drift + extra
+  wind choices, laser modern-shape set, editable-chip parse/cancel/reject + `_parse_float`.
+
+---
+
 ## `00.0B.08` — Phase 0B-c (build 6): stronger randomize, Kaleidoscope fixes, portable looks
 
 - **Randomize now varies a lot more.** The shuffle "randomize options" path (and the new manual

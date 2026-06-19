@@ -51,13 +51,39 @@ _ROTATE = ModeOption(
     default_index=0,
 )
 _BEAT = ModeOption("beat", "Beat", (OptionChoice("On", 1), OptionChoice("Off", 0)), default_index=0)
+# Shoot expanding circles outward on each beat (matches the ring draw style).
+_SHOOT = ModeOption(
+    "shoot", "Shoot", (OptionChoice("On", 1), OptionChoice("Off", 0)), default_index=0
+)
+# Opacity of the shot-out circles (real transparency over whatever's behind).
+_SHOOT_OPACITY = ModeOption(
+    "shoot_op",
+    "Shoot %",
+    (
+        OptionChoice("25", 64),
+        OptionChoice("50", 128),
+        OptionChoice("75", 191),
+        OptionChoice("100", 255),
+    ),
+    default_index=3,
+)
 
 
 @register(key="pulse_rings", display_name="Pulse Rings", order=120)
 class PulseRings(BaseVisualizer):
     """Concentric breathing rings with outward beat pulses."""
 
-    OPTIONS = (_RINGS, _DRAW, THICKNESS_OPTION, _ROTATE, COLOR_OPTION, _BEAT, SIZE_OPTION)
+    OPTIONS = (
+        _RINGS,
+        _DRAW,
+        THICKNESS_OPTION,
+        _ROTATE,
+        COLOR_OPTION,
+        _BEAT,
+        _SHOOT,
+        _SHOOT_OPACITY,
+        SIZE_OPTION,
+    )
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -93,8 +119,8 @@ class PulseRings(BaseVisualizer):
             color = scale_color(mode_color(color_opt, scheme, i / rings, phase), bright)
             width = max(1, int(base_w * (1 + 2 * energy) + boost * 4))
             self._draw_ring(surface, draw_mode, cx, cy, r, width, color, i)
-        if beat_on:
-            self._draw_pulses(surface, draw_mode, cx, cy, max_r, base_w, color_opt, scheme, phase)
+        if int(self.option("shoot")) == 1 and self._pulses:
+            self._blit_pulses(surface, draw_mode, cx, cy, max_r, base_w, color_opt, scheme, phase)
 
     def _energies(self, frame: AnalysisFrame | None, rings: int) -> np.ndarray:
         if frame is None or frame.band_energies.size == 0:
@@ -104,9 +130,11 @@ class PulseRings(BaseVisualizer):
     def _advance(self, frame: AnalysisFrame | None, dt: float) -> None:
         speed = dt * self.theme.speed_scale
         onset = 0.0 if frame is None else frame.onset
-        beat_on = int(self.option("beat")) == 1
+        # Pulses feed both the ring brightness boost (Beat) and the shot-out circles
+        # (Shoot); spawn them whenever either consumer is enabled.
+        spawning = int(self.option("beat")) == 1 or int(self.option("shoot")) == 1
         crossed = onset > _ONSET_TRIGGER and self._prev_onset <= _ONSET_TRIGGER
-        if beat_on and crossed:
+        if spawning and crossed:
             self._pulses.append(0.0)
         self._prev_onset = onset
         self._pulses = [p + _PULSE_SPEED * speed for p in self._pulses if p < _PULSE_MAX]
@@ -147,7 +175,7 @@ class PulseRings(BaseVisualizer):
         else:
             pygame.draw.circle(surface, color, center, ir, width)
 
-    def _draw_pulses(
+    def _blit_pulses(
         self,
         surface: pygame.Surface,
         draw_mode: int,
@@ -159,10 +187,14 @@ class PulseRings(BaseVisualizer):
         scheme: str,
         phase: float,
     ) -> None:
-        """Render each beat pulse as a circle that grows past the rings and fades out.
+        """Render each beat pulse onto a transparent layer, then blit at the chosen opacity.
 
         The pulse adopts the ring draw style, so a dashed look shoots dashed circles.
+        A black-keyed scratch layer gives real transparency over whatever is behind,
+        while the per-pulse fade stays baked into the drawn brightness.
         """
+        w, h = surface.get_size()
+        layer = pygame.Surface((w, h))
         for p in self._pulses:
             fade = clamp(1.0 - p / _PULSE_MAX)
             ir = int(p * max_r)
@@ -171,11 +203,14 @@ class PulseRings(BaseVisualizer):
             color = scale_color(mode_color(color_opt, scheme, p, phase), 0.35 + 0.65 * fade)
             width = max(2, int(base_w * (1.0 + 1.5 * fade)))
             if draw_mode == 1:  # filled rings -> a bright thick expanding ring
-                pygame.draw.circle(surface, color, (int(cx), int(cy)), ir, min(ir, width * 2))
+                pygame.draw.circle(layer, color, (int(cx), int(cy)), ir, min(ir, width * 2))
             elif draw_mode == 2:  # dashed -> the shot-out circle is dashed too
-                self._dashed_circle(surface, color, cx, cy, ir, width, self._angle)
+                self._dashed_circle(layer, color, cx, cy, ir, width, self._angle)
             else:
-                pygame.draw.circle(surface, color, (int(cx), int(cy)), ir, width)
+                pygame.draw.circle(layer, color, (int(cx), int(cy)), ir, width)
+        layer.set_colorkey((0, 0, 0))
+        layer.set_alpha(int(self.option("shoot_op")))
+        surface.blit(layer, (0, 0))
 
     @staticmethod
     def _dashed_circle(

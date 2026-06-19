@@ -70,6 +70,12 @@ class ControlActions:
     open_shuffle: Callable[[], None] = lambda: None
     # Randomizes the current mode's options + global feel (no mode switch). Defaulted likewise.
     randomize_current: Callable[[], None] = lambda: None
+    # Direct value entry from the editable chips (text -> parsed/clamped by the App;
+    # invalid input is ignored, never raised). Defaulted likewise.
+    set_sensitivity_value: Callable[[str], None] = lambda _s: None
+    set_smoothing_value: Callable[[str], None] = lambda _s: None
+    set_size_value: Callable[[str], None] = lambda _s: None
+    set_speed_value: Callable[[str], None] = lambda _s: None
 
 
 @dataclass(frozen=True)
@@ -115,17 +121,21 @@ class ControlBar:
         # monospace UI font would otherwise truncate).
         minus, plus = "\u2212", "+"
         self._sens_down = Button(minus, actions.sensitivity_down)
-        self._sens_chip = Chip()
+        self._sens_chip = Chip(on_submit=actions.set_sensitivity_value)
         self._sens_up = Button(plus, actions.sensitivity_up)
         self._smooth_down = Button(minus, actions.smoothing_down)
-        self._smooth_chip = Chip()
+        self._smooth_chip = Chip(on_submit=actions.set_smoothing_value)
         self._smooth_up = Button(plus, actions.smoothing_up)
         self._size_down = Button(minus, actions.size_down)
-        self._size_chip = Chip()
+        self._size_chip = Chip(on_submit=actions.set_size_value)
         self._size_up = Button(plus, actions.size_up)
         self._speed_down = Button(minus, actions.speed_down)
-        self._speed_chip = Chip()
+        self._speed_chip = Chip(on_submit=actions.set_speed_value)
         self._speed_up = Button(plus, actions.speed_up)
+        self._sens_chip.prefix = "Sens "
+        self._smooth_chip.prefix = "Smooth "
+        self._size_chip.prefix = "Size "
+        self._speed_chip.prefix = "Speed "
 
         self._reduce = Button("Motion+", actions.toggle_reduce_motion)
         self._src = Button("Src", actions.open_source)
@@ -170,7 +180,7 @@ class ControlBar:
         self._option_dropdowns: list[Dropdown] = []
         self._bar: pygame.Rect | None = None
         self._buttons = [w for w, _ in self._row1 if isinstance(w, Button)]
-        self._chips = [w for w, _ in self._row1 if isinstance(w, Chip)]
+        self._chips: list[Chip] = [w for w, _ in self._row1 if isinstance(w, Chip)]
 
     def _on_menu_select(self, key: str) -> None:
         """Route a Menu item to its action (Start/Stop, Fullscreen, Appearance, Quit)."""
@@ -285,6 +295,10 @@ class ControlBar:
     def _all_dropdowns(self) -> list[Dropdown]:
         return [self._menu, self._dropdown, self._looks, self._color, *self._option_dropdowns]
 
+    def is_editing(self) -> bool:
+        """True while any value chip is capturing typed input (suppresses shortcuts)."""
+        return any(chip.editing for chip in self._chips)
+
     def handle_event(self, event: pygame.event.Event) -> bool:
         for dd in self._all_dropdowns():
             if dd.handle_event(event):
@@ -292,6 +306,13 @@ class ControlBar:
                     for other in self._all_dropdowns():
                         if other is not dd:
                             other.open = False
+                return True
+        for chip in self._chips:
+            if chip.handle_event(event):
+                if chip.editing:  # only one chip edits at a time
+                    for other_chip in self._chips:
+                        if other_chip is not chip:
+                            other_chip.cancel_edit()
                 return True
         clicked = False
         for btn in self._buttons:

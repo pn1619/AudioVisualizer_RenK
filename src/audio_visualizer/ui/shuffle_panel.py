@@ -15,6 +15,7 @@ from dataclasses import dataclass
 import pygame
 
 from audio_visualizer.config import COLOR_BG, COLOR_TEXT, COLOR_TEXT_DIM
+from audio_visualizer.ui.chip import Chip
 from audio_visualizer.ui.style import STYLE, TEXT_PAD, draw_panel, fit_text
 
 _PANEL_W = 460
@@ -38,6 +39,10 @@ class ShuffleActions:
     toggle_item: Callable[[str], None]
     set_all: Callable[[bool], None]
     toggle_random_options: Callable[[], None]
+    # Direct value entry from the editable interval/fade chips (text -> parsed/clamped
+    # by the App; invalid input is ignored). Defaulted so older callers keep working.
+    set_interval_value: Callable[[str], None] = lambda _s: None
+    set_fade_value: Callable[[str], None] = lambda _s: None
 
 
 @dataclass(frozen=True)
@@ -81,6 +86,11 @@ class ShufflePanel:
         self._random_options_on = False
         self._fade_label = ""
         self._scroll = 0
+        # Click-to-type value chips (Enter or click-away submits; bad input ignored).
+        self._interval_chip = Chip(on_submit=actions.set_interval_value)
+        self._interval_chip.prefix = "Every "
+        self._fade_chip = Chip(on_submit=actions.set_fade_value)
+        self._fade_chip.prefix = "Fade "
 
     # -- state ----------------------------------------------------------------
     def set_state(
@@ -97,6 +107,8 @@ class ShufflePanel:
         self._auto_on = auto_on
         self._random_options_on = random_options_on
         self._fade_label = fade_label
+        self._interval_chip.text = interval_label
+        self._fade_chip.text = fade_label
 
     def toggle(self) -> None:
         self.open = not self.open
@@ -190,6 +202,18 @@ class ShufflePanel:
         if not self.open:
             return False
         lay = self._layout(canvas)
+        # Keep the editable chips on their current rects, then let them claim the event.
+        self._interval_chip.set_rect(lay.interval_chip)
+        self._fade_chip.set_rect(lay.fade_chip)
+        pairs = (
+            (self._interval_chip, self._fade_chip),
+            (self._fade_chip, self._interval_chip),
+        )
+        for chip, other in pairs:
+            if chip.handle_event(event):
+                if chip.editing:
+                    other.cancel_edit()
+                return True
         if event.type == pygame.MOUSEWHEEL:
             self._scroll = max(
                 0, min(self._scroll - event.y, max(0, len(self._rows) - self._visible_rows()))
@@ -267,10 +291,12 @@ class ShufflePanel:
         )
         self._draw_button(surface, lay.next_btn, "Next \u23ed", font)
         self._draw_button(surface, lay.interval_down, "\u2212", font)
-        self._draw_button(surface, lay.interval_chip, self._interval_label, font)
+        self._interval_chip.set_rect(lay.interval_chip)
+        self._interval_chip.draw(surface, font)
         self._draw_button(surface, lay.interval_up, "+", font)
         self._draw_button(surface, lay.fade_down, "\u2212", font)
-        self._draw_button(surface, lay.fade_chip, self._fade_label, font)
+        self._fade_chip.set_rect(lay.fade_chip)
+        self._fade_chip.draw(surface, font)
         self._draw_button(surface, lay.fade_up, "+", font)
         self._draw_button(
             surface,

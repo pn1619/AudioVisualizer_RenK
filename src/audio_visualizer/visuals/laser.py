@@ -1,9 +1,11 @@
 """Laser: rotating beams + a selectable parametric figure that can emit particles.
 
-Beams sweep around the center while a central figure (Lissajous, rose, star, spiral,
-or heart) traces the spectrum. With ``Particles = Off`` it's clean beams + figure
-(the classic Laser); turning particles on makes the beams shoot small sparks outward
-on onsets (which can leave a fading trail). All shapes are driven by band energy.
+Beams sweep around the center while a central figure (Lissajous, rose, spiro,
+web, or bloom) traces the spectrum. With ``Particles = Off`` it's clean beams +
+figure (the classic Laser); turning particles on makes the beams shoot small sparks
+outward on onsets (which can leave a fading trail). All shapes are driven by band
+energy. The spiro/web/bloom curves are audio-reactive roulette and harmonograph
+figures for a modern, kinetic neon look.
 """
 
 from __future__ import annotations
@@ -44,15 +46,21 @@ _EMIT_SPEED = 0.12
 _EMIT_SMALL_SIZE = 0.6
 _ROSE_PETALS_BASE = 3
 _ROSE_PETALS_GAIN = 4
-_SPIRAL_TURNS = 3
-_STAR_SPIKES = 5
-_STAR_OUTER = 1.0
-_STAR_INNER = 0.45
 _LISSA_FREQ_X_BASE = 2.0
 _LISSA_FREQ_Y_BASE = 3.0
 _LISSA_FREQ_GAIN = 3.0
+# Spiro: a hypotrochoid whose inner radius / pen offset breathe with the audio,
+# drawn over several loops so the strands weave a dense neon web.
+_SPIRO_LOOPS = 5
+_SPIRO_FIT = 0.72
+# Web: a harmonograph (decaying Lissajous) that spirals inward like a laser net.
+_WEB_CYCLES = 6
+_WEB_DAMP = 0.32
+# Bloom: an epicycloid flower whose petal count rides the highs.
+_BLOOM_CUSPS_BASE = 4
+_BLOOM_CUSPS_GAIN = 5
 
-_SHAPE_LISSAJOUS, _SHAPE_ROSE, _SHAPE_STAR, _SHAPE_SPIRAL, _SHAPE_HEART = 0, 1, 2, 3, 4
+_SHAPE_LISSAJOUS, _SHAPE_ROSE, _SHAPE_SPIRO, _SHAPE_WEB, _SHAPE_BLOOM = 0, 1, 2, 3, 4
 
 _PRESET = ModeOption(
     "preset",
@@ -61,7 +69,7 @@ _PRESET = ModeOption(
         OptionChoice("Custom", 0),
         OptionChoice("Classic", 1),
         OptionChoice("Rose", 2),
-        OptionChoice("Star", 3),
+        OptionChoice("Spiro", 3),
     ),
     default_index=0,
 )
@@ -71,9 +79,9 @@ _SHAPE = ModeOption(
     (
         OptionChoice("Lissajous", _SHAPE_LISSAJOUS),
         OptionChoice("Rose", _SHAPE_ROSE),
-        OptionChoice("Star", _SHAPE_STAR),
-        OptionChoice("Spiral", _SHAPE_SPIRAL),
-        OptionChoice("Heart", _SHAPE_HEART),
+        OptionChoice("Spiro", _SHAPE_SPIRO),
+        OptionChoice("Web", _SHAPE_WEB),
+        OptionChoice("Bloom", _SHAPE_BLOOM),
     ),
     default_index=0,
 )
@@ -94,7 +102,7 @@ class Laser(BaseVisualizer):
     PRESETS = {
         1: {"shape": 0, "particles": 0},  # Classic Lissajous beams
         2: {"shape": 1, "particles": 1},  # Rose + sparks
-        3: {"shape": 2, "particles": 2},  # Star + dense sparks
+        3: {"shape": 2, "particles": 2},  # Spiro + dense sparks
     }
 
     def __init__(
@@ -204,12 +212,12 @@ class Laser(BaseVisualizer):
     ) -> list[tuple[float, float]]:
         if shape == _SHAPE_ROSE:
             return self._rose(cx, cy, ax, ay, low)
-        if shape == _SHAPE_STAR:
-            return self._star(cx, cy, ax, ay, high)
-        if shape == _SHAPE_SPIRAL:
-            return self._spiral(cx, cy, ax, ay)
-        if shape == _SHAPE_HEART:
-            return self._heart(cx, cy, ax, ay, low)
+        if shape == _SHAPE_SPIRO:
+            return self._spiro(cx, cy, ax, ay, low, high)
+        if shape == _SHAPE_WEB:
+            return self._web(cx, cy, ax, ay, low, high)
+        if shape == _SHAPE_BLOOM:
+            return self._bloom(cx, cy, ax, ay, low, high)
         return self._lissajous(cx, cy, ax, ay, low, high)
 
     def _lissajous(
@@ -236,38 +244,52 @@ class Laser(BaseVisualizer):
             )
         return pts
 
-    def _star(
-        self, cx: float, cy: float, ax: float, ay: float, high: float
+    def _spiro(
+        self, cx: float, cy: float, ax: float, ay: float, low: float, high: float
     ) -> list[tuple[float, float]]:
-        outer = _STAR_OUTER * (0.85 + high)
+        """A hypotrochoid that weaves a neon web; bass sets density, highs the reach."""
+        r = 0.30 + low * 0.45  # rolling-circle radius (fraction of the outer circle)
+        d = 0.45 + high * 0.55  # pen offset -> how far the strands swing out
+        ratio = (1.0 - r) / max(r, 1e-3)
         pts = []
-        for k in range(_STAR_SPIKES * 2 + 1):
-            ang = self._phase + math.pi * k / _STAR_SPIKES
-            r = outer if k % 2 == 0 else _STAR_INNER
-            pts.append((cx + math.cos(ang) * ax * r, cy + math.sin(ang) * ay * r))
+        steps = _CURVE_POINTS * _SPIRO_LOOPS
+        for k in range(steps + 1):
+            t = 2.0 * math.pi * _SPIRO_LOOPS * k / steps
+            x = (1.0 - r) * math.cos(t) + d * r * math.cos(ratio * t + self._phase)
+            y = (1.0 - r) * math.sin(t) - d * r * math.sin(ratio * t + self._phase)
+            pts.append((cx + x * ax * _SPIRO_FIT, cy + y * ay * _SPIRO_FIT))
         return pts
 
-    def _spiral(self, cx: float, cy: float, ax: float, ay: float) -> list[tuple[float, float]]:
+    def _web(
+        self, cx: float, cy: float, ax: float, ay: float, low: float, high: float
+    ) -> list[tuple[float, float]]:
+        """A harmonograph: a decaying Lissajous that spirals inward like a laser net."""
+        a = _LISSA_FREQ_X_BASE + low * _LISSA_FREQ_GAIN
+        b = _LISSA_FREQ_Y_BASE + high * _LISSA_FREQ_GAIN
         pts = []
-        total = _CURVE_POINTS
-        for k in range(total + 1):
-            t = 2.0 * math.pi * _SPIRAL_TURNS * k / total
-            rr = k / total
+        steps = _CURVE_POINTS * 2
+        for k in range(steps + 1):
+            t = 2.0 * math.pi * _WEB_CYCLES * k / steps
+            damp = math.exp(-_WEB_DAMP * t / (2.0 * math.pi))
             pts.append(
-                (cx + ax * rr * math.cos(t + self._phase), cy + ay * rr * math.sin(t + self._phase))
+                (
+                    cx + math.sin(a * t + self._phase) * ax * damp,
+                    cy + math.sin(b * t) * ay * damp,
+                )
             )
         return pts
 
-    def _heart(
-        self, cx: float, cy: float, ax: float, ay: float, low: float
+    def _bloom(
+        self, cx: float, cy: float, ax: float, ay: float, low: float, high: float
     ) -> list[tuple[float, float]]:
-        scale = 0.85 + low * 0.3
+        """An epicycloid flower whose petal count rides the highs and breathes with bass."""
+        cusps = _BLOOM_CUSPS_BASE + int(high * _BLOOM_CUSPS_GAIN)
+        rr = 1.0 / (cusps + 1)
+        scale = 0.85 + low * 0.25
         pts = []
         for k in range(_CURVE_POINTS + 1):
-            t = 2.0 * math.pi * k / _CURVE_POINTS + self._phase
-            hx = 16.0 * math.sin(t) ** 3
-            hy = (
-                13.0 * math.cos(t) - 5.0 * math.cos(2 * t) - 2.0 * math.cos(3 * t) - math.cos(4 * t)
-            )
-            pts.append((cx + ax * (hx / 16.0) * scale, cy - ay * (hy / 16.0) * scale))
+            t = 2.0 * math.pi * k / _CURVE_POINTS
+            x = (1.0 - rr) * math.cos(t) + rr * math.cos((1.0 - rr) / rr * t + self._phase)
+            y = (1.0 - rr) * math.sin(t) - rr * math.sin((1.0 - rr) / rr * t + self._phase)
+            pts.append((cx + x * ax * scale, cy + y * ay * scale))
         return pts
