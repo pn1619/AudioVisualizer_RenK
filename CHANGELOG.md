@@ -11,6 +11,21 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.12` — Phase 0B-c (build 10): clearer randomize-lock pins (instant feedback)
+
+- **Lock pins update instantly.** Clicking a randomize lock now flips its icon **on the same click**
+  (optimistic local toggle) instead of waiting for the next `Rnd`/`Next`/mode rebuild to re-sync.
+  The App stays the source of truth and re-syncs on the next state refresh. (`LockToggle.handle_event`.)
+- **New dot indicator.** The padlock glyph is replaced by a simple **filled accent dot** (held) vs a
+  **hollow dim ring** (free) that reads at a glance and brightens on hover. (`ui/lock_toggle.py`.)
+- **Pins hug their control.** Each lock now sits in a **tight gap** right after the chip/dropdown it
+  governs and stays on the same row when the bar wraps, so it's obvious which option it belongs to.
+  (`ControlBar._flow`, `_LOCK_GAP`.)
+- Tests: clicking an option lock flips `LockToggle.locked` immediately without a `set_mode_options`
+  rebuild.
+
+---
+
 ## `00.0B.11` — Phase 0B-c (build 9): smooth waveforms + bigger sparks & needle styles
 
 - **Waveform / Waveform Rings: `Trace` smoothing.** A new option low-passes the scope toward a

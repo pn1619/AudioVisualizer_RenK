@@ -138,6 +138,22 @@ def test_global_lock_reflects_state() -> None:
     assert bar._sens_lock.locked is False
 
 
+def test_option_lock_click_flips_state_immediately() -> None:
+    """The pin reflects its new state on the same click, before any mode rebuild."""
+    actions, _ = _actions()
+    bar = ControlBar(actions, [("waveform", "Waveform")])
+    bar.relayout(pygame.Rect(0, 0, 1600, 120))
+    bar.set_mode_options(
+        [OptionSpec("thickness", "Line", ("Thin", "Normal", "Thick"), 1, lockable=True)]
+    )
+    _dd, lock = bar._option_locks[0]
+    assert lock.locked is False
+    bar.handle_event(_click(lock.rect))
+    assert lock.locked is True  # no set_mode_options call needed to update the icon
+    bar.handle_event(_click(lock.rect))
+    assert lock.locked is False
+
+
 def test_option_lock_click_invokes_action() -> None:
     actions, calls = _actions()
     bar = ControlBar(actions, [("waveform", "Waveform")])

@@ -27,6 +27,7 @@ from audio_visualizer.ui.lock_toggle import LockToggle
 
 _OPTION_W = 150  # width of the color + per-mode option dropdowns
 _LOCK_W = 26  # width of a lock toggle
+_LOCK_GAP = 2  # tight gap between a control and its trailing lock pin
 
 
 @dataclass
@@ -316,10 +317,17 @@ class ControlBar:
         """
         x = left
         y = top
-        for widget, w in items:
-            if x > left and x + w > right:
+        for idx, (widget, w) in enumerate(items):
+            # A lock pin hugs the control it governs: keep them together on wrap and
+            # use a tight gap before the pin so it reads as "belongs to the left control".
+            is_lock = isinstance(widget, LockToggle)
+            next_is_lock = idx + 1 < len(items) and isinstance(items[idx + 1][0], LockToggle)
+            group_w = w + (_LOCK_W + _LOCK_GAP if next_is_lock else 0)
+            if not is_lock and x > left and x + group_w > right:
                 x = left
                 y += CONTROL_ROW_HEIGHT + CONTROL_GAP
+            if is_lock:
+                x -= CONTROL_GAP - _LOCK_GAP  # pull the pin closer to its control
             if place:
                 widget.set_rect(pygame.Rect(x, y, w, CONTROL_ROW_HEIGHT))
             x += w + CONTROL_GAP

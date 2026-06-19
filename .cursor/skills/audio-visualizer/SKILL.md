@@ -82,6 +82,11 @@ for the linear scope) plus a height scaler (`Height` / `Wave`). **VU Meters** `S
 `Max` sizes, and a `Needle` style option (`Classic`/`Gauge`/`VU`/`Comet`/`Dual`, only used when
 `Style = Needle`) with a pivot hub.
 
+**Build 10 (v00.0B.12):** Randomize-lock UX. `LockToggle` is now a **dot** (filled accent = held,
+hollow dim ring = free) and flips **immediately on click** (optimistic local toggle; App still re-syncs
+each state refresh). Pins sit in a **tight gap** hugging the chip/dropdown they govern and stay on the
+same wrap row (`ControlBar._flow`, `_LOCK_GAP`).
+
 ## Read first (canonical docs)
 
 | Topic | Path |
