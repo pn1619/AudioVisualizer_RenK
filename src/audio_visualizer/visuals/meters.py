@@ -424,13 +424,17 @@ class Meters(BaseVisualizer):
         tip_y = pivot[1] - math.sin(angle) * radius
         dir_x, dir_y = math.cos(angle), -math.sin(angle)  # screen y points down
         speed = 0.25 + 0.55 * level
+        # Velocity is in normalized space (x÷w, y÷h). Without compensating for the
+        # aspect ratio the spark would fly at a skewed on-screen angle on non-square
+        # windows; scale by min(w,h)/w and min(w,h)/h so it traces the needle's tip.
+        ref = float(min(w, h))
         for _ in range(count):
             spread = self._rng.uniform(-0.13, 0.13)
             self._sparks.spawn(
                 tip_x / w,
                 tip_y / h,
-                (dir_x + spread) * speed,
-                (dir_y + spread) * speed,
+                (dir_x + spread) * speed * ref / w,
+                (dir_y + spread) * speed * ref / h,
                 hue + self._rng.uniform(-0.04, 0.04),
                 size=self._rng.uniform(0.5, 0.95) * self._spark_mult,
             )
