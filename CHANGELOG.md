@@ -17,6 +17,18 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.11` — Phase 0B-c (build 15): VU Meters needle-spark direction fix
+
+- **Fix:** VU Meters needle sparks now fly **along the needle** again. The tip position was
+  normalized correctly, but the spark *velocity* was emitted in normalized units without
+  compensating for the different x (`÷w`) and y (`÷h`) scales, so on non-square windows the
+  sparks shot off at a skewed angle (most visible widescreen). The emission now scales the
+  velocity by `min(w,h)/w` and `min(w,h)/h` so it traces the needle's on-screen angle —
+  including the reordered needles from the new frequency `Direction` option.
+- Test: needle-spark mean direction matches the needle angle on a wide window.
+
+---
+
 ## `00.0B.10` — Phase 0B-c (build 14): frequency direction (inside-out / outside-in)
 
 - **New `Direction` option** on the bar-style frequency modes — choose how the spectrum
