@@ -11,6 +11,54 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.05` — Phase 0B-c (build 3): looks/shuffle fixes + bigger Vectorscope
+
+Three fixes on top of `00.0B.04`.
+
+- **My Looks dropdown no longer "swaps" with one save.** Saving a look now **bookmarks** it
+  without auto-activating, so you stay on **None / Live**. Previously a fresh save activated the
+  look *and* captured a baseline equal to it, so "None / Live" restored the saved snapshot (and
+  re-picking the active look was a no-op) — which read as the two entries being swapped. Now the
+  saved look is a distinct entry: selecting it applies the look; **None / Live keeps your live
+  edits** (the pre-look state) instead of reverting to the save.
+- **Shuffle can randomize mode options.** New **`Randomize mode options: On/Off`** toggle in the
+  `Shuffle…` modal: when on, landing on a built-in mode also rolls that mode's own options (e.g.
+  Ripples' spawn origin). A mode's `preset` option is forced to **Custom** so siblings stay free.
+  **Background and Logo are never touched** by this; saved looks keep their captured options.
+  Persisted as `random_options` (settings schema **v10 → v11**).
+- **Vectorscope fills the scope.** The XY trace now **auto-gains** to each frame's peak (with a
+  floor so quiet passages stay modest), so a typical sub-unity waveform fills the figure instead
+  of a tiny central blob, and the scope radius grew (`0.40 → 0.46` of the smaller window edge).
+- Tests: updated the looks save/select cases for the new "stay on live" semantics, added settings
+  round-trip + app-level coverage for randomize-options (on/off), and a Vectorscope fill smoke.
+
+---
+
+## `00.0B.04` — Phase 0B-c (build 2): looks in the shuffle + Next + countdown
+
+Builds on `00.0B.03` so the shuffle is a complete, controllable rotation.
+
+- **Saved looks now join the rotation.** The pool holds both `mode:<key>` and `look:<id>`
+  items; the `Shuffle…` checklist lists built-in modes **and** your saved looks (marked **★**),
+  with `All` / `None` covering everything. When the shuffle lands on a look it applies the whole
+  look (mode + options + theme + Background + Logo), and **stops where it is** when you turn Auto
+  off (no hidden state — shuffle simply drives the live global like rapid manual switching).
+- **`Next` button + `N` key** to skip ahead to the next rotation item immediately (works whether
+  or not Auto is running; resets the interval timer). The Shuffle modal also has a **Next ⏭** button.
+- **Small `Auto · next in Ns` chip** in the canvas's top-right while shuffle is running (shows
+  `switching…` during a fade), so you can see when the next change is coming.
+- **Cross-fade reworked to a frozen-snapshot dissolve** (`visuals/_transition.py`): a switch grabs
+  the current canvas, applies the next item live, then blits the frozen old scene on top at a
+  falling alpha. This renders the live scene **only once** (cheaper than the old two-mode blend)
+  and dissolves **full looks** (changing Background/Logo/theme) just as cleanly as a mode swap.
+  Reduce-motion still hard-cuts. No settings-schema change (v10 already stores tagged pool ids;
+  stale `look:` ids are skipped).
+- Tests (`tests/test_autocycle_phase0b03.py`, now 21 cases): adds tagged-pool toggle / valid /
+  no-repeat picking, **look applied on advance**, **Next** (incl. empty-pool fill), the
+  snapshot-dissolve lifecycle, stale-look exclusion, and the countdown overlay.
+
+---
+
 ## `00.0B.03` — Phase 0B-c (build 1): auto-cycle ("shuffle")
 
 The visualizer can now **shuffle itself** — automatically switching the active mode

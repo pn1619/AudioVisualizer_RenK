@@ -287,11 +287,17 @@ rails enforce the **count cap** and **name sanitize/trim**, and **ids are dedupe
 > **saved looks** to the pool — that mutates live global per tick, so it lands **after** the
 > 0B-b build-2 overlay resolver, which gives a clean pre-shuffle snapshot/restore.
 >
-> **Status: build 1 implemented in `v00.0B.03`.** Shipped as `visuals/_transition.py`
-> (`ModeTransition`), `App._update_auto`/`_auto_advance`/`_draw_transition`, an `Auto` toggle +
-> `Shuffle…` button (and the `A` key), `ui/shuffle_panel.py`, and `Settings.random_pool` /
-> `random_interval` (schema v10). Auto is never persisted on. The notes below are the original
-> design; **saved looks in the pool + dip-to-black / beat-synced styles remain for build 2.**
+> **Status: implemented across `v00.0B.03` (modes) + `v00.0B.04` (looks + Next + countdown) +
+> `v00.0B.05` (randomize-mode-options toggle).**
+> Shipped as `visuals/_transition.py` (`ModeTransition` — a **frozen-snapshot dissolve**),
+> `App._update_auto`/`_auto_advance`/`_apply_pool_tag`/`_randomize_mode_options`/`_draw_transition`/
+> `_draw_auto_status`, an `Auto` toggle + `Next` button + `Shuffle…` modal (and the `A` / `N` keys),
+> `ui/shuffle_panel.py`, and `Settings.random_pool` (tagged `mode:`/`look:` ids) / `random_interval`
+> / `random_options` (schema v11). The rotation includes **saved looks** (a switch applies the whole
+> look and dissolves cleanly, since the snapshot covers the whole canvas). A **`Randomize mode
+> options`** toggle additionally rolls a built-in mode's own options on landing (a `preset` option is
+> forced to Custom; Background/Logo and saved-look options are untouched). Auto is never persisted on;
+> stopping leaves you on the current visual. **Still open:** dip-to-black / beat-synced transition styles.
 
 **Goal.** A "shuffle" that automatically switches between a **user-chosen set** of modes
 (built-in and/or saved looks) every **N seconds** (user-set), **cross-fading** rather

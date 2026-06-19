@@ -1,26 +1,27 @@
-"""Cross-fade state for auto-cycle mode switches (Phase 0B-c).
+"""Cross-fade state for auto-cycle switches (Phase 0B-c).
 
-A :class:`ModeTransition` holds the outgoing + incoming visuals for the brief
-window while one mode dissolves into the next. The App owns the offscreen
-compositing (it needs the shared background/logo); this module only tracks the
-fade clock and exposes the blend ``alpha``. The leading underscore keeps the
-registry's ``discover()`` from importing this as a visual mode.
+A :class:`ModeTransition` is a **frozen-snapshot dissolve**: when a switch starts
+the App grabs the current canvas into ``snapshot`` and applies the new mode/look
+to the live global immediately. Each frame the live (new) scene is drawn first
+and the frozen old scene is blitted on top at a falling alpha, so it dissolves
+away. This works identically whether the next item is a built-in mode or a saved
+look (which also changes background/logo/theme) and renders the *live* scene only
+once. The leading underscore keeps the registry's ``discover()`` from importing
+this as a visual mode.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from audio_visualizer.visuals.base import BaseVisualizer
+import pygame
 
 
 @dataclass
 class ModeTransition:
-    """A timed cross-fade from ``outgoing`` to ``incoming`` (target mode index)."""
+    """A timed dissolve of a frozen ``snapshot`` (the outgoing scene) over the live one."""
 
-    outgoing: BaseVisualizer
-    incoming: BaseVisualizer
-    target_index: int
+    snapshot: pygame.Surface
     duration: float
     elapsed: float = field(default=0.0)
 
@@ -29,8 +30,8 @@ class ModeTransition:
         self.elapsed += max(0.0, dt)
         return self.elapsed >= self.duration
 
-    def alpha(self) -> int:
-        """Incoming-mode blend alpha in 0..255 (0 = fully outgoing, 255 = incoming)."""
+    def overlay_alpha(self) -> int:
+        """Alpha (0..255) for the frozen snapshot: full at start, 0 at the end."""
         if self.duration <= 0.0:
-            return 255
-        return int(round(255 * min(1.0, self.elapsed / self.duration)))
+            return 0
+        return int(round(255 * (1.0 - min(1.0, self.elapsed / self.duration))))

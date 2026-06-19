@@ -1,10 +1,10 @@
-"""Modal panel for auto-cycle ("shuffle") settings (Phase 0B-c build 1).
+"""Modal panel for auto-cycle ("shuffle") settings (Phase 0B-c).
 
 Opened from the ``Shuffle…`` button in the control bar. Holds the on/off toggle,
-the switch interval stepper, and a checklist of which built-in modes are in the
-rotation (an empty rotation means nothing auto-switches). Mirrors the other
-modals (dim backdrop, centered panel, click-outside/Esc to close). Saved looks
-join the rotation in a later build.
+a Next (skip-ahead) button, the switch interval stepper, and a checklist of which
+items are in the rotation — built-in **modes** and saved **looks** (★) (an empty
+rotation means nothing auto-switches). Mirrors the other modals (dim backdrop,
+centered panel, click-outside/Esc to close).
 """
 
 from __future__ import annotations
@@ -30,17 +30,19 @@ class ShuffleActions:
     """Callbacks the App wires to the auto-cycle state."""
 
     toggle_auto: Callable[[], None]
+    shuffle_next: Callable[[], None]
     interval_down: Callable[[], None]
     interval_up: Callable[[], None]
-    toggle_mode: Callable[[str], None]
+    toggle_item: Callable[[str], None]
     set_all: Callable[[bool], None]
+    toggle_random_options: Callable[[], None]
 
 
 @dataclass(frozen=True)
-class _ModeRow:
-    """Interactive rect for one mode checkbox row."""
+class _ItemRow:
+    """Interactive rect for one rotation-item checkbox row (mode or look)."""
 
-    mode_key: str
+    item_key: str
     rect: pygame.Rect
 
 
@@ -50,13 +52,15 @@ class _PanelLayout:
 
     panel: pygame.Rect
     auto: pygame.Rect
+    next_btn: pygame.Rect
     interval_down: pygame.Rect
     interval_chip: pygame.Rect
     interval_up: pygame.Rect
+    random_opts: pygame.Rect
     label_y: int
     all_btn: pygame.Rect
     none_btn: pygame.Rect
-    rows: list[_ModeRow]
+    rows: list[_ItemRow]
     close: pygame.Rect
 
 
@@ -66,19 +70,25 @@ class ShufflePanel:
     def __init__(self, actions: ShuffleActions) -> None:
         self._actions = actions
         self.open = False
-        self._rows: list[tuple[str, str, bool]] = []  # (mode_key, name, in_pool)
+        self._rows: list[tuple[str, str, bool]] = []  # (item_key, label, in_pool)
         self._interval_label = ""
         self._auto_on = False
+        self._random_options_on = False
         self._scroll = 0
 
     # -- state ----------------------------------------------------------------
     def set_state(
-        self, rows: list[tuple[str, str, bool]], interval_label: str, auto_on: bool
+        self,
+        rows: list[tuple[str, str, bool]],
+        interval_label: str,
+        auto_on: bool,
+        random_options_on: bool = False,
     ) -> None:
-        """Refresh the mode checklist, interval text, and Auto on/off (each frame)."""
+        """Refresh the item checklist, interval text, and toggles (each frame)."""
         self._rows = rows
         self._interval_label = interval_label
         self._auto_on = auto_on
+        self._random_options_on = random_options_on
 
     def toggle(self) -> None:
         self.open = not self.open
@@ -96,6 +106,8 @@ class ShufflePanel:
             + _GAP
             + _ROW_H  # interval stepper
             + _GAP
+            + _ROW_H  # randomize-options toggle
+            + _GAP
             + _LABEL_H  # "Modes in rotation" label + All/None
             + self._visible_rows() * _ROW_H
             + _GAP
@@ -112,7 +124,9 @@ class ShufflePanel:
         x = panel.x + _PAD
         w = panel.width - _PAD * 2
         y = panel.y + _PAD
-        auto = pygame.Rect(x, y, w, _ROW_H)
+        next_w = 110
+        auto = pygame.Rect(x, y, w - next_w - _GAP, _ROW_H)
+        next_btn = pygame.Rect(auto.right + _GAP, y, next_w, _ROW_H)
         y += _ROW_H + _GAP
         step = 40
         interval_down = pygame.Rect(x, y, step, _ROW_H)
@@ -124,23 +138,27 @@ class ShufflePanel:
             _ROW_H,
         )
         y += _ROW_H + _GAP
+        random_opts = pygame.Rect(x, y, w, _ROW_H)
+        y += _ROW_H + _GAP
         label_y = y
         all_w = 60
         all_btn = pygame.Rect(panel.right - _PAD - all_w * 2 - _GAP, y - 4, all_w, _LABEL_H)
         none_btn = pygame.Rect(panel.right - _PAD - all_w, y - 4, all_w, _LABEL_H)
         y += _LABEL_H
-        rows: list[_ModeRow] = []
+        rows: list[_ItemRow] = []
         visible = self._rows[self._scroll : self._scroll + self._visible_rows()]
-        for mode_key, _name, _on in visible:
-            rows.append(_ModeRow(mode_key, pygame.Rect(x, y, w, _ROW_H)))
+        for item_key, _label, _on in visible:
+            rows.append(_ItemRow(item_key, pygame.Rect(x, y, w, _ROW_H)))
             y += _ROW_H
         close = pygame.Rect(x, panel.bottom - _PAD - _ROW_H, w, _ROW_H)
         return _PanelLayout(
             panel=panel,
             auto=auto,
+            next_btn=next_btn,
             interval_down=interval_down,
             interval_chip=interval_chip,
             interval_up=interval_up,
+            random_opts=random_opts,
             label_y=label_y,
             all_btn=all_btn,
             none_btn=none_btn,
@@ -166,11 +184,17 @@ class ShufflePanel:
         if lay.auto.collidepoint(pos):
             self._actions.toggle_auto()
             return True
+        if lay.next_btn.collidepoint(pos):
+            self._actions.shuffle_next()
+            return True
         if lay.interval_down.collidepoint(pos):
             self._actions.interval_down()
             return True
         if lay.interval_up.collidepoint(pos):
             self._actions.interval_up()
+            return True
+        if lay.random_opts.collidepoint(pos):
+            self._actions.toggle_random_options()
             return True
         if lay.all_btn.collidepoint(pos):
             self._actions.set_all(True)
@@ -180,7 +204,7 @@ class ShufflePanel:
             return True
         for row in lay.rows:
             if row.rect.collidepoint(pos):
-                self._actions.toggle_mode(row.mode_key)
+                self._actions.toggle_item(row.item_key)
                 return True
         if lay.close.collidepoint(pos):
             self.open = False
@@ -216,25 +240,33 @@ class ShufflePanel:
             font,
             active=self._auto_on,
         )
+        self._draw_button(surface, lay.next_btn, "Next \u23ed", font)
         self._draw_button(surface, lay.interval_down, "\u2212", font)
         self._draw_button(surface, lay.interval_chip, self._interval_label, font)
         self._draw_button(surface, lay.interval_up, "+", font)
+        self._draw_button(
+            surface,
+            lay.random_opts,
+            f"Randomize mode options: {'On' if self._random_options_on else 'Off'}",
+            font,
+            active=self._random_options_on,
+        )
 
-        label = font_small.render("Modes in rotation", True, COLOR_TEXT_DIM)
+        label = font_small.render("In rotation (\u2605 = saved look)", True, COLOR_TEXT_DIM)
         surface.blit(label, (panel.x + _PAD, lay.label_y))
         self._draw_button(surface, lay.all_btn, "All", font_small)
         self._draw_button(surface, lay.none_btn, "None", font_small)
 
         for row in lay.rows:
-            self._draw_mode_row(surface, row, font)
+            self._draw_item_row(surface, row, font)
 
         self._draw_button(surface, lay.close, "Close", font)
 
-    def _draw_mode_row(
-        self, surface: pygame.Surface, row: _ModeRow, font: pygame.font.Font
+    def _draw_item_row(
+        self, surface: pygame.Surface, row: _ItemRow, font: pygame.font.Font
     ) -> None:
         name, on = next(
-            ((n, o) for k, n, o in self._rows if k == row.mode_key), (row.mode_key, False)
+            ((n, o) for k, n, o in self._rows if k == row.item_key), (row.item_key, False)
         )
         draw_panel(surface, row.rect, accent_border=on)
         box = pygame.Rect(row.rect.x + TEXT_PAD, row.rect.centery - 8, 16, 16)

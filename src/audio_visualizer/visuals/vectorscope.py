@@ -26,6 +26,12 @@ from audio_visualizer.visuals.registry import register
 
 _POINTS = 256  # trace resolution (waveform resampled to this)
 _PHOSPHOR = (70, 255, 130)
+# Fraction of the smaller window edge the scope (grid + trace) spans. Bigger than
+# the old 0.4 so the figure occupies most of the canvas, not a small central box.
+_RADIUS_FRAC = 0.46
+# Auto-gain: scale each frame so its loudest sample reaches the scope edge. The
+# floor caps the gain so quiet passages stay small instead of amplifying noise.
+_NORM_FLOOR = 0.25
 
 _DELAY = ModeOption(
     "delay",
@@ -91,7 +97,7 @@ class Vectorscope(BaseVisualizer):
         persist_mode = int(self.option("persist"))
         if persist_mode == 0:
             self._blit_grid(surface, w, h)
-            pts = self._trace_points(frame, w / 2.0, h / 2.0, min(w, h) * 0.4)
+            pts = self._trace_points(frame, w / 2.0, h / 2.0, min(w, h) * _RADIUS_FRAC)
             for copy in mirror_points(pts, w / 2.0, h / 2.0, mirror):
                 self._render(surface, copy)
             return
@@ -100,7 +106,7 @@ class Vectorscope(BaseVisualizer):
         side = self._persist_side or 1
         target = self._ensure_persist(w, h)
         target.fill((int(255 * _FADE[persist_mode]),) * 3, special_flags=pygame.BLEND_RGB_MULT)
-        pts = self._trace_points(frame, side / 2.0, side / 2.0, side * 0.45)
+        pts = self._trace_points(frame, side / 2.0, side / 2.0, side * 0.48)
         for copy in mirror_points(pts, side / 2.0, side / 2.0, mirror):
             self._render(target, copy)
         self._blit_grid(surface, w, h)
@@ -108,7 +114,7 @@ class Vectorscope(BaseVisualizer):
         surface.blit(target, off, special_flags=pygame.BLEND_RGB_ADD)
 
     def _ensure_persist(self, w: int, h: int) -> pygame.Surface:
-        side = int(min(w, h) * 0.9)
+        side = int(min(w, h) * 0.95)
         if self._persist is None or self._persist_side != side:
             self._persist = pygame.Surface((side, side))
             self._persist_side = side
@@ -121,11 +127,14 @@ class Vectorscope(BaseVisualizer):
             # Idle: a quiescent dot at center keeps the scope alive without strobing.
             return [(cx, cy)]
         wav = np.asarray(frame.waveform_mono, dtype=np.float32)
+        # Auto-gain to the frame's peak so a typical (sub-unity) waveform fills the
+        # scope instead of a tiny central blob; the floor keeps quiet audio modest.
+        gain = 1.0 / max(float(np.max(np.abs(wav))), _NORM_FLOOR)
         delay = int(self.option("delay"))
         ys_src = np.roll(wav, delay)
         idx = np.linspace(0, wav.size - 1, _POINTS).astype(np.int64)
-        x = wav[idx]
-        y = ys_src[idx]
+        x = wav[idx] * gain
+        y = ys_src[idx] * gain
         if self._angle:
             cos_a, sin_a = math.cos(self._angle), math.sin(self._angle)
             x, y = x * cos_a - y * sin_a, x * sin_a + y * cos_a
@@ -181,7 +190,7 @@ class Vectorscope(BaseVisualizer):
         if int(self.option("grid")) == 0:
             return
         cx, cy = w // 2, h // 2
-        r = int(min(w, h) * 0.4)
+        r = int(min(w, h) * _RADIUS_FRAC)
         color = (30, 60, 40)
         pygame.draw.line(surface, color, (cx, cy - r), (cx, cy + r))
         pygame.draw.line(surface, color, (cx - r, cy), (cx + r, cy))

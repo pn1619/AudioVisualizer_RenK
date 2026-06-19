@@ -181,21 +181,34 @@ def test_capture_apply_roundtrip(app: App) -> None:
     assert app._capture_look("again").matches_payload(captured)
 
 
+def test_save_new_stays_on_live(app: App) -> None:
+    # Saving bookmarks the current look but leaves the user on None/Live, so the
+    # saved look is a distinct dropdown entry (not silently auto-activated).
+    app._save_new_look("Mine")
+    assert app._active_look_id == ""
+    assert len(app._looks_store.looks) == 1
+
+
 def test_active_look_dirty_tracking(app: App) -> None:
     app._save_new_look("Mine")
+    app._select_look(app._looks_store.looks[0].id)  # selecting it makes it active
     assert app._active_look_id != ""
     assert app._is_active_dirty() is False
     app._adjust_sensitivity(SENSITIVITY_STEP)
     assert app._is_active_dirty() is True
 
 
-def test_select_none_restores_baseline(app: App) -> None:
+def test_select_none_restores_live_not_save(app: App) -> None:
     base = app._sensitivity
-    app._save_new_look("Mine")  # snapshots baseline at save time
-    app._adjust_sensitivity(SENSITIVITY_STEP)
-    assert app._sensitivity != base
-    app._select_look("")  # None / Live restores the pre-look global
+    app._save_new_look("Mine")
+    look_id = app._looks_store.looks[0].id
+    app._adjust_sensitivity(SENSITIVITY_STEP)  # live edit after saving
+    live = app._sensitivity
+    assert live != base
+    app._select_look(look_id)  # applying the look reverts to its captured value
     assert app._sensitivity == pytest.approx(base)
+    app._select_look("")  # None / Live restores the live state, not the saved look
+    assert app._sensitivity == pytest.approx(live)
 
 
 def test_apply_missing_mode_is_nonfatal(app: App) -> None:

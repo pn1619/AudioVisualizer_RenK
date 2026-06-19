@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import math
 import random
 from typing import TypeVar
 
@@ -31,9 +32,11 @@ from audio_visualizer.config import (
     BG_MODES,
     BG_OPACITY_CHOICES,
     BG_SENSITIVITY_CHOICES,
+    COLOR_BAR,
     COLOR_BG,
     COLOR_CYCLE_RATE,
     COLOR_SCHEMES,
+    COLOR_TEXT_DIM,
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
     IDLE_BANNER_DELAY,
@@ -211,19 +214,23 @@ class App:
         self._look_baseline: Look | None = None
         self._looks_panel = LooksPanel(self._build_looks_actions())
 
-        # Auto-cycle ("shuffle", Phase 0B-c build 1): rotate the active built-in
-        # mode every interval, cross-fading. The pool is a set of mode keys
-        # (empty pool ⇒ no shuffle); a live ModeTransition holds the fade.
+        # Auto-cycle ("shuffle", Phase 0B-c): rotate the active visual every
+        # interval, cross-fading. The pool is a set of tagged ids — "mode:<key>"
+        # (built-in modes) and "look:<id>" (saved looks). Empty pool ⇒ no shuffle.
+        # A switch freezes the canvas into a ModeTransition and applies the next
+        # item live; stopping leaves you on whatever is currently showing.
         self._auto = False  # never persisted on; off each launch
         self._auto_pool: set[str] = {
-            tag.removeprefix("mode:")
-            for tag in self._settings.random_pool
-            if tag.startswith("mode:") and tag.removeprefix("mode:") in self._mode_keys
+            tag for tag in self._settings.random_pool if self._pool_tag_valid(tag)
         }
+        self._auto_current = ""  # last item shuffle landed on (for no-immediate-repeat)
         self._auto_interval = float(
             min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, self._settings.random_interval))
         )
         self._auto_elapsed = 0.0
+        # When on, shuffling to a built-in mode also randomizes that mode's own
+        # options (Background/Logo stay put; saved looks keep their captured options).
+        self._auto_random_options = bool(self._settings.random_options)
         self._transition: ModeTransition | None = None
         self._shuffle_panel = ShufflePanel(self._build_shuffle_actions())
 
@@ -292,15 +299,18 @@ class App:
             open_looks=self._open_looks_panel,
             toggle_auto=self._toggle_auto,
             open_shuffle=self._open_shuffle_panel,
+            shuffle_next=self._shuffle_next,
         )
 
     def _build_shuffle_actions(self) -> ShuffleActions:
         return ShuffleActions(
             toggle_auto=self._toggle_auto,
+            shuffle_next=self._shuffle_next,
             interval_down=lambda: self._adjust_interval(-RANDOM_INTERVAL_STEP),
             interval_up=lambda: self._adjust_interval(RANDOM_INTERVAL_STEP),
-            toggle_mode=self._toggle_pool_mode,
+            toggle_item=self._toggle_pool_item,
             set_all=self._set_pool_all,
+            toggle_random_options=self._toggle_random_options,
         )
 
     def _build_looks_actions(self) -> LooksActions:
@@ -580,11 +590,16 @@ class App:
         self._active_look_id = look_id
 
     def _save_new_look(self, name: str) -> None:
-        if self._look_baseline is None:
-            self._look_baseline = self._capture_look("baseline")
+        """Bookmark the current live look. Stays on None/Live (never auto-applies).
+
+        Activating the new look here would capture a baseline equal to it, so
+        "None / Live" would then restore the saved snapshot (and re-picking the
+        already-active look would be a no-op) — which reads as the two dropdown
+        entries being swapped. Keeping the user on None/Live makes the saved look
+        a distinct entry: selecting it applies the look, None/Live keeps the live.
+        """
         created = self._looks_store.add(self._capture_look(name or "My look"))
         if created is not None:
-            self._active_look_id = created.id
             self._persist_looks()
 
     def _update_active_look(self) -> None:
@@ -619,21 +634,54 @@ class App:
 
     # -- auto-cycle ("shuffle") ----------------------------------------------
     def _open_shuffle_panel(self) -> None:
-        self._shuffle_panel.set_state(self._shuffle_rows(), self._interval_label(), self._auto)
+        self._shuffle_panel.set_state(
+            self._shuffle_rows(),
+            self._interval_label(),
+            self._auto,
+            self._auto_random_options,
+        )
         self._shuffle_panel.toggle()
 
+    def _pool_tag_valid(self, tag: str) -> bool:
+        """True if a tagged pool id still points at an existing mode or saved look."""
+        if tag.startswith("mode:"):
+            return tag.removeprefix("mode:") in self._mode_keys
+        if tag.startswith("look:"):
+            return self._looks_store.get(tag.removeprefix("look:")) is not None
+        return False
+
+    def _all_pool_tags(self) -> set[str]:
+        """Every selectable rotation item: all built-in modes + all saved looks."""
+        tags = {f"mode:{key}" for key in self._mode_keys}
+        tags |= {f"look:{look.id}" for look in self._looks_store.looks}
+        return tags
+
+    def _ordered_pool_tags(self) -> list[str]:
+        """Pooled items in stable display order (modes first, then saved looks)."""
+        order = [f"mode:{key}" for key in self._mode_keys]
+        order += [f"look:{look.id}" for look in self._looks_store.looks]
+        return [tag for tag in order if tag in self._auto_pool]
+
     def _shuffle_rows(self) -> list[tuple[str, str, bool]]:
-        """(mode_key, display_name, in_pool) rows for the Shuffle checklist."""
-        return [(key, name, key in self._auto_pool) for key, name in registry.options()]
+        """(tag, label, in_pool) rows for the Shuffle checklist (modes, then looks)."""
+        rows = [
+            (f"mode:{key}", name, f"mode:{key}" in self._auto_pool)
+            for key, name in registry.options()
+        ]
+        rows += [
+            (f"look:{look.id}", f"\u2605 {look.name}", f"look:{look.id}" in self._auto_pool)
+            for look in self._looks_store.looks
+        ]
+        return rows
 
     def _interval_label(self) -> str:
         return f"Every {self._auto_interval:g}s"
 
     def _toggle_auto(self) -> None:
-        """Flip auto-cycle. Turning it on with an empty pool selects every mode."""
+        """Flip auto-cycle. Turning it on with an empty pool selects everything."""
         self._auto = not self._auto
         if self._auto and not self._auto_pool:
-            self._auto_pool = set(self._mode_keys)
+            self._auto_pool = self._all_pool_tags()
         self._auto_elapsed = 0.0
         logger.debug("Auto-cycle = %s (pool=%d)", self._auto, len(self._auto_pool))
 
@@ -642,68 +690,92 @@ class App:
             min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, self._auto_interval + delta))
         )
 
-    def _toggle_pool_mode(self, key: str) -> None:
-        if key not in self._mode_keys:
+    def _toggle_pool_item(self, tag: str) -> None:
+        if tag not in self._all_pool_tags():
             return
-        if key in self._auto_pool:
-            self._auto_pool.discard(key)
+        if tag in self._auto_pool:
+            self._auto_pool.discard(tag)
         else:
-            self._auto_pool.add(key)
+            self._auto_pool.add(tag)
 
     def _set_pool_all(self, on: bool) -> None:
-        self._auto_pool = set(self._mode_keys) if on else set()
+        self._auto_pool = self._all_pool_tags() if on else set()
 
-    def _valid_pool_indices(self) -> list[int]:
-        """Mode indices currently in the shuffle pool (stale keys excluded)."""
-        return [i for i, key in enumerate(self._mode_keys) if key in self._auto_pool]
+    def _toggle_random_options(self) -> None:
+        """Flip whether shuffling to a mode also randomizes that mode's options."""
+        self._auto_random_options = not self._auto_random_options
+        logger.debug("Shuffle randomize-options = %s", self._auto_random_options)
+
+    def _valid_pool(self) -> list[str]:
+        """Pooled items that still exist, in stable order."""
+        return self._ordered_pool_tags()
+
+    def _shuffle_next(self) -> None:
+        """Advance to the next rotation item now (works whether or not Auto is on)."""
+        if not self._auto_pool:
+            self._auto_pool = self._all_pool_tags()
+        self._transition = None  # snap any in-flight fade to its end, then advance
+        self._auto_elapsed = 0.0
+        self._auto_advance()
 
     def _update_auto(self, dt: float) -> None:
         """Advance any active fade, else tick the timer and start the next switch."""
         if self._transition is not None:
             if self._transition.advance(dt):
-                self._finish_transition()
+                self._transition = None
             return
         if not self._auto or self._modal_open() or self._notice_visible():
             return
-        if not self._valid_pool_indices():
+        if not self._valid_pool():
             return
         self._auto_elapsed += dt
         if self._auto_elapsed >= self._auto_interval:
             self._auto_elapsed = 0.0
             self._auto_advance()
 
+    def _pick_next(self) -> str | None:
+        """Choose the next pooled item at random, never repeating the current one."""
+        pool = self._valid_pool()
+        choices = [tag for tag in pool if tag != self._auto_current]
+        return random.choice(choices) if choices else None
+
     def _auto_advance(self) -> None:
-        """Pick the next pooled mode (no immediate repeat) and start the switch."""
-        choices = [i for i in self._valid_pool_indices() if i != self._mode_index]
-        if not choices:
+        """Freeze the current canvas, apply the next item live, and start the fade."""
+        nxt = self._pick_next()
+        if nxt is None:
             return
-        target = random.choice(choices)
-        incoming = registry.create(self._mode_keys[target], reduce_motion=self._reduce_motion)
-        incoming.theme = self._theme
-        incoming.on_resize(self._layout.canvas.size)
-        incoming.on_enter()
-        if self._reduce_motion or TRANSITION_DURATION <= 0.0:
-            self._commit_incoming(target, incoming)  # reduce-motion: hard cut
-        else:
-            self._transition = ModeTransition(
-                outgoing=self._visual,
-                incoming=incoming,
-                target_index=target,
-                duration=TRANSITION_DURATION,
-            )
+        snapshot = self._screen.subsurface(self._layout.canvas).copy()
+        self._apply_pool_tag(nxt)
+        self._auto_current = nxt
+        if not (self._reduce_motion or TRANSITION_DURATION <= 0.0):  # reduce-motion = hard cut
+            self._transition = ModeTransition(snapshot=snapshot, duration=TRANSITION_DURATION)
 
-    def _commit_incoming(self, target: int, incoming: BaseVisualizer) -> None:
-        """Retire the outgoing mode and make ``incoming`` the active visual."""
-        self._visual.on_exit()
-        self._visual = incoming
-        self._mode_index = target
+    def _apply_pool_tag(self, tag: str) -> None:
+        """Apply a rotation item to the live global (a mode swap or a full look)."""
+        if tag.startswith("mode:"):
+            key = tag.removeprefix("mode:")
+            if key in self._mode_keys:
+                self._set_mode_index(self._mode_keys.index(key))
+                if self._auto_random_options:
+                    self._randomize_mode_options()
+        elif tag.startswith("look:"):
+            self._apply_look(self._looks_store.get(tag.removeprefix("look:")))
+
+    def _randomize_mode_options(self) -> None:
+        """Pick a random choice for each of the active mode's options.
+
+        A ``preset`` option (if any) is forced to its "Custom" choice so the
+        sibling options it would otherwise snap stay freely randomized and the
+        dropdown does not advertise a preset whose values were overwritten.
+        Background/Logo are global overlays, not mode options, so they are
+        untouched here by design.
+        """
+        for opt in type(self._visual).OPTIONS:
+            if opt.key == "preset":
+                self._visual.set_option_index(opt.key, 0)
+            elif len(opt.choices) > 1:
+                self._visual.set_option_index(opt.key, random.randrange(len(opt.choices)))
         self._refresh_mode_options()
-
-    def _finish_transition(self) -> None:
-        trans = self._transition
-        self._transition = None
-        if trans is not None:
-            self._commit_incoming(trans.target_index, trans.incoming)
 
     def _cycle_mode(self, delta: int) -> None:
         self._set_mode_index((self._mode_index + delta) % len(self._mode_keys))
@@ -713,12 +785,13 @@ class App:
             self._set_mode_index(self._mode_keys.index(key))
 
     def _set_mode_index(self, index: int) -> None:
-        # Any manual/programmatic switch cancels an in-flight fade and resets the
-        # auto timer so a shuffle never yanks a mode the user just chose.
+        # A manual switch resets the auto timer so a shuffle never yanks a mode
+        # the user just chose; the current-item marker keeps no-repeat honest.
+        # (Auto-advance applies the next item *before* arming its fade, so the
+        # clear here only ever cancels a fade the user is interrupting.)
         self._auto_elapsed = 0.0
-        if self._transition is not None:
-            self._transition.incoming.on_exit()
-            self._transition = None
+        self._transition = None
+        self._auto_current = f"mode:{self._mode_keys[index]}"
         if index == self._mode_index:
             return
         self._mode_index = index
@@ -1004,6 +1077,8 @@ class App:
             self._toggle_reduce_motion()
         elif key == pygame.K_a:
             self._toggle_auto()
+        elif key == pygame.K_n:
+            self._shuffle_next()
         elif pygame.K_1 <= key <= pygame.K_9:
             self._set_mode_index(min(key - pygame.K_1, len(self._mode_keys) - 1))
 
@@ -1055,14 +1130,14 @@ class App:
         canvas = self._layout.canvas
         try:
             sub = screen.subsurface(canvas)
-            if self._transition is not None:
-                self._draw_transition(sub, dt)
-            else:
-                # The background layer is composited first, behind the active mode.
-                self._background.draw(sub, self._frame, dt)
-                self._visual.draw(sub, self._frame, dt)
+            # The background layer is composited first, behind the active mode.
+            self._background.draw(sub, self._frame, dt)
+            self._visual.draw(sub, self._frame, dt)
             # The RenK logo is a global overlay: drawn over every mode's output.
             self._logo.draw(sub, self._frame, dt)
+            # A shuffle switch dissolves the frozen old scene out over the live one.
+            if self._transition is not None:
+                self._draw_transition(sub)
         except Exception:  # fail-soft: a broken mode must not crash the app
             logger.exception("Visual %r failed to draw", self._visual.KEY)
 
@@ -1082,6 +1157,7 @@ class App:
             self._controls.draw(screen, self._layout.control_bar, self._font)
 
         self._hud.draw(screen, canvas, self._hud_state(), self._font_small)
+        self._draw_auto_status(screen, canvas)
         if self._notice_visible():
             self._hud.draw_notice(screen, canvas, self._font, self._font_small)
 
@@ -1095,31 +1171,50 @@ class App:
         self._source_panel.draw(screen, canvas, self._font, self._font_small)
         self._looks_panel.update(dt)
         self._looks_panel.draw(screen, canvas, self._font, self._font_small)
-        self._shuffle_panel.set_state(self._shuffle_rows(), self._interval_label(), self._auto)
+        self._shuffle_panel.set_state(
+            self._shuffle_rows(),
+            self._interval_label(),
+            self._auto,
+            self._auto_random_options,
+        )
         self._shuffle_panel.draw(screen, canvas, self._font, self._font_small)
         self._about.draw(screen, canvas, self._font, self._font_small)
 
-    def _draw_transition(self, sub: pygame.Surface, dt: float) -> None:
-        """Cross-fade the outgoing→incoming mode over the (shared) background.
+    def _draw_transition(self, sub: pygame.Surface) -> None:
+        """Overlay the frozen outgoing scene at a falling alpha (it dissolves away).
 
-        Both modes render onto opaque copies of a single background layer, so the
-        background is advanced once and the dissolve covers the whole scene. Only
-        runs while a fade is in flight, so steady-state cost is unchanged.
+        The live (new) scene is already on ``sub``; this just blits the snapshot
+        on top. Works for both mode swaps and full looks since the snapshot is the
+        whole canvas. Recreated-surface size mismatches (mid-fade resize) are scaled.
         """
         trans = self._transition
         if trans is None:
             return
-        size = sub.get_size()
-        bg_layer = pygame.Surface(size)
-        bg_layer.fill(COLOR_BG)
-        self._background.draw(bg_layer, self._frame, dt)
-        out_layer = bg_layer.copy()
-        trans.outgoing.draw(out_layer, self._frame, dt)
-        in_layer = bg_layer.copy()
-        trans.incoming.draw(in_layer, self._frame, dt)
-        sub.blit(out_layer, (0, 0))
-        in_layer.set_alpha(trans.alpha())
-        sub.blit(in_layer, (0, 0))
+        snapshot = trans.snapshot
+        if snapshot.get_size() != sub.get_size():
+            snapshot = pygame.transform.smoothscale(snapshot, sub.get_size())
+        snapshot.set_alpha(trans.overlay_alpha())
+        sub.blit(snapshot, (0, 0))
+
+    def _draw_auto_status(self, screen: pygame.Surface, canvas: pygame.Rect) -> None:
+        """Small top-right 'Auto · next in Ns' chip shown while shuffle is running."""
+        if not self._auto or not self._valid_pool():
+            return
+        if self._transition is not None:
+            text = "Auto \u00b7 switching\u2026"
+        else:
+            remaining = max(1, math.ceil(self._auto_interval - self._auto_elapsed))
+            text = f"Auto \u00b7 next in {remaining}s"
+        label = self._font_small.render(text, True, COLOR_TEXT_DIM)
+        pad = 6
+        box = pygame.Surface(
+            (label.get_width() + pad * 2, label.get_height() + pad * 2), pygame.SRCALPHA
+        )
+        box.fill((*COLOR_BAR, 190))
+        bx = canvas.right - box.get_width() - 10
+        by = canvas.top + 10
+        screen.blit(box, (bx, by))
+        screen.blit(label, (bx + pad, by + pad))
 
     def _hud_state(self) -> HudState:
         idle = self._capturing and self._silent_seconds >= IDLE_BANNER_DELAY
@@ -1175,8 +1270,9 @@ class App:
             bg_opacity=self._background.opacity,
             source_id=self._source_id,
             active_look=self._active_look_id,
-            random_pool=[f"mode:{key}" for key in self._mode_keys if key in self._auto_pool],
+            random_pool=self._ordered_pool_tags(),
             random_interval=self._auto_interval,
+            random_options=self._auto_random_options,
         )
 
     def _shutdown(self) -> None:

@@ -17,7 +17,7 @@ AudioVisualizer/
 │     ├─ main.py                # parse args, configure logging, install excepthook, build & run App
 │     ├─ app.py                 # App: window, main loop, input, mode switching (wiring only)
 │     ├─ config.py              # constants & defaults (APP_VERSION, FFT size, FPS, colors, smoothing keys)
-│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=10, migrate-or-default; v7 remaps merged mode keys, v8 adds source_id, v9 adds active_look, v10 adds random_pool+random_interval)
+│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=11, migrate-or-default; v7 remaps merged mode keys, v8 adds source_id, v9 adds active_look, v10 adds random_pool+random_interval, v11 adds random_options)
 │     ├─ looks.py               # Phase 0B-b: user looks ("My Looks") store — Look dataclass + load/save/CRUD/export/import (own looks.json, schema_version=1)
 │     ├─ platform_win.py        # DPI awareness + Windows-specific shims (guarded, no-op off Windows)
 │     ├─ resources.py           # Phase 9: locate bundled assets/ in dev + frozen (_MEIPASS) runs
@@ -75,7 +75,7 @@ AudioVisualizer/
 │        ├─ source_panel.py     # Phase 0B-a: Sound-source modal (selectable capture device; opened by Src button)
 │        ├─ looks_panel.py      # Phase 0B-b: My Looks save/manage modal (name + Save/Update, load/Dup/Del)
 │        ├─ text_input.py       # Phase 0B-b: reusable single-line text input (look naming)
-│        ├─ shuffle_panel.py    # Phase 0B-c: auto-cycle modal (Auto toggle + interval + mode checklist)
+│        ├─ shuffle_panel.py    # Phase 0B-c: auto-cycle modal (Auto + Next + interval + mode/look ★ checklist)
 │        ├─ about.py            # Phase 9: About modal (owner/license/version/build date)
 │        └─ hud.py              # status line + debug overlay (F3)
 │

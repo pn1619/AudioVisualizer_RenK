@@ -25,11 +25,16 @@ loopback / mic) — enumerated in `audio/devices.py`, opened on a pinned device 
 + `Save…` button (row 1, distinct from the per-mode `Preset` dropdown) save/load a complete
 look (mode + options + theme + sensitivity/smoothing + Background/Logo snapshot) via the
 `looks.py` store (own `looks.json`); applying a look overlays live global and `None / Live`
-restores it. **Auto-cycle ("shuffle", v00.0B.03):** an `Auto` toggle + `Shuffle…` modal (`A`
-key) auto-switch the active built-in mode every interval with a **cross-fade**
-(`visuals/_transition.py` `ModeTransition`; reduce-motion = hard cut). The rotation persists
-as `random_pool` (tagged `mode:<key>`) + `random_interval`; Auto is never persisted on. Saved
-looks in the rotation come in a later build. The full, current mode catalog is
+restores the live (pre-look) state. **Saving bookmarks the current look without auto-activating**
+(you stay on `None / Live`), so the saved entry never collides with the baseline.
+**Auto-cycle ("shuffle", v00.0B.03–05):** an `Auto` toggle + `Next` button +
+`Shuffle…` modal (`A` / `N` keys) auto-switch the active visual every interval with a
+**frozen-snapshot dissolve** (`visuals/_transition.py` `ModeTransition`; reduce-motion = hard
+cut). The rotation pool (`random_pool`, tagged `mode:<key>` **and** `look:<id>`), `random_interval`,
+and a **`random_options`** toggle (randomize a mode's own options on landing — not Background/Logo)
+persist (schema v11); a switch onto a look applies the whole look and dissolves cleanly. A small
+`Auto · next in Ns` chip shows the countdown. Auto is never persisted on; stopping leaves the
+current visual. The full, current mode catalog is
 > `plan/visual-mode-ideas.md`; the build-order list below is a per-phase history.
 
 ## Read first (canonical docs)

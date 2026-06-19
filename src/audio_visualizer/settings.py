@@ -102,6 +102,10 @@ class Settings:
     # empty pool means no shuffle. Auto is never persisted on (off each launch).
     random_pool: list[str] = field(default_factory=list)
     random_interval: float = RANDOM_INTERVAL_DEFAULT
+    # When on, shuffling to a built-in mode also randomizes that mode's own
+    # options (e.g. Ripples' spawn origin). Background/Logo are never touched
+    # by this. Saved looks keep their own captured options. (schema v11)
+    random_options: bool = False
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -195,6 +199,7 @@ def _from_dict(raw: dict) -> Settings:
         active_look=_str(raw.get("active_look"), defaults.active_look),
         random_pool=_str_list(raw.get("random_pool"), defaults.random_pool),
         random_interval=_interval(raw.get("random_interval"), defaults.random_interval),
+        random_options=_bool(raw.get("random_options"), defaults.random_options),
     )
 
 

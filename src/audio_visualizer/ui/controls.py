@@ -64,7 +64,9 @@ class ControlActions:
     open_looks: Callable[[], None] = lambda: None
     # Toggles auto-cycle (shuffle) on/off. Defaulted likewise.
     toggle_auto: Callable[[], None] = lambda: None
-    # Opens the Shuffle settings modal (interval + mode pool). Defaulted likewise.
+    # Advances to the next rotation item now. Defaulted likewise.
+    shuffle_next: Callable[[], None] = lambda: None
+    # Opens the Shuffle settings modal (interval + mode/look pool). Defaulted likewise.
     open_shuffle: Callable[[], None] = lambda: None
 
 
@@ -97,9 +99,11 @@ class ControlBar:
         self._looks.set_options([("", "None / Live")])
         self._save_look = Button("Save\u2026", actions.open_looks)
 
-        # Auto-cycle ("shuffle"): an on/off toggle + a settings button (interval +
-        # which modes are in the rotation). The toggle paints accent-filled when on.
+        # Auto-cycle ("shuffle"): an on/off toggle, a Next (skip-ahead) button, and a
+        # settings button (interval + which modes/looks are in the rotation). The
+        # toggle paints accent-filled when on.
         self._auto = Button("Auto", actions.toggle_auto)
+        self._next_item = Button("Next", actions.shuffle_next)
         self._shuffle = Button("Shuffle\u2026", actions.open_shuffle)
 
         # Compact steppers: [-] <Name value> [+]; the chip carries the name+value so
@@ -138,6 +142,7 @@ class ControlBar:
             (self._looks, 168),
             (self._save_look, 64),
             (self._auto, 60),
+            (self._next_item, 54),
             (self._shuffle, 84),
             (self._sens_down, step),
             (self._sens_chip, 96),
