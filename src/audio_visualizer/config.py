@@ -18,7 +18,7 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0B.07"
+APP_VERSION = "00.0B.08"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-18"
@@ -408,6 +408,9 @@ SETTINGS_SCHEMA_VERSION = 12
 # Saved user looks live in their own file (sibling to settings.json) so a bad
 # look can never corrupt core settings. The file carries its own schema_version.
 LOOKS_FILENAME = "looks.json"
+# Default filename when the user exports their whole My Looks library to a file
+# next to the application (portable backup / share); see looks.export_library.
+LOOKS_EXPORT_FILENAME = "AudioVisualizer-looks.json"
 LOOKS_SCHEMA_VERSION = 1
 LOOKS_MAX = 100  # guard rail: cap how many looks we keep/show
 LOOK_NAME_MAX = 60  # guard rail: trim look names to this length

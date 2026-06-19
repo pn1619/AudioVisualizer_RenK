@@ -305,6 +305,7 @@ class App:
             toggle_auto=self._toggle_auto,
             open_shuffle=self._open_shuffle_panel,
             shuffle_next=self._shuffle_next,
+            randomize_current=self._randomize_current_mode,
         )
 
     def _build_shuffle_actions(self) -> ShuffleActions:
@@ -327,6 +328,9 @@ class App:
             load=self._select_look,
             delete=self._delete_look,
             duplicate=self._duplicate_look,
+            export_library=self._export_looks,
+            import_library=self._import_looks,
+            library_path=lambda: str(looks_mod.default_library_path()),
         )
 
     def _build_appearance_actions(self) -> AppearanceActions:
@@ -636,8 +640,39 @@ class App:
             self._persist_looks()
 
     def _persist_looks(self) -> None:
-        if self._persist:
-            looks_mod.save(self._looks_store)
+        """Save the live looks file; log a clear hint if the write fails."""
+        if not self._persist:
+            return
+        if not looks_mod.save(self._looks_store):
+            logger.warning(
+                "Could not save My Looks to %s. If this keeps happening the file may be "
+                "locked or corrupt — close other instances or delete it to reset.",
+                looks_mod.looks_path(),
+            )
+
+    def _export_looks(self) -> str:
+        """Export the whole library to the companion file; return a status message."""
+        path = looks_mod.default_library_path()
+        if looks_mod.export_library(self._looks_store, path):
+            n = len(self._looks_store.looks)
+            return f"Exported {n} look{'s' if n != 1 else ''} to {path.name}."
+        return f"Export failed — could not write {path.name} (see logs)."
+
+    def _import_looks(self) -> str:
+        """Merge the companion file into the library; return a status message."""
+        path = looks_mod.default_library_path()
+        imported = looks_mod.import_library(path)
+        if not imported:
+            return f"Nothing imported — {path.name} missing, empty, or corrupt."
+        added = 0
+        for look in imported:
+            if self._looks_store.add(look) is not None:
+                added += 1
+        self._persist_looks()
+        self._looks_panel.set_state(
+            self._saved_look_rows(), self._active_look_id, self._active_look_name()
+        )
+        return f"Imported {added} look{'s' if added != 1 else ''} from {path.name}."
 
     # -- auto-cycle ("shuffle") ----------------------------------------------
     def _open_shuffle_panel(self) -> None:
@@ -798,6 +833,7 @@ class App:
                 self._set_mode_index(self._mode_keys.index(key))
                 if self._auto_random_options:
                     self._randomize_mode_options()
+                    self._randomize_globals()
         elif tag.startswith("look:"):
             self._apply_look(self._looks_store.get(tag.removeprefix("look:")))
 
@@ -816,6 +852,34 @@ class App:
             elif len(opt.choices) > 1:
                 self._visual.set_option_index(opt.key, random.randrange(len(opt.choices)))
         self._refresh_mode_options()
+
+    def _randomize_globals(self) -> None:
+        """Randomize the global feel (sensitivity/smoothing/size/speed) across full ranges.
+
+        Drawn from continuous uniform ranges (not a couple of preset steps) so each
+        shuffle/Randomize genuinely varies — the chips will rarely repeat a value.
+        """
+        self._sensitivity = round(random.uniform(SENSITIVITY_MIN, SENSITIVITY_MAX), 2)
+        self._smoothing = round(random.uniform(0.0, 0.9), 2)
+        self._analyzer.set_smoothing(*_smoothing_to_coeffs(self._smoothing))
+        self._theme.size_scale = round(random.uniform(SIZE_SCALE_MIN, SIZE_SCALE_MAX), 2)
+        self._theme.speed_scale = round(random.uniform(SPEED_SCALE_MIN, SPEED_SCALE_MAX), 2)
+        logger.debug(
+            "Randomized globals: sens=%.2f smooth=%.2f size=%.2f speed=%.2f",
+            self._sensitivity,
+            self._smoothing,
+            self._theme.size_scale,
+            self._theme.speed_scale,
+        )
+
+    def _randomize_current_mode(self) -> None:
+        """Randomize the active mode's options + global feel, keeping the same mode.
+
+        This is the manual ``Rnd`` button / ``R`` key: it never switches modes, it
+        just rolls fresh options and feel for whatever is on screen now.
+        """
+        self._randomize_mode_options()
+        self._randomize_globals()
 
     def _cycle_mode(self, delta: int) -> None:
         self._set_mode_index((self._mode_index + delta) % len(self._mode_keys))
@@ -1119,6 +1183,8 @@ class App:
             self._toggle_auto()
         elif key == pygame.K_n:
             self._shuffle_next()
+        elif key == pygame.K_r:
+            self._randomize_current_mode()
         elif pygame.K_1 <= key <= pygame.K_9:
             self._set_mode_index(min(key - pygame.K_1, len(self._mode_keys) - 1))
 

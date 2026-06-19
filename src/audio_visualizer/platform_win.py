@@ -31,6 +31,18 @@ def enable_dpi_awareness() -> None:
         logger.debug("Could not set DPI awareness", exc_info=True)
 
 
+def get_app_dir() -> Path:
+    """Directory the application runs from (for portable/companion data files).
+
+    When frozen by PyInstaller this is the folder that holds the ``.exe``; in a
+    dev checkout it is the current working directory. Used as the default target
+    for exporting/importing the My Looks library so it sits next to the app.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path.cwd()
+
+
 def get_appdata_dir() -> Path:
     """Return the per-user app data directory, creating it if needed.
 

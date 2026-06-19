@@ -60,3 +60,28 @@ def test_new_mode_renders(key: str, reduce_motion: bool) -> None:
     if key in _FILLING:
         nonblack = pygame.transform.average_color(surface)[:3]
         assert sum(nonblack) > 0, f"{key} drew nothing on an active frame"
+
+
+def test_kaleidoscope_every_option_choice_renders() -> None:
+    """Cycle every Kaleidoscope option choice (incl. Spark + Size) without raising."""
+    frame = _active_frame()
+    surface = pygame.Surface((320, 200))
+    for opt in registry.create("kaleidoscope").OPTIONS:
+        for index in range(len(opt.choices)):
+            visual = registry.create("kaleidoscope")
+            visual.theme = Theme()
+            visual.on_enter()
+            visual.set_option_index(opt.key, index)
+            for _ in range(6):
+                visual.draw(surface, frame, 0.05)
+
+
+def test_kaleidoscope_spark_emits_particles() -> None:
+    visual = registry.create("kaleidoscope")
+    visual.theme = Theme()
+    visual.on_enter()
+    visual.set_option_index("spark", 1)  # On
+    surface = pygame.Surface((320, 200))
+    for _ in range(20):
+        visual.draw(surface, _active_frame(), 0.05)
+    assert visual._sparks.count > 0, "Spark On should emit particles on a loud frame"

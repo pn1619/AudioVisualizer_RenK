@@ -27,11 +27,12 @@ from pathlib import Path
 from audio_visualizer.config import (
     APP_VERSION,
     LOOK_NAME_MAX,
+    LOOKS_EXPORT_FILENAME,
     LOOKS_FILENAME,
     LOOKS_MAX,
     LOOKS_SCHEMA_VERSION,
 )
-from audio_visualizer.platform_win import get_appdata_dir
+from audio_visualizer.platform_win import get_app_dir, get_appdata_dir
 
 logger = logging.getLogger(__name__)
 
@@ -324,8 +325,17 @@ class LooksStore:
 
 
 def looks_path() -> Path:
-    """Full path to the looks file under the app-data directory."""
+    """Full path to the live looks file under the app-data directory."""
     return get_appdata_dir() / LOOKS_FILENAME
+
+
+def default_library_path() -> Path:
+    """Default file for exporting/importing the whole library: next to the app.
+
+    This sits beside the ``.exe`` (or the dev working dir) so a user can back up
+    or carry their My Looks with the application folder.
+    """
+    return get_app_dir() / LOOKS_EXPORT_FILENAME
 
 
 def load(path: Path | None = None) -> LooksStore:
@@ -388,6 +398,45 @@ def export_look(look: Look, path: Path) -> bool:
     except OSError:
         logger.warning("Could not export look to %s", path, exc_info=True)
         return False
+
+
+def export_library(store: LooksStore, path: Path | None = None) -> bool:
+    """Write the whole library to ``path`` (defaults beside the app). Never raises."""
+    path = path or default_library_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(store.to_json(), indent=2), encoding="utf-8")
+        return True
+    except OSError:
+        logger.warning("Could not export looks library to %s", path, exc_info=True)
+        return False
+
+
+def import_library(path: Path | None = None) -> list[Look]:
+    """Read a whole exported library file into looks (fresh ids). Never raises.
+
+    Returns an empty list on any file/parse problem so the caller can show a
+    friendly notice instead of crashing. Each look gets a new id so importing
+    appends copies rather than clobbering existing looks.
+    """
+    path = path or default_library_path()
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        logger.warning("Could not read looks library %s", path, exc_info=True)
+        return []
+    records = raw.get("looks") if isinstance(raw, dict) else None
+    if not isinstance(records, list):
+        logger.warning("Looks library %s is malformed", path)
+        return []
+    out: list[Look] = []
+    for record in records:
+        look = _from_json(record)
+        if look is not None:
+            out.append(replace(look, id=new_id(), readonly=False))
+        if len(out) >= LOOKS_MAX:
+            break
+    return out
 
 
 def import_look(path: Path) -> Look | None:

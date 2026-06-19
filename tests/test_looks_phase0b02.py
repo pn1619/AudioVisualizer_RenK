@@ -12,7 +12,9 @@ from audio_visualizer.looks import (
     LINK_LOCAL,
     Look,
     LooksStore,
+    export_library,
     export_look,
+    import_library,
     import_look,
     load,
     sanitize_name,
@@ -149,6 +151,28 @@ def test_export_import_assigns_fresh_id(tmp_path) -> None:
     assert imported is not None
     assert imported.name == "Shared"
     assert imported.id != "original-id"  # never reuse an imported id
+
+
+def test_export_import_library_roundtrip(tmp_path) -> None:
+    store = LooksStore([_look("A"), _look("B")])
+    out = tmp_path / "AudioVisualizer-looks.json"
+    assert export_library(store, out)
+    imported = import_library(out)
+    assert [look.name for look in imported] == ["A", "B"]
+    # Fresh ids on import so re-importing appends copies rather than clobbering.
+    assert all(look.id for look in imported)
+    assert {look.id for look in imported}.isdisjoint({look.id for look in store.looks})
+
+
+def test_import_library_never_raises_on_bad_file(tmp_path) -> None:
+    missing = tmp_path / "nope.json"
+    assert import_library(missing) == []  # missing file -> empty, no crash
+    corrupt = tmp_path / "corrupt.json"
+    corrupt.write_text("{ this is not json", encoding="utf-8")
+    assert import_library(corrupt) == []
+    wrong = tmp_path / "wrong.json"
+    wrong.write_text('{"looks": "not-a-list"}', encoding="utf-8")
+    assert import_library(wrong) == []
 
 
 # -- settings migration -------------------------------------------------------

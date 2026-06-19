@@ -38,6 +38,13 @@ class LooksActions:
     load: Callable[[str], None]
     delete: Callable[[str], None]
     duplicate: Callable[[str], None]
+    # Export the whole library to the companion file (returns a status message);
+    # import merges a companion file in. ``library_path`` reports where that file
+    # lives so the panel can show the current location. Defaulted so older
+    # callers/tests that omit them keep working.
+    export_library: Callable[[], str] = lambda: ""
+    import_library: Callable[[], str] = lambda: ""
+    library_path: Callable[[], str] = lambda: ""
 
 
 @dataclass(frozen=True)
@@ -58,6 +65,9 @@ class _PanelLayout:
     name: pygame.Rect
     save_new: pygame.Rect
     update: pygame.Rect
+    export: pygame.Rect
+    import_: pygame.Rect
+    io_info_y: int
     label_y: int
     rows: list[_RowRects]
     close: pygame.Rect
@@ -76,6 +86,7 @@ class LooksPanel:
         self._scroll = 0
         self._confirm_delete_id = ""
         self._hover_key = ""  # which control the mouse is over (for highlight)
+        self._status = ""  # last export/import result message (shown under the IO row)
 
     # -- state ----------------------------------------------------------------
     def set_state(self, rows: list[tuple[str, str]], active_id: str, active_name: str) -> None:
@@ -91,6 +102,7 @@ class LooksPanel:
             self._name.focused = True
             self._scroll = 0
             self._confirm_delete_id = ""
+            self._status = ""
 
     def update(self, dt: float) -> None:
         if self.open:
@@ -106,6 +118,10 @@ class LooksPanel:
             + _ROW_H  # name field
             + _GAP
             + _ROW_H  # save / update row
+            + _GAP
+            + _ROW_H  # export / import row
+            + _GAP
+            + _LABEL_H * 2  # file location + last status lines
             + _GAP
             + _LABEL_H  # "Saved looks" label
             + self._visible_rows() * _ROW_H
@@ -130,6 +146,11 @@ class LooksPanel:
         save_new = pygame.Rect(x, y, half, _ROW_H)
         update = pygame.Rect(x + half + _GAP, y, w - half - _GAP, _ROW_H)
         y += _ROW_H + _GAP
+        export = pygame.Rect(x, y, half, _ROW_H)
+        import_ = pygame.Rect(x + half + _GAP, y, w - half - _GAP, _ROW_H)
+        y += _ROW_H + _GAP
+        io_info_y = y
+        y += _LABEL_H * 2 + _GAP
         label_y = y
         y += _LABEL_H
         list_rows: list[_RowRects] = []
@@ -147,7 +168,9 @@ class LooksPanel:
             )
             y += _ROW_H
         close = pygame.Rect(x, panel.bottom - _PAD - _ROW_H, w, _ROW_H)
-        return _PanelLayout(panel, name, save_new, update, label_y, list_rows, close)
+        return _PanelLayout(
+            panel, name, save_new, update, export, import_, io_info_y, label_y, list_rows, close
+        )
 
     # -- input ----------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event, canvas: pygame.Rect) -> bool:
@@ -181,6 +204,12 @@ class LooksPanel:
         if self._active_id and lay.update.collidepoint(pos):
             self._actions.update_active()
             self.open = False
+            return True
+        if lay.export.collidepoint(pos):
+            self._status = self._actions.export_library()
+            return True
+        if lay.import_.collidepoint(pos):
+            self._status = self._actions.import_library()
             return True
         for row in lay.rows:
             if row.name.collidepoint(pos):
@@ -244,6 +273,23 @@ class LooksPanel:
         self._draw_button(
             surface, lay.update, update_label, font_small, enabled=bool(self._active_id)
         )
+
+        self._draw_button(surface, lay.export, "Export to file", font_small)
+        self._draw_button(surface, lay.import_, "Import from file", font_small)
+
+        location = self._actions.library_path()
+        if location:
+            loc = font_small.render(
+                f"File: {fit_text(font_small, location, panel.width - _PAD * 2 - 44)}",
+                True,
+                COLOR_TEXT_DIM,
+            )
+            surface.blit(loc, (panel.x + _PAD, lay.io_info_y))
+        if self._status:
+            status = font_small.render(
+                fit_text(font_small, self._status, panel.width - _PAD * 2), True, STYLE.accent
+            )
+            surface.blit(status, (panel.x + _PAD, lay.io_info_y + _LABEL_H))
 
         label = font_small.render("Saved looks", True, COLOR_TEXT_DIM)
         surface.blit(label, (panel.x + _PAD, lay.label_y))

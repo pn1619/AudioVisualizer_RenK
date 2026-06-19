@@ -27,7 +27,7 @@ look (mode + options + theme + sensitivity/smoothing + Background/Logo snapshot)
 `looks.py` store (own `looks.json`); applying a look overlays live global and `None / Live`
 restores the live (pre-look) state. **Saving bookmarks the current look without auto-activating**
 (you stay on `None / Live`), so the saved entry never collides with the baseline.
-**Auto-cycle ("shuffle", v00.0B.03–07):** an `Auto` toggle + `Next` button +
+**Auto-cycle ("shuffle", v00.0B.03–08):** an `Auto` toggle + `Next` button +
 `Shuffle…` modal (`A` / `N` keys) auto-switch the active visual every interval. `ModeTransition`
 (`visuals/_transition.py`) does a **live cross-fade for mode→mode** (the outgoing visual keeps
 animating; `App._draw` re-paints it onto the frame's background) and a **frozen-snapshot dissolve**
@@ -46,6 +46,16 @@ ladder/bar spray rising rainbow sparks via the shared `SparkField`). **Pulse Rin
 expanding fading circles on beats matching the draw style (dashed→dashed) and **`Spin: Off`** truly
 freezes (the angle no longer advanced regardless). **Ripples** gained a **`Size`** option (incl.
 per-ring `Random`).
+
+**Build 6 (v00.0B.08):** **Randomize** (shuffle's `random_options` *and* a new manual **`Rnd`** button /
+**`R`** key) now also rolls the **global feel** — Sensitivity/Smoothing/Size/Speed — from continuous
+ranges (`App._randomize_globals`); the `Rnd` button re-rolls the current mode's options + feel
+**without** switching modes (`App._randomize_current_mode`). **Kaleidoscope** draws spokes
+shortest-first (long rays land on top, no longer clipped where they cross near the centre; straight
+spokes are one continuous line) and gained a **`Spark`** option. **My Looks** can **Export/Import** the
+whole library to `AudioVisualizer-looks.json` **next to the app** (`looks.export_library`/`import_library`,
+`platform_win.get_app_dir`); the `Save…` modal shows the file location + a status line. Library import is
+fully lenient (missing/corrupt → imports nothing, never crashes); a failed live save logs a delete/reset hint.
 
 ## Read first (canonical docs)
 

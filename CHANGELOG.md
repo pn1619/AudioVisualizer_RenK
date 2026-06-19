@@ -11,6 +11,34 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.08` — Phase 0B-c (build 6): stronger randomize, Kaleidoscope fixes, portable looks
+
+- **Randomize now varies a lot more.** The shuffle "randomize options" path (and the new manual
+  control below) also rolls the **global feel** — Sensitivity, Smoothing, Size and Speed — from
+  **continuous** ranges instead of leaving them fixed, so values rarely repeat. (Previously only the
+  active mode's discrete option dropdowns were randomized, so Sens/Smooth/Size/Speed appeared to sit
+  on one or two values.) (`App._randomize_globals`)
+- **New `Rnd` button + `R` key — "Randomize current mode".** Re-rolls the *current* visual's options
+  **and** the global feel **without switching modes**, so you can dice-roll a fresh look on whatever
+  is on screen. (`ControlActions.randomize_current`.)
+- **Kaleidoscope: long spokes no longer get clipped.** Spokes are now drawn shortest-first so the
+  long rays always land on top of where they cross a neighbour near the centre (and a straight spoke
+  is one continuous line — no inner/outer seam). The Counter churn is preserved. (`visuals/kaleidoscope.py`)
+- **Kaleidoscope: new `Spark` option** — sparks fly off the spoke tips outward and fade (shared
+  `SparkField`; honors reduce-motion).
+- **My Looks: Export / Import to a file next to the app.** The `Save…` modal gains **Export to file**
+  and **Import from file** buttons that write/read `AudioVisualizer-looks.json` beside the executable
+  (dev: the working dir), and shows the **current file location** plus a status line. Import appends
+  copies (fresh ids), so it never clobbers existing looks. (`looks.export_library`/`import_library`,
+  `platform_win.get_app_dir`.)
+- **Save safeguards.** Library import is fully lenient (missing/corrupt/wrong-shape files import
+  nothing and never crash), and a failed live-looks save now logs a clear hint to delete/reset the
+  file. (The live `looks.json` load was already corruption-safe — bad entries are skipped.)
+- Tests: global-randomize range + variation + "keeps same mode", export/import library round-trip and
+  never-raises-on-bad-file, Kaleidoscope every-option sweep + spark emission.
+
+---
+
 ## `00.0B.07` — Phase 0B-c (build 5): meter sparks, ring pulses, shared Size axis
 
 - **VU Meters can now throw sparks.** New **`Spark`** option (`Off` / `On`). With it on, **Needle**

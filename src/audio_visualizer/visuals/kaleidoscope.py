@@ -10,13 +10,20 @@ edges stay smooth (anti-aliased). The center ornament is configurable.
 from __future__ import annotations
 
 import math
+import random
 
 import numpy as np
 import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
-from audio_visualizer.visuals._helpers import SIZE_OPTION, clamp, resample_to, themed_color
+from audio_visualizer.visuals._helpers import (
+    SIZE_OPTION,
+    SparkField,
+    clamp,
+    resample_to,
+    themed_color,
+)
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
@@ -24,6 +31,8 @@ _SPOKES = 16  # spectrum rays drawn across one wedge
 _CORE_FRACTION = 0.03
 _LEN_FRACTION = 0.48  # max spoke length as a fraction of min(w, h)/2
 _SPIN_RATE = 0.03  # base revolutions / second (scaled by speed)
+_SPARK_RATE = 60.0  # expected sparks/second at full overall energy
+_SPARK_LEVEL_FLOOR = 0.15  # a spoke must be at least this loud to throw sparks
 
 _SEGMENTS = ModeOption(
     "segments",
@@ -48,22 +57,29 @@ _CENTER = ModeOption(
 _SPIN = ModeOption(
     "spin", "Spin", (OptionChoice("Solid", 0), OptionChoice("Counter", 1)), default_index=0
 )
+# Emit little sparks off the spoke tips that drift outward and fade.
+_SPARK = ModeOption(
+    "spark", "Spark", (OptionChoice("Off", 0), OptionChoice("On", 1)), default_index=0
+)
 
 
 @register(key="kaleidoscope", display_name="Kaleidoscope", order=90)
 class Kaleidoscope(BaseVisualizer):
     """Mirrors an audio-driven wedge into a rotating symmetric mandala."""
 
-    OPTIONS = (_SEGMENTS, _CENTER, _SPIN, SIZE_OPTION)
+    OPTIONS = (_SEGMENTS, _CENTER, _SPIN, _SPARK, SIZE_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
         self._spin = 0.0  # outer-half rotation
         self._spin_inner = 0.0  # inner-half rotation (opposite when "Counter")
+        self._sparks = SparkField(cap=0, lifetime=0.7, trail_len=0)
+        self._rng = random.Random(23)
 
     def on_enter(self) -> None:
         self._spin = 0.0
         self._spin_inner = 0.0
+        self._sparks.clear()
 
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
         w, h = surface.get_size()
@@ -90,26 +106,143 @@ class Kaleidoscope(BaseVisualizer):
             vals = np.full(_SPOKES, 0.04, dtype=np.float32)
 
         line_w = max(2, int(scale / 130))
-        # Two passes so the outer halves are never cut by inner halves of other segments:
-        # draw every inner half first, then every outer half on top.
-        for layer in ("inner", "outer"):
-            spin = self._spin_inner if layer == "inner" else self._spin
-            for k in range(segments):
-                base = k * sector
-                for i in range(_SPOKES):
-                    frac = i / max(1, _SPOKES - 1)
-                    length = core_r + float(vals[i]) * max_len
-                    mid = core_r + 0.5 * (length - core_r)
-                    color = themed_color(scheme, frac, PALETTE, phase)
-                    offset = frac * half
-                    r0, r1 = (core_r, mid) if layer == "inner" else (mid, length)
-                    for sign in (1.0, -1.0):  # mirror about each segment axis
-                        ang = spin + base + sign * offset
-                        self._spoke(
-                            surface, cx, cy, ang, r0, r1, color, line_w, tip=layer == "outer"
-                        )
+        lengths = core_r + vals.astype(np.float32) * max_len
+        # Draw the shortest spokes first so the long ones land on top and are never
+        # clipped where they cross a neighbouring spoke near the centre.
+        order = sorted(range(_SPOKES), key=lambda i: float(lengths[i]))
+        if counter:
+            # Counter churn: every inner half (near the core) first, then the long
+            # outer halves on top — short→long so none get cut.
+            for i in range(_SPOKES):
+                mid = core_r + 0.5 * (float(lengths[i]) - core_r)
+                self._draw_copies(
+                    surface,
+                    cx,
+                    cy,
+                    self._spin_inner,
+                    segments,
+                    sector,
+                    half,
+                    i,
+                    core_r,
+                    mid,
+                    scheme,
+                    phase,
+                    line_w,
+                    tip=False,
+                )
+            for i in order:
+                mid = core_r + 0.5 * (float(lengths[i]) - core_r)
+                self._draw_copies(
+                    surface,
+                    cx,
+                    cy,
+                    self._spin,
+                    segments,
+                    sector,
+                    half,
+                    i,
+                    mid,
+                    float(lengths[i]),
+                    scheme,
+                    phase,
+                    line_w,
+                    tip=True,
+                )
+        else:
+            for i in order:
+                self._draw_copies(
+                    surface,
+                    cx,
+                    cy,
+                    self._spin,
+                    segments,
+                    sector,
+                    half,
+                    i,
+                    core_r,
+                    float(lengths[i]),
+                    scheme,
+                    phase,
+                    line_w,
+                    tip=True,
+                )
 
+        if int(self.option("spark")) == 1 and not self.reduce_motion:
+            self._emit_sparks(cx, cy, segments, sector, half, vals, lengths, w, h, dt)
+            self._render_sparks(surface, w, h, dt)
         self._draw_center(surface, cx, cy, core_r, frame)
+
+    def _draw_copies(
+        self,
+        surface: pygame.Surface,
+        cx: float,
+        cy: float,
+        spin: float,
+        segments: int,
+        sector: float,
+        half: float,
+        i: int,
+        r0: float,
+        r1: float,
+        scheme: str,
+        phase: float,
+        line_w: int,
+        tip: bool,
+    ) -> None:
+        """Draw spoke ``i`` (radial span ``r0``..``r1``) mirrored into every segment."""
+        frac = i / max(1, _SPOKES - 1)
+        color = themed_color(scheme, frac, PALETTE, phase)
+        offset = frac * half
+        for k in range(segments):
+            base = k * sector
+            for sign in (1.0, -1.0):  # mirror about each segment axis
+                ang = spin + base + sign * offset
+                self._spoke(surface, cx, cy, ang, r0, r1, color, line_w, tip=tip)
+
+    def _emit_sparks(
+        self,
+        cx: float,
+        cy: float,
+        segments: int,
+        sector: float,
+        half: float,
+        vals: np.ndarray,
+        lengths: np.ndarray,
+        w: int,
+        h: int,
+        dt: float,
+    ) -> None:
+        """Throw sparks off the loud spokes' tips, outward along each spoke."""
+        self._sparks.cap = max(80, segments * _SPOKES)
+        liveliness = float(np.clip(vals.mean() * 4.0, 0.0, 1.5))
+        expected = liveliness * _SPARK_RATE * dt
+        count = int(expected) + (1 if self._rng.random() < expected - int(expected) else 0)
+        for _ in range(count):
+            i = self._rng.randrange(_SPOKES)
+            if float(vals[i]) < _SPARK_LEVEL_FLOOR:
+                continue
+            frac = i / max(1, _SPOKES - 1)
+            ang = self._spin + self._rng.randrange(segments) * sector
+            ang += self._rng.choice((1.0, -1.0)) * frac * half
+            r = float(lengths[i])
+            speed = 0.12 + 0.4 * float(vals[i])
+            spread = self._rng.uniform(-0.1, 0.1)
+            self._sparks.spawn(
+                (cx + math.cos(ang) * r) / w,
+                (cy + math.sin(ang) * r) / h,
+                (math.cos(ang) + spread) * speed,
+                (math.sin(ang) + spread) * speed,
+                frac,
+                size=self._rng.uniform(0.6, 1.2),
+            )
+
+    def _render_sparks(self, surface: pygame.Surface, w: int, h: int, dt: float) -> None:
+        self._sparks.advance(dt, self.theme.speed_scale, gravity=0.0)
+        size_scale = max(1.0, min(w, h) / 300.0)
+        self._sparks.render(
+            surface, self.theme.color_scheme, self.theme.color_phase, w, h, size_scale, trails=False
+        )
 
     def _spoke(
         self,

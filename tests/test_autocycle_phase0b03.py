@@ -178,6 +178,38 @@ def test_look_in_pool_applies_on_advance(app: App) -> None:
     assert app._auto_current == tag
 
 
+def test_randomize_globals_stays_in_range(app: App) -> None:
+    from audio_visualizer.config import (
+        SENSITIVITY_MAX,
+        SENSITIVITY_MIN,
+        SIZE_SCALE_MAX,
+        SIZE_SCALE_MIN,
+        SPEED_SCALE_MAX,
+        SPEED_SCALE_MIN,
+    )
+
+    for _ in range(50):
+        app._randomize_globals()
+        assert SENSITIVITY_MIN <= app._sensitivity <= SENSITIVITY_MAX
+        assert 0.0 <= app._smoothing <= 0.9
+        assert SIZE_SCALE_MIN <= app._theme.size_scale <= SIZE_SCALE_MAX
+        assert SPEED_SCALE_MIN <= app._theme.speed_scale <= SPEED_SCALE_MAX
+
+
+def test_randomize_globals_actually_varies(app: App) -> None:
+    seen = set()
+    for _ in range(40):
+        app._randomize_globals()
+        seen.add((app._sensitivity, app._theme.size_scale, app._theme.speed_scale))
+    assert len(seen) > 10  # continuous ranges -> values rarely repeat
+
+
+def test_randomize_current_mode_keeps_same_mode(app: App) -> None:
+    before = app._mode_index
+    app._randomize_current_mode()
+    assert app._mode_index == before  # the manual Rnd button never switches modes
+
+
 def test_randomize_mode_options_keeps_indices_valid(app: App) -> None:
     # Pick the mode exposing the most options so randomization has something to do.
     keys = app._mode_keys

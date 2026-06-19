@@ -68,6 +68,8 @@ class ControlActions:
     shuffle_next: Callable[[], None] = lambda: None
     # Opens the Shuffle settings modal (interval + mode/look pool). Defaulted likewise.
     open_shuffle: Callable[[], None] = lambda: None
+    # Randomizes the current mode's options + global feel (no mode switch). Defaulted likewise.
+    randomize_current: Callable[[], None] = lambda: None
 
 
 @dataclass(frozen=True)
@@ -91,6 +93,8 @@ class ControlBar:
         self._dropdown = Dropdown(actions.select_mode)
         self._dropdown.set_options(mode_options)
         self._next = Button(">", actions.next_mode)
+        # Dice button: re-roll the current mode's options + global feel (no mode change).
+        self._random = Button("Rnd", actions.randomize_current)
 
         # User looks ("My Looks"): a load dropdown + a Save/Manage button. Kept in
         # row 1 (global controls), distinct from the per-mode "Preset" dropdown in
@@ -139,6 +143,7 @@ class ControlBar:
             (self._prev, step),
             (self._dropdown, 156),
             (self._next, step),
+            (self._random, 48),
             (self._looks, 168),
             (self._save_look, 64),
             (self._auto, 60),
