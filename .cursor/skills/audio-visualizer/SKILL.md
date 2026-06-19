@@ -111,6 +111,16 @@ below) 1.0 so they still fire on compressed/steady music. **Beat panel** now use
 click-to-cycle) for each action's band + sensitivity and the indicator position; the indicator stays an
 On/Off toggle (schema **v15**).
 
+**Build 14 (v00.0B.10):** Frequency **`Direction`** option (`FREQ_DIRECTION_OPTION` + pure
+`freq_order(n, direction)` in `visuals/_helpers.py`): `Low→High` / `High→Low` / `Center→Out` /
+`Out→Center`. The folded layouts mirror the spectrum about center (each half spans the full range at
+~half resolution). Added to the **bar-style frequency modes only** — **Spectrum**, **VU Meters**
+(reorders along the `Layout` axis), **Dot Matrix** (Columns) — by reading `bands[order[i]]`. Radial
+(Audio Sun / Light Show) and time-axis modes (Waveform / Synthwave Horizon / Spectrogram) are *not*
+frequency-along-an-axis, so they're excluded (they offer `Mirror` for center symmetry). No schema change.
+**Versioning fix:** `BB` is HEX — builds 8–13 were mis-numbered decimal `.10`–`.15` and were re-tagged to
+hex `.0A`–`.0F`; this build is the real hex `.10` (=16). Count `… 09, 0A, 0B, … 0F, 10` going forward.
+
 ### UI control idiom (toggle vs dropdown vs stepper)
 
 Pick the control by the shape of its choices — keep this consistent across the bar and the modals:

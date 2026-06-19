@@ -14,7 +14,9 @@ import pygame
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import COLOR_ACCENT, PALETTE
 from audio_visualizer.visuals._helpers import (
+    FREQ_DIRECTION_OPTION,
     GLOW_OPTION,
+    freq_order,
     palette_color,
     range_energies,
     resample_to,
@@ -65,7 +67,7 @@ _HEAT = ((10, 0, 30), (170, 25, 40), (240, 120, 30), (250, 220, 80), (255, 255, 
 class Matrix(BaseVisualizer):
     """LED dot panel: columns equalizer or scrolling dot-spectrogram."""
 
-    OPTIONS = (_GRID, _DOT, _GAP, _LIT, _MODE, _PEAK, GLOW_OPTION)
+    OPTIONS = (_GRID, _DOT, _GAP, _LIT, _MODE, FREQ_DIRECTION_OPTION, _PEAK, GLOW_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -104,6 +106,7 @@ class Matrix(BaseVisualizer):
             levels = np.zeros(self._cols, dtype=np.float32)
         else:
             levels = np.clip(range_energies(frame.band_energies, self._cols), 0.0, 1.0)
+            levels = levels[freq_order(self._cols, int(self.option("freqdir")))]
         # Build a [rows, cols] lit field: row r (from bottom) lit if level reaches it.
         thresh = (np.arange(self._rows)[::-1] + 1.0) / self._rows
         self._field = (levels[None, :] >= thresh[:, None]).astype(np.float32) * levels[None, :]

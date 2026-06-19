@@ -1,7 +1,8 @@
 # Changelog
 
 Version scheme `PP.FF.BB` — `PP` pre-release (`00` until ship), `FF` development
-phase, `BB` build within the phase. The string lives once as `APP_VERSION` in
+phase, `BB` build within the phase. **Every part is HEX** (parsed base-16), so a build
+counts `… 08, 09, 0A, 0B, … 0F, 10, …`. The string lives once as `APP_VERSION` in
 `config.py`. Each completed phase is tagged with an annotated git tag
 `v<APP_VERSION>` (e.g. `v00.02.00`), so entries below map 1:1 to tags. See
 `plan/development-phases.md` and `plan/git-and-versioning.md`.
@@ -9,9 +10,34 @@ phase, `BB` build within the phase. The string lives once as `APP_VERSION` in
 All three initial phases were implemented in one pass; the entries below record
 what each phase delivered and its verification results.
 
+> **Versioning correction (build 14):** builds 8–13 were briefly numbered in *decimal*
+> (`00.0B.10`–`00.0B.15`) instead of *hex*. They have been re-tagged to the correct hex
+> `00.0B.0A`–`00.0B.0F`, and the headers below reflect that. The next build is the real
+> hex `00.0B.10` (= 16).
+
 ---
 
-## `00.0B.15` — Phase 0B-c (build 13): more intensity + dropdown UI controls
+## `00.0B.10` — Phase 0B-c (build 14): frequency direction (inside-out / outside-in)
+
+- **New `Direction` option** on the bar-style frequency modes — choose how the spectrum
+  is laid out along the axis: **`Low→High`** (default), **`High→Low`**, **`Center→Out`**
+  (lows in the middle, highs spreading to both edges) and **`Out→Center`** (lows at the
+  edges, highs meeting in the middle). The two folded layouts mirror the spectrum about
+  center, so each half spans the full range at ~half resolution.
+- **Added to:** **Spectrum**, **VU Meters** (along whichever axis `Layout` picks), and
+  **Dot Matrix** (Columns layout). Radial modes (Audio Sun / Light Show) and time-axis
+  modes (Waveform, Synthwave Horizon, Spectrogram) are unaffected — their horizontal axis
+  isn't frequency; those already offer `Mirror` for center symmetry.
+- Implemented once as a shared `FREQ_DIRECTION_OPTION` + pure `freq_order(n, direction)`
+  helper in `visuals/_helpers.py`; each mode reads `bands[order[i]]`. Included in
+  Rnd/shuffle like other options. No settings-schema change (per-mode option indices
+  aren't persisted).
+- Tests: `freq_order` permutation/symmetry (linear + folded, odd/even/degenerate `n`) and
+  headless smoke draws of all three modes in every direction.
+
+---
+
+## `00.0B.0F` — Phase 0B-c (build 13): more intensity + dropdown UI controls
 
 - **Plasma intensity goes louder.** The `Intensity` choices are now
   `Soft · Normal · Vivid · Intense · Blast · Max` (was three) for far punchier contrast/turbulence.
@@ -34,7 +60,7 @@ what each phase delivered and its verification results.
 
 ---
 
-## `00.0B.14` — Phase 0B-c (build 12): Beat Buttons polish (band, more levels, indicator)
+## `00.0B.0E` — Phase 0B-c (build 12): Beat Buttons polish (band, more levels, indicator)
 
 - **Beat is now a control-bar button.** Moved out of the Menu to a `Beat…` button **next to `Shuffle`**.
 - **More sensitivity steps.** The ladder is now `Off · Min · Slow · Low · Med · High · Fast · Max` —
@@ -56,7 +82,7 @@ what each phase delivered and its verification results.
 
 ---
 
-## `00.0B.13` — Phase 0B-c (build 11): Beat Buttons (music auto-presses Rnd / Next)
+## `00.0B.0D` — Phase 0B-c (build 11): Beat Buttons (music auto-presses Rnd / Next)
 
 - **Beat Buttons.** A new **Menu → `Beat Buttons…`** table lets the **music press a button for you**.
   Two actions to start: **Rnd** (randomize the current mode) and **Next** (shuffle to the next item).
@@ -75,7 +101,7 @@ what each phase delivered and its verification results.
 
 ---
 
-## `00.0B.12` — Phase 0B-c (build 10): clearer randomize-lock pins (instant feedback)
+## `00.0B.0C` — Phase 0B-c (build 10): clearer randomize-lock pins (instant feedback)
 
 - **Lock pins update instantly.** Clicking a randomize lock now flips its icon **on the same click**
   (optimistic local toggle) instead of waiting for the next `Rnd`/`Next`/mode rebuild to re-sync.
@@ -90,7 +116,7 @@ what each phase delivered and its verification results.
 
 ---
 
-## `00.0B.11` — Phase 0B-c (build 9): smooth waveforms + bigger sparks & needle styles
+## `00.0B.0B` — Phase 0B-c (build 9): smooth waveforms + bigger sparks & needle styles
 
 - **Waveform / Waveform Rings: `Trace` smoothing.** A new option low-passes the scope toward a
   flowing, sine-like curve — `Rough` (the original raw trace), `Smooth`, `Smoother`, `Sine`. The ring
@@ -107,7 +133,7 @@ what each phase delivered and its verification results.
 
 ---
 
-## `00.0B.10` — Phase 0B-c (build 8): randomize locks, Hotkeys modal, live looks refresh
+## `00.0B.0A` — Phase 0B-c (build 8): randomize locks, Hotkeys modal, live looks refresh
 
 - **Per-option randomize locks.** Each option that **Rnd / Next / auto-shuffle** would re-roll now
   has a small **padlock toggle** beside it (default **unlocked** → still randomized). Locking an

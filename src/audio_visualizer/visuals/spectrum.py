@@ -7,7 +7,14 @@ import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
-from audio_visualizer.visuals._helpers import GLOW_OPTION, MIRROR_OPTION, scale_color, themed_color
+from audio_visualizer.visuals._helpers import (
+    FREQ_DIRECTION_OPTION,
+    GLOW_OPTION,
+    MIRROR_OPTION,
+    freq_order,
+    scale_color,
+    themed_color,
+)
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
@@ -50,7 +57,7 @@ _WIDTH = ModeOption(
 class Spectrum(BaseVisualizer):
     """Vertical bars, one per log-spaced band, with peak-hold caps."""
 
-    OPTIONS = (_CAPS, _GAP, _WIDTH, MIRROR_OPTION, GLOW_OPTION)
+    OPTIONS = (_CAPS, _GAP, _WIDTH, FREQ_DIRECTION_OPTION, MIRROR_OPTION, GLOW_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -84,11 +91,13 @@ class Spectrum(BaseVisualizer):
         bar_w = max(1.0, slot_w * fill)
         inset = (slot_w - bar_w) / 2.0  # center the (possibly thinner) bar in its slot
         usable_h = h - _TOP_MARGIN_PX
+        order = freq_order(count, int(self.option("freqdir")))
         for i in range(count):
+            b = int(order[i])  # which band this slot shows (direction-dependent)
             x = gap + i * (slot_w + gap) + inset
-            bar_h = float(bands[i]) * usable_h
-            color = themed_color(scheme, i / max(1, count - 1), PALETTE, phase)
-            cap_y = h - float(self._peaks[i]) * usable_h
+            bar_h = float(bands[b]) * usable_h
+            color = themed_color(scheme, b / max(1, count - 1), PALETTE, phase)
+            cap_y = h - float(self._peaks[b]) * usable_h
             self._draw_column(surface, x, bar_w, bar_h, h, color, show_caps, cap_y, glow)
             self._draw_mirrors(surface, x, bar_w, bar_h, w, h, color, glow, mirror)
 

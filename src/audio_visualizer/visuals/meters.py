@@ -17,8 +17,10 @@ import pygame
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import COLOR_ACCENT, PALETTE
 from audio_visualizer.visuals._helpers import (
+    FREQ_DIRECTION_OPTION,
     GLOW_OPTION,
     SparkField,
+    freq_order,
     palette_color,
     range_energies,
     scale_color,
@@ -117,6 +119,7 @@ class Meters(BaseVisualizer):
         _PEAK,
         _DECAY,
         _ORIENT,
+        FREQ_DIRECTION_OPTION,
         _COLOR,
         _NEEDLE,
         _SPARK,
@@ -155,18 +158,20 @@ class Meters(BaseVisualizer):
         if spark_on:
             self._sparks.cap = max(48, groups * 12)
             self._hue_drift = (self._hue_drift + dt * 0.15) % 1.0
+        order = freq_order(groups, int(self.option("freqdir")))
         for i in range(groups):
             cell = self._cell_rect(i, groups, w, h, margin, horiz)
-            level = float(self._levels[i])
-            peak = float(self._peaks[i])
+            b = int(order[i])  # band shown at slot i (geometry uses i, color/level use b)
+            level = float(self._levels[b])
+            peak = float(self._peaks[b])
             if style == 0:
-                self._draw_ladder(surface, cell, level, peak, i, groups, horiz)
+                self._draw_ladder(surface, cell, level, peak, b, groups, horiz)
             elif style == 1:
-                self._draw_bar(surface, cell, level, peak, i, groups, horiz)
+                self._draw_bar(surface, cell, level, peak, b, groups, horiz)
             else:
-                self._draw_needle(surface, cell, level, i, groups)
+                self._draw_needle(surface, cell, level, b, groups)
             if spark_on:
-                self._emit(style, cell, level, i, groups, horiz, w, h, dt)
+                self._emit(style, cell, level, b, groups, horiz, w, h, dt)
         if spark_on:
             self._render_sparks(surface, style, w, h, dt)
 
