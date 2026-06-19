@@ -14,6 +14,7 @@ from typing import TypeVar
 
 import numpy as np
 import pygame
+from numpy.typing import NDArray
 
 from audio_visualizer import looks as looks_mod
 from audio_visualizer import settings as settings_mod
@@ -60,6 +61,7 @@ from audio_visualizer.config import (
     RANDOM_INTERVAL_MAX,
     RANDOM_INTERVAL_MIN,
     RANDOM_INTERVAL_STEP,
+    SENS_BANDS,
     SENSITIVITY_MAX,
     SENSITIVITY_MIN,
     SENSITIVITY_STEP,
@@ -173,6 +175,7 @@ class App:
         self._sensitivity = float(
             np.clip(self._settings.sensitivity, SENSITIVITY_MIN, SENSITIVITY_MAX)
         )
+        self._sens_band = self._settings.sens_band
         self._smoothing = float(np.clip(self._settings.smoothing, 0.0, 1.0))
         self._reduce_motion = self._settings.reduce_motion
         self._notice_acknowledged = self._settings.notice_acknowledged
@@ -231,10 +234,10 @@ class App:
         self._beat_indicator = bool(self._settings.beat_indicator)
         self._beat_indicator_pos = self._settings.beat_indicator_pos
         self._beat_panel = BeatPanel(
-            cycle_level=self._cycle_beat_action,
-            cycle_band=self._cycle_beat_band,
+            set_level=self._set_beat_level,
+            set_band=self._set_beat_band,
             toggle_indicator=self._toggle_beat_indicator,
-            cycle_position=self._cycle_beat_indicator_pos,
+            set_position=self._set_beat_indicator_pos,
         )
 
         # User looks ("My Looks", Phase 0B-b): a saved-look store + its modal. The
@@ -352,6 +355,7 @@ class App:
             toggle_option_lock=self._toggle_option_lock,
             open_hotkeys=lambda: self._hotkeys.toggle(),
             open_beat=self._open_beat_panel,
+            select_sens_band=self._set_sens_band,
         )
 
     def _build_shuffle_actions(self) -> ShuffleActions:
@@ -853,26 +857,22 @@ class App:
             self._beat.levels_dict(),
             self._beat.bands_dict(),
             self._beat_indicator,
-            self._beat_indicator_pos_label(),
+            self._beat_indicator_pos,
         )
-
-    def _beat_indicator_pos_label(self) -> str:
-        labels = dict(BEAT_INDICATOR_POSITIONS)
-        return labels.get(self._beat_indicator_pos, self._beat_indicator_pos)
 
     def _open_beat_panel(self) -> None:
         self._refresh_beat_panel()
         self._beat_panel.toggle()
 
-    def _cycle_beat_action(self, action: str) -> None:
-        """Advance an action's beat sensitivity (Off->...->Max->Off)."""
-        self._beat.cycle(action)
+    def _set_beat_level(self, action: str, index: int) -> None:
+        """Set an action's beat sensitivity level directly (from the dropdown)."""
+        self._beat.set_level(action, index)
         self._refresh_beat_panel()
         logger.debug("Beat %s sensitivity = %d", action, self._beat.level(action))
 
-    def _cycle_beat_band(self, action: str) -> None:
-        """Advance an action's listened band (All->Bass->Mid->High)."""
-        self._beat.cycle_band(action)
+    def _set_beat_band(self, action: str, band: str) -> None:
+        """Set an action's listened band directly (from the dropdown)."""
+        self._beat.set_band(action, band)
         self._refresh_beat_panel()
         logger.debug("Beat %s band = %s", action, self._beat.band(action))
 
@@ -880,11 +880,11 @@ class App:
         self._beat_indicator = not self._beat_indicator
         self._refresh_beat_panel()
 
-    def _cycle_beat_indicator_pos(self) -> None:
+    def _set_beat_indicator_pos(self, position: str) -> None:
         keys = [key for key, _label in BEAT_INDICATOR_POSITIONS]
-        idx = keys.index(self._beat_indicator_pos) if self._beat_indicator_pos in keys else 0
-        self._beat_indicator_pos = keys[(idx + 1) % len(keys)]
-        self._refresh_beat_panel()
+        if position in keys:
+            self._beat_indicator_pos = position
+            self._refresh_beat_panel()
 
     def _update_beat(self, dt: float) -> None:
         """Let the music auto-press actions; suppressed while a modal/notice is up."""
@@ -1089,6 +1089,11 @@ class App:
         if value is not None:
             self._sensitivity = float(np.clip(value, SENSITIVITY_MIN, SENSITIVITY_MAX))
             logger.debug("Sensitivity = %.2f (typed)", self._sensitivity)
+
+    def _set_sens_band(self, band: str) -> None:
+        if band in {key for key, _label in SENS_BANDS}:
+            self._sens_band = band
+            logger.debug("Sensitivity band = %s", band)
 
     def _set_smoothing_text(self, text: str) -> None:
         value = _parse_float(text)
@@ -1389,9 +1394,29 @@ class App:
             return
         frame = self._analyzer.analyze(samples, self._source.sample_rate)
         if self._sensitivity != 1.0:
-            bands = np.clip(frame.band_energies * self._sensitivity, 0.0, 1.0)
-            frame = dataclasses.replace(frame, band_energies=bands.astype(np.float32))
+            bands = self._apply_sensitivity(frame.band_energies)
+            frame = dataclasses.replace(frame, band_energies=bands)
         self._frame = frame
+
+    def _apply_sensitivity(self, bands: NDArray[np.float32]) -> NDArray[np.float32]:
+        """Scale band energies by Sensitivity, focused on ``self._sens_band``.
+
+        ``all`` scales the whole spectrum (legacy); bass/mid/high scale only that
+        third so the gain emphasizes one frequency range instead of everything.
+        """
+        if self._sens_band == "all":
+            return np.clip(bands * self._sensitivity, 0.0, 1.0).astype(np.float32)
+        n = bands.size
+        third = max(1, n // 3)
+        spans = {
+            "bass": slice(0, third),
+            "mid": slice(third, 2 * third),
+            "high": slice(2 * third, n),
+        }
+        out = bands.copy()
+        span = spans.get(self._sens_band, slice(0, 0))
+        out[span] = np.clip(bands[span] * self._sensitivity, 0.0, 1.0)
+        return out.astype(np.float32)
 
     def _draw(self, dt: float) -> None:
         screen = self._screen
@@ -1437,6 +1462,7 @@ class App:
                 self._theme.speed_scale,
                 self._auto,
                 self._locked_globals,
+                self._sens_band,
             )
             self._controls.set_looks(self._looks_rows(), self._active_look_id)
             self._controls.draw(screen, self._layout.control_bar, self._font)
@@ -1567,6 +1593,7 @@ class App:
         return Settings(
             mode=self._mode_keys[self._mode_index],
             sensitivity=self._sensitivity,
+            sens_band=self._sens_band,
             smoothing=self._smoothing,
             reduce_motion=self._reduce_motion,
             fullscreen=self._fullscreen,

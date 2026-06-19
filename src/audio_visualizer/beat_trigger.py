@@ -100,6 +100,10 @@ class BeatTrigger:
             idx = _BAND_KEYS.index(self._bands[action])
             self._bands[action] = _BAND_KEYS[(idx + 1) % len(_BAND_KEYS)]
 
+    def set_band(self, action: str, band: str) -> None:
+        if action in self._bands and band in _BAND_KEYS:
+            self._bands[action] = band
+
     def any_enabled(self) -> bool:
         return any(level > 0 for level in self._levels.values())
 

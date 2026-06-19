@@ -18,10 +18,10 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0B.14"
+APP_VERSION = "00.0B.15"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
-APP_BUILD_DATE = "2026-06-18"
+APP_BUILD_DATE = "2026-06-19"
 
 # --- Window / rendering -------------------------------------------------------
 DEFAULT_WINDOW_SIZE: tuple[int, int] = (1280, 720)
@@ -402,7 +402,7 @@ SETTINGS_FILENAME = "settings.json"
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
 # v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
-SETTINGS_SCHEMA_VERSION = 14
+SETTINGS_SCHEMA_VERSION = 15
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad
@@ -454,21 +454,36 @@ RANDOM_FADE_STEP = 0.1
 # baseline (so it adapts to how loud/busy the track is) AND a per-level cooldown
 # has elapsed, so triggers are sensibly spaced (never a machine-gun, never once
 # an age). Silence emits nothing (the baseline decays and the floor gate blocks).
-# Sensitivity ladder from "rarely fires, well spaced" up to "fires on most beats,
-# tightly spaced". More slow *and* fast steps than the first build.
-BEAT_SENSITIVITY_LABELS = ("Off", "Min", "Slow", "Low", "Med", "High", "Fast", "Max")
-# Per level (indexes 1..7): (signal:baseline ratio to fire, absolute energy floor,
-# minimum seconds between fires). Index 0 (Off) is ``None``. The cooldown is what
-# keeps it reasonable: Max ~0.3s (<= ~3/s) ... Min ~8s (only big hits).
+# Sensitivity ladder from "rarely fires, well spaced" up to "fires on almost any
+# energy". Higher = lower threshold ratio + floor + shorter cooldown. The very top
+# levels drop the ratio toward (and below) 1.0 so they still trigger on compressed /
+# steady music that never really "spikes" — at the cost of firing more often.
+BEAT_SENSITIVITY_LABELS = (
+    "Off",
+    "Min",
+    "Low",
+    "Med",
+    "High",
+    "Fast",
+    "Rapid",
+    "Max",
+    "Wild",
+    "Insane",
+)
+# Per level (indexes 1..9): (signal:baseline ratio to fire, absolute energy floor,
+# minimum seconds between fires). Index 0 (Off) is ``None``. Cooldown keeps it sane:
+# Min ~8s (only big hits) ... Insane ~0.18s and ratio < 1 (fires on almost anything).
 BEAT_SENSITIVITY_PARAMS: tuple[tuple[float, float, float] | None, ...] = (
     None,  # Off
     (2.6, 0.14, 8.0),  # Min  - only strong hits, far apart
-    (2.3, 0.12, 5.0),  # Slow
-    (2.0, 0.10, 3.0),  # Low
-    (1.7, 0.08, 1.8),  # Med
-    (1.45, 0.06, 1.0),  # High
-    (1.28, 0.05, 0.55),  # Fast
-    (1.18, 0.04, 0.3),  # Max  - most beats, tightly spaced (<= ~3/s)
+    (2.2, 0.11, 4.0),  # Low
+    (1.8, 0.09, 2.2),  # Med
+    (1.5, 0.07, 1.2),  # High
+    (1.3, 0.05, 0.7),  # Fast
+    (1.18, 0.04, 0.4),  # Rapid
+    (1.08, 0.03, 0.28),  # Max
+    (1.0, 0.02, 0.22),  # Wild   - fires whenever energy beats its own average
+    (0.92, 0.015, 0.18),  # Insane - fires on almost any sustained energy (<= ~5/s)
 )
 # Frequency band each action listens to (in table order: key, label). The engine
 # watches that band's energy for the spike that fires the action.
@@ -500,6 +515,17 @@ BEAT_INDICATOR_POSITIONS: tuple[tuple[str, str], ...] = (
 )
 BEAT_INDICATOR_POSITION_DEFAULT = "top-right"
 BEAT_INDICATOR_ENABLED_DEFAULT = False
+
+# --- Sensitivity frequency focus ----------------------------------------------
+# The global Sensitivity gain can target one frequency band instead of the whole
+# spectrum, so e.g. only the bass drives the visuals harder. (key, label).
+SENS_BANDS: tuple[tuple[str, str], ...] = (
+    ("all", "All"),
+    ("bass", "Bass"),
+    ("mid", "Mid"),
+    ("high", "High"),
+)
+SENS_BAND_DEFAULT = "all"
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error

@@ -97,10 +97,13 @@ _NEEDLE = ModeOption(
         OptionChoice("Gauge", 1),
         OptionChoice("VU", 2),
         OptionChoice("Comet", 3),
-        OptionChoice("Dual", 4),
+        OptionChoice("Dual", 4),  # twin needles; Spark shoots from one tip
+        OptionChoice("Dual \u00d72", 5),  # twin needles; Spark shoots from both tips
     ),
     default_index=0,
 )
+_NEEDLE_DUAL = (4, 5)  # variants that draw twin (mirrored) needles
+_NEEDLE_DUAL_DOUBLE = 5  # variant that sheds sparks off both needle tips
 
 
 @register(key="meters", display_name="VU Meters", order=110)
@@ -283,7 +286,7 @@ class Meters(BaseVisualizer):
             self._needle_scale_vu(surface, pivot, radius)
         else:
             self._needle_scale_plain(surface, pivot, radius, ticks=variant == 1)
-        if variant == 4:
+        if variant in _NEEDLE_DUAL:
             self._draw_needle_arm(surface, pivot, radius, math.pi - angle, color)
         self._draw_needle_arm(surface, pivot, radius, angle, color, comet=variant == 3)
         hub = max(2, int(radius * 0.06))
@@ -389,10 +392,29 @@ class Meters(BaseVisualizer):
     def _emit_needle(
         self, cell: pygame.Rect, level: float, count: int, hue: float, w: int, h: int
     ) -> None:
-        """Shoot sparks off the needle tip, flying outward along the needle's angle."""
+        """Shoot sparks off the needle tip(s), flying outward along the needle's angle.
+
+        ``Dual \u00d72`` sheds off **both** mirrored tips; other needles use the one tip.
+        """
+        variant = int(self.option("needle"))
+        angle = math.radians(150 - level * 120)
+        angles = [angle, math.pi - angle] if variant == _NEEDLE_DUAL_DOUBLE else [angle]
+        per_tip = max(1, count // len(angles))
+        for tip_angle in angles:
+            self._emit_needle_tip(cell, level, per_tip, hue, tip_angle, w, h)
+
+    def _emit_needle_tip(
+        self,
+        cell: pygame.Rect,
+        level: float,
+        count: int,
+        hue: float,
+        angle: float,
+        w: int,
+        h: int,
+    ) -> None:
         pivot = (cell.centerx, cell.bottom)
         radius = min(cell.width, cell.height) * 0.9
-        angle = math.radians(150 - level * 120)
         tip_x = pivot[0] + math.cos(angle) * radius
         tip_y = pivot[1] - math.sin(angle) * radius
         dir_x, dir_y = math.cos(angle), -math.sin(angle)  # screen y points down

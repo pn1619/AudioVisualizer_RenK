@@ -17,7 +17,7 @@ AudioVisualizer/
 │     ├─ main.py                # parse args, configure logging, install excepthook, build & run App
 │     ├─ app.py                 # App: window, main loop, input, mode switching (wiring only)
 │     ├─ config.py              # constants & defaults (APP_VERSION, FFT size, FPS, colors, smoothing keys)
-│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=14, migrate-or-default; v7 remaps merged mode keys, v8 adds source_id, v9 adds active_look, v10 adds random_pool+random_interval, v11 adds random_options, v12 adds random_fade, v13 adds beat_levels, v14 adds beat_bands+beat_indicator(+pos))
+│     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=15, migrate-or-default; v7 remaps merged mode keys, v8 adds source_id, v9 adds active_look, v10 adds random_pool+random_interval, v11 adds random_options, v12 adds random_fade, v13 adds beat_levels, v14 adds beat_bands+beat_indicator(+pos), v15 adds sens_band)
 │     ├─ looks.py               # Phase 0B-b: user looks ("My Looks") store — Look dataclass + load/save/CRUD/export/import (own looks.json, schema_version=1)
 │     ├─ beat_trigger.py        # Phase 0B-c: Beat Buttons engine (pure) — onset baseline + per-level cooldown -> fired action keys
 │     ├─ platform_win.py        # DPI awareness + Windows-specific shims (guarded, no-op off Windows)
@@ -77,7 +77,7 @@ AudioVisualizer/
 │        ├─ looks_panel.py      # Phase 0B-b: My Looks save/manage modal (name + Save/Update, load/Dup/Del)
 │        ├─ text_input.py       # Phase 0B-b: reusable single-line text input (look naming)
 │        ├─ shuffle_panel.py    # Phase 0B-c: auto-cycle modal (Auto + Next + interval + mode/look ★ checklist)
-│        ├─ beat_panel.py       # Phase 0B-c: Beat Buttons modal (music auto-presses Rnd/Next; per-action band+sensitivity, indicator toggle/pos)
+│        ├─ beat_panel.py       # Phase 0B-c: Beat Buttons modal (music auto-presses Rnd/Next; per-action band+sensitivity dropdowns, indicator toggle + position dropdown)
 │        ├─ beat_indicator.py   # Phase 0B-c: small on-screen beat indicator (pulsing dot; hue=band, brightness=intensity, flash on fire)
 │        ├─ about.py            # Phase 9: About modal (owner/license/version/build date)
 │        └─ hud.py              # status line + debug overlay (F3)
@@ -203,7 +203,7 @@ The single source of the UI look: a process-wide `STYLE` (Flat/Glass + accent) t
 `Dropdown` — header + expandable option list; optional `title` prefixes the current label (e.g. `Fall: Normal`). Header + option text **truncate to fit**, and the open list is clamped to stay within the window's right edge (`set_bound_right`). Used for the Menu, mode picker, color scheme, and per-mode options.
 
 ### `ui/controls.py`
-Builds the control bar and **flows/wraps** its widgets to the window width (global controls + value steppers, then color + per-mode option dropdowns), so nothing runs off-screen even at the minimum window size; `content_height(width)` reports the height the App feeds to `Layout.compute`. Translates clicks into `App` actions (start/stop, mode, sensitivity/smoothing/size/speed, color, per-mode option changes, fullscreen, Appearance). `set_mode_options(specs)` rebuilds the per-mode dropdowns when the active mode changes; only one dropdown stays open at a time.
+Builds the control bar and **flows/wraps** its widgets to the window width (global controls + value steppers, then color + per-mode option dropdowns), so nothing runs off-screen even at the minimum window size; `content_height(width)` reports the height the App feeds to `Layout.compute`. Translates clicks into `App` actions (start/stop, mode, sensitivity/smoothing/size/speed, the **sensitivity band** dropdown (all/bass/mid/high), color, per-mode option changes, fullscreen, Appearance). `set_mode_options(specs)` rebuilds the per-mode dropdowns when the active mode changes; only one dropdown stays open at a time. **UI idiom:** toggle = 2 states; dropdown = 3+ named choices; stepper+chip = continuous value.
 
 ### `ui/appearance_panel.py` & `ui/background_panel.py` & `ui/about.py` & `ui/logo_panel.py`
 Centered modal dialogs (dim backdrop, click-row-to-cycle or Close). **Appearance** picks the UI **style** (Flat/Glass), **accent** (Cyan/Aurora gradient/Neon green), and **font** (Mono/Sans); **Background** (the `BG` button) picks the backdrop **mode** (Black/Spectrum/Filaments/Mirror/Ribbon/Gradient/Aurora/Starfield/Vignette), **sensitivity**, **opacity**, and **spectrum height**; **RenK** configures the logo overlay; **About** shows owner/license/version/build/runtime. All draw via `ui/style.draw_panel`, which centralizes both styles and the (optionally gradient) accent (its glass radius is capped so large panels stay rounded rectangles).

@@ -71,12 +71,12 @@ def test_silence_never_triggers() -> None:
 
 
 def test_cooldown_caps_rate_even_with_constant_energy() -> None:
-    """A sustained spike must not machine-gun: Max cooldown is ~0.3s."""
+    """A sustained tone must not machine-gun: even the top level has a ~0.18s cooldown."""
     trigger = BeatTrigger({"randomize": _MAX})
     fired = sum(
         len(trigger.update(_bands(1.0), is_silent=False, dt=1 / 60)) for _ in range(int(5.0 * 60))
     )
-    assert 1 <= fired <= 18  # 5s / 0.3s -> ~16 max; not a per-frame flood
+    assert 1 <= fired <= 32  # 5s / 0.18s -> ~27 max; still not a per-frame flood
 
 
 def test_low_sensitivity_fires_less_than_max() -> None:
@@ -119,7 +119,9 @@ def test_cycle_band_wraps() -> None:
 
 
 def test_intensity_and_flash_track_beats() -> None:
-    trigger = BeatTrigger({"randomize": _MAX})
+    # A mid level (floor above the 0.02 "quiet" energy) so only the 0.9 spike fires;
+    # the top levels intentionally fire on any sustained energy above their tiny floor.
+    trigger = BeatTrigger({"randomize": 4})
     # Quiet frames -> low intensity.
     for _ in range(30):
         trigger.update(_bands(0.02), is_silent=False, dt=1 / 60)
@@ -137,36 +139,44 @@ def test_unknown_action_is_ignored() -> None:
     assert "bogus" not in trigger.bands_dict()
 
 
-def test_panel_clicks_route_callbacks() -> None:
+def test_panel_dropdowns_route_callbacks() -> None:
+    from audio_visualizer.config import BEAT_INDICATOR_POSITIONS
+
     calls: dict[str, object] = {}
     panel = BeatPanel(
-        cycle_level=lambda a: calls.__setitem__("level", a),
-        cycle_band=lambda a: calls.__setitem__("band", a),
+        set_level=lambda a, i: calls.__setitem__("level", (a, i)),
+        set_band=lambda a, b: calls.__setitem__("band", (a, b)),
         toggle_indicator=lambda: calls.__setitem__("indicator", True),
-        cycle_position=lambda: calls.__setitem__("position", True),
+        set_position=lambda p: calls.__setitem__("position", p),
     )
     panel.set_state(
-        {"randomize": 0, "next": 0}, {"randomize": "all", "next": "all"}, False, "Top-right"
+        {"randomize": 0, "next": 0}, {"randomize": "all", "next": "all"}, False, "top-right"
     )
     panel.open = True
     canvas = pygame.Rect(0, 0, 1100, 760)
+
+    def _click(pos: tuple[int, int]) -> None:
+        panel.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos), canvas)
+
     lay = panel._layout(canvas)
+    action = lay.rows[0].action_key
 
-    def _click(rect: pygame.Rect) -> None:
-        panel.handle_event(
-            pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center), canvas
-        )
+    # Open the band dropdown, then pick "bass" (index 1 in BEAT_BANDS).
+    _click(lay.rows[0].band_rect.center)
+    _click(panel._band_dd[action]._option_rects()[1].center)
+    # Open the sensitivity dropdown, then pick level index 5.
+    _click(lay.rows[0].level_rect.center)
+    _click(panel._level_dd[action]._option_rects()[5].center)
+    # Indicator is a plain toggle.
+    _click(lay.indicator.center)
+    # Open the position dropdown, then pick index 1.
+    _click(lay.position.center)
+    _click(panel._position_dd._option_rects()[1].center)
 
-    _click(lay.rows[0].band_rect)
-    _click(lay.rows[0].level_rect)
-    _click(lay.indicator)
-    _click(lay.position)
-    assert calls == {
-        "band": lay.rows[0].action_key,
-        "level": lay.rows[0].action_key,
-        "indicator": True,
-        "position": True,
-    }
+    assert calls["band"] == (action, "bass")
+    assert calls["level"] == (action, 5)
+    assert calls["indicator"] is True
+    assert calls["position"] == BEAT_INDICATOR_POSITIONS[1][0]
 
 
 def test_indicator_draws_without_error() -> None:

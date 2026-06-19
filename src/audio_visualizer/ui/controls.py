@@ -19,6 +19,7 @@ from audio_visualizer.config import (
     COLOR_SCHEMES,
     CONTROL_GAP,
     CONTROL_ROW_HEIGHT,
+    SENS_BANDS,
 )
 from audio_visualizer.ui.button import Button
 from audio_visualizer.ui.chip import Chip
@@ -88,6 +89,8 @@ class ControlActions:
     open_hotkeys: Callable[[], None] = lambda: None
     # Opens the Beat Buttons modal (music auto-presses actions). Defaulted likewise.
     open_beat: Callable[[], None] = lambda: None
+    # Selects which frequency band the Sensitivity gain targets (all/bass/mid/high).
+    select_sens_band: Callable[[str], None] = lambda _b: None
 
 
 @dataclass(frozen=True)
@@ -150,6 +153,9 @@ class ControlBar:
         self._speed_down = Button(minus, actions.speed_down)
         self._speed_chip = Chip(on_submit=actions.set_speed_value)
         self._speed_up = Button(plus, actions.speed_up)
+        # Picks which band the Sensitivity gain targets; sits right after the Sens lock.
+        self._sens_band = Dropdown(actions.select_sens_band, title="Band")
+        self._sens_band.set_options(list(SENS_BANDS))
         self._sens_chip.prefix = "Sens "
         self._smooth_chip.prefix = "Smooth "
         self._size_chip.prefix = "Size "
@@ -193,6 +199,7 @@ class ControlBar:
             (self._sens_chip, 96),
             (self._sens_up, step),
             (self._sens_lock, _LOCK_W),
+            (self._sens_band, 108),
             (self._smooth_down, step),
             (self._smooth_chip, 116),
             (self._smooth_up, step),
@@ -243,6 +250,7 @@ class ControlBar:
         speed_scale: float,
         auto_on: bool = False,
         locked_globals: set[str] | None = None,
+        sens_band: str = "all",
     ) -> None:
         self._menu.set_options(
             [
@@ -258,6 +266,7 @@ class ControlBar:
         self._reduce.label = "Motion-" if reduce_motion else "Motion+"
         self._color.set_selected(color_scheme)
         self._sens_chip.text = f"Sens {sensitivity:.2f}"
+        self._sens_band.set_selected(sens_band)
         self._smooth_chip.text = f"Smooth {smoothing:.2f}"
         self._size_chip.text = f"Size {size_scale:.2f}"
         self._speed_chip.text = f"Speed {speed_scale:.2f}"
@@ -357,7 +366,14 @@ class ControlBar:
 
     # -- input ----------------------------------------------------------------
     def _all_dropdowns(self) -> list[Dropdown]:
-        return [self._menu, self._dropdown, self._looks, self._color, *self._option_dropdowns]
+        return [
+            self._menu,
+            self._dropdown,
+            self._looks,
+            self._sens_band,
+            self._color,
+            *self._option_dropdowns,
+        ]
 
     def is_editing(self) -> bool:
         """True while any value chip is capturing typed input (suppresses shortcuts)."""

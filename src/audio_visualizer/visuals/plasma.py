@@ -71,7 +71,14 @@ _FLOW = ModeOption(
 _INTENSITY = ModeOption(
     "intensity",
     "Intensity",
-    (OptionChoice("Soft", 0.7), OptionChoice("Normal", 1.3), OptionChoice("Vivid", 2.3)),
+    (
+        OptionChoice("Soft", 0.7),
+        OptionChoice("Normal", 1.3),
+        OptionChoice("Vivid", 2.3),
+        OptionChoice("Intense", 3.5),
+        OptionChoice("Blast", 5.0),
+        OptionChoice("Max", 7.0),
+    ),
     default_index=1,
 )
 _DROPS = ModeOption(

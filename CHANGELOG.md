@@ -11,6 +11,29 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.15` — Phase 0B-c (build 13): more intensity + dropdown UI controls
+
+- **Plasma intensity goes louder.** The `Intensity` choices are now
+  `Soft · Normal · Vivid · Intense · Blast · Max` (was three) for far punchier contrast/turbulence.
+- **VU Meters — Spark off one tip *or* both.** The Needle look adds **`Dual ×2`**: `Dual` sheds the
+  Spark off **one** needle tip, `Dual ×2` off **both**. `Spark` On/Off still controls whether it emits.
+- **Sensitivity can target one band.** A new **`Band`** dropdown next to the `Sens` chip focuses the
+  Sensitivity gain on **All / Bass / Mid / High** — pick `Bass` and crank `Sens` to make only the low end
+  drive the visuals. (`App._apply_sensitivity`, `SENS_BANDS`; persisted `sens_band`.)
+- **Beat Buttons reach further.** The ladder is now
+  `Off · Min · Low · Med · High · Fast · Rapid · Max · Wild · Insane`. The top levels drop the
+  threshold ratio toward (and below) **1.0**, so they still fire on **compressed / steady** music that
+  never really "spikes" — if you crank it all the way up it *will* toggle.
+- **Dropdowns over click-to-cycle.** The Beat panel now uses **dropdowns** for each action's band +
+  sensitivity and the indicator position (the indicator itself stays an On/Off toggle). New UI idiom in
+  the skill: **toggle** for 2 states, **dropdown** for 3+ named choices, **stepper+chip** for continuous
+  values.
+- **Persisted** (schema **v15**): `sens_band` (lenient load falls back to `all`).
+- Tests: Plasma/Meters ladders, `Dual ×2` both-tip Spark draws, beat ladder is monotonic with a ≤ 1.0
+  top ratio, sens-band dropdown routes + round-trips, beat-panel dropdowns route band/level/position.
+
+---
+
 ## `00.0B.14` — Phase 0B-c (build 12): Beat Buttons polish (band, more levels, indicator)
 
 - **Beat is now a control-bar button.** Moved out of the Menu to a `Beat…` button **next to `Shuffle`**.

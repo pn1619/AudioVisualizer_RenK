@@ -101,6 +101,29 @@ apart, Max ≈ ≤3/s). Each action picks a **band** (`All/Bass/Mid/High`) — `
 white flash on fire; toggle + position (corners/center) in the panel. The engine exposes
 `intensity`/`active_band`/`flash`. Persisted `beat_bands`/`beat_indicator`/`beat_indicator_pos` (schema **v14**).
 
+**Build 13 (v00.0B.15):** Intensity + UI-control polish. **Plasma** intensity now goes
+`Soft/Normal/Vivid/Intense/Blast/Max`. **VU Meters** needle adds `Dual ×2` — `Dual` sheds Spark off
+**one** tip, `Dual ×2` off **both** (Spark On/Off unchanged). New **Sensitivity band** dropdown in the
+control bar (`all/bass/mid/high`): scales only that third of the spectrum (`App._apply_sensitivity`,
+`SENS_BANDS`, persisted `sens_band`). Beat ladder extended + lowered to
+`Off/Min/Low/Med/High/Fast/Rapid/Max/Wild/Insane` — the top levels drop the threshold ratio toward (and
+below) 1.0 so they still fire on compressed/steady music. **Beat panel** now uses **dropdowns** (not
+click-to-cycle) for each action's band + sensitivity and the indicator position; the indicator stays an
+On/Off toggle (schema **v15**).
+
+### UI control idiom (toggle vs dropdown vs stepper)
+
+Pick the control by the shape of its choices — keep this consistent across the bar and the modals:
+
+- **Toggle (`Button`/`LockToggle`)** — exactly **two states** (On/Off, held/free). One click flips it.
+- **Dropdown (`ui/dropdown.py`)** — **3+ discrete named choices** (mode, color scheme, band, sensitivity,
+  indicator position, per-mode `OptionChoice` sets). Prefer this over click-to-cycle: the full list is
+  visible, selection is one click, and there's no hunting by repeatedly clicking. **Don't** reintroduce
+  click-to-cycle for 3+ options. In a modal, draw closed dropdowns first and the open one **last** (on
+  top), keep only one open at a time, and `set_bound_right` so the list stays on-screen.
+- **Stepper + chip (`Button −/+` + `ui/chip.py`)** — a **continuous numeric** value (Sens/Smooth/Size/
+  Speed); the chip also accepts typed entry.
+
 ## Read first (canonical docs)
 
 | Topic | Path |

@@ -1,11 +1,13 @@
 """Modal "Beat Buttons" table: let the music auto-press actions (Phase 0B-c).
 
 Opened from the ``Beat\u2026`` control-bar button (next to Shuffle). Each row is an
-action (Rnd, Next) with two clickable badges: the **band** it listens to
-(All/Bass/Mid/High) and its **sensitivity** (Off..Max). Below the table, toggles for
-a small on-screen **indicator** (and its position). Mirrors the other modals (dim
-backdrop, centered panel, click-outside/Esc to close). The App owns the live
-:class:`BeatTrigger`; this panel only displays state and routes the click actions.
+action (Rnd, Next) with two **dropdowns**: the **band** it listens to
+(All/Bass/Mid/High) and its **sensitivity** (Off..Insane). Below the table, an
+On/Off **toggle** for a small on-screen **indicator** plus a **dropdown** for its
+position. Multi-choice controls use dropdowns (clearer than click-to-cycle); the
+binary indicator stays a toggle. Mirrors the other modals (dim backdrop, centered
+panel, click-outside/Esc to close). The App owns the live :class:`BeatTrigger`;
+this panel only displays state and routes selections.
 """
 
 from __future__ import annotations
@@ -18,28 +20,28 @@ import pygame
 from audio_visualizer.config import (
     BEAT_ACTIONS,
     BEAT_BANDS,
+    BEAT_INDICATOR_POSITIONS,
     BEAT_SENSITIVITY_LABELS,
     COLOR_BG,
     COLOR_TEXT,
     COLOR_TEXT_DIM,
 )
+from audio_visualizer.ui.dropdown import Dropdown
 from audio_visualizer.ui.style import STYLE, TEXT_PAD, draw_panel, fit_text
 
 _PANEL_W = 480
-_ROW_H = 40
+_ROW_H = 30
 _PAD = 14
 _GAP = 8
 _LABEL_H = 22
-_BAND_W = 84  # width of the band badge
-_LEVEL_W = 96  # width of the sensitivity badge
-
-_BAND_LABELS = {key: label for key, label in BEAT_BANDS}
+_BAND_W = 92  # width of the band dropdown
+_LEVEL_W = 108  # width of the sensitivity dropdown
 
 
 @dataclass(frozen=True)
 class _ActionRow:
     action_key: str
-    rect: pygame.Rect
+    label_rect: pygame.Rect
     band_rect: pygame.Rect
     level_rect: pygame.Rect
 
@@ -54,40 +56,70 @@ class _PanelLayout:
 
 
 class BeatPanel:
-    """Centered modal: per-action band + sensitivity, plus indicator toggles."""
+    """Centered modal: per-action band + sensitivity dropdowns, plus indicator."""
 
     def __init__(
         self,
-        cycle_level: Callable[[str], None],
-        cycle_band: Callable[[str], None],
+        set_level: Callable[[str, int], None],
+        set_band: Callable[[str, str], None],
         toggle_indicator: Callable[[], None],
-        cycle_position: Callable[[], None],
+        set_position: Callable[[str], None],
     ) -> None:
-        self._cycle_level = cycle_level
-        self._cycle_band = cycle_band
+        self._set_level = set_level
+        self._set_band = set_band
         self._toggle_indicator = toggle_indicator
-        self._cycle_position = cycle_position
+        self._set_position = set_position
         self.open = False
-        self._levels: dict[str, int] = {key: 0 for key, _label in BEAT_ACTIONS}
-        self._bands: dict[str, str] = {key: "all" for key, _label in BEAT_ACTIONS}
         self._indicator_on = False
-        self._position_label = ""
         self._hover_close = False
+
+        # One band + one sensitivity dropdown per action.
+        self._band_dd: dict[str, Dropdown] = {}
+        self._level_dd: dict[str, Dropdown] = {}
+        level_options = [(str(i), label) for i, label in enumerate(BEAT_SENSITIVITY_LABELS)]
+        for key, _label in BEAT_ACTIONS:
+            band = Dropdown(self._make_band_cb(key))
+            band.set_options(list(BEAT_BANDS))
+            self._band_dd[key] = band
+            level = Dropdown(self._make_level_cb(key))
+            level.set_options(level_options)
+            self._level_dd[key] = level
+        self._position_dd = Dropdown(set_position)
+        self._position_dd.set_options(list(BEAT_INDICATOR_POSITIONS))
+
+    def _make_band_cb(self, action: str) -> Callable[[str], None]:
+        return lambda band: self._set_band(action, band)
+
+    def _make_level_cb(self, action: str) -> Callable[[str], None]:
+        return lambda index_str: self._set_level(action, int(index_str))
+
+    def _dropdowns(self) -> list[Dropdown]:
+        return [*self._band_dd.values(), *self._level_dd.values(), self._position_dd]
 
     def set_state(
         self,
         levels: dict[str, int],
         bands: dict[str, str],
         indicator_on: bool,
-        position_label: str,
+        position_key: str,
     ) -> None:
-        self._levels = dict(levels)
-        self._bands = dict(bands)
+        for key, level in levels.items():
+            if key in self._level_dd:
+                self._level_dd[key].set_selected(str(level))
+        for key, band in bands.items():
+            if key in self._band_dd:
+                self._band_dd[key].set_selected(band)
         self._indicator_on = indicator_on
-        self._position_label = position_label
+        self._position_dd.set_selected(position_key)
 
     def toggle(self) -> None:
         self.open = not self.open
+        if not self.open:
+            self._close_dropdowns()
+
+    def _close_dropdowns(self) -> None:
+        for dd in self._dropdowns():
+            dd.open = False
 
     # -- geometry -------------------------------------------------------------
     def _panel_rect(self, canvas: pygame.Rect) -> pygame.Rect:
@@ -118,23 +150,40 @@ class BeatPanel:
         y = panel.y + _PAD + _LABEL_H + _GAP
         rows: list[_ActionRow] = []
         for key, _label in BEAT_ACTIONS:
-            row = pygame.Rect(x, y, w, _ROW_H)
-            level_rect = pygame.Rect(row.right - _LEVEL_W, y, _LEVEL_W, _ROW_H)
+            level_rect = pygame.Rect(x + w - _LEVEL_W, y, _LEVEL_W, _ROW_H)
             band_rect = pygame.Rect(level_rect.x - _GAP - _BAND_W, y, _BAND_W, _ROW_H)
-            rows.append(_ActionRow(key, row, band_rect, level_rect))
+            label_rect = pygame.Rect(x, y, band_rect.x - _GAP - x, _ROW_H)
+            rows.append(_ActionRow(key, label_rect, band_rect, level_rect))
             y += _ROW_H + _GAP
         y += _GAP
-        indicator = pygame.Rect(x, y, w, _ROW_H)
-        y += _ROW_H + _GAP
-        position = pygame.Rect(x, y, w, _ROW_H)
+        indicator = pygame.Rect(x, y, (w - _GAP) // 2, _ROW_H)
+        position = pygame.Rect(indicator.right + _GAP, y, x + w - (indicator.right + _GAP), _ROW_H)
         close = pygame.Rect(x, panel.bottom - _PAD - _ROW_H, w, _ROW_H)
         return _PanelLayout(panel, rows, indicator, position, close)
+
+    def _sync_widgets(self, lay: _PanelLayout) -> None:
+        """Push current rects into the dropdowns and bound their open lists."""
+        for row in lay.rows:
+            self._band_dd[row.action_key].set_rect(row.band_rect)
+            self._level_dd[row.action_key].set_rect(row.level_rect)
+        self._position_dd.set_rect(lay.position)
+        right = lay.panel.right - _PAD
+        for dd in self._dropdowns():
+            dd.set_bound_right(right)
 
     # -- input ----------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event, canvas: pygame.Rect) -> bool:
         if not self.open:
             return False
         lay = self._layout(canvas)
+        self._sync_widgets(lay)
+        for dd in self._dropdowns():
+            if dd.handle_event(event):
+                if dd.open:  # keep only the just-opened dropdown expanded
+                    for other in self._dropdowns():
+                        if other is not dd:
+                            other.open = False
+                return True
         if event.type == pygame.MOUSEMOTION:
             self._hover_close = lay.close.collidepoint(event.pos)
             return True
@@ -145,22 +194,14 @@ class BeatPanel:
     def _handle_click(self, pos: tuple[int, int], lay: _PanelLayout) -> bool:
         if lay.close.collidepoint(pos):
             self.open = False
+            self._close_dropdowns()
             return True
-        for row in lay.rows:
-            if row.band_rect.collidepoint(pos):
-                self._cycle_band(row.action_key)
-                return True
-            if row.level_rect.collidepoint(pos):
-                self._cycle_level(row.action_key)
-                return True
         if lay.indicator.collidepoint(pos):
             self._toggle_indicator()
             return True
-        if lay.position.collidepoint(pos):
-            self._cycle_position()
-            return True
         if not lay.panel.collidepoint(pos):
             self.open = False
+            self._close_dropdowns()
         return True
 
     # -- draw -----------------------------------------------------------------
@@ -178,6 +219,7 @@ class BeatPanel:
         surface.blit(dim, canvas.topleft)
 
         lay = self._layout(canvas)
+        self._sync_widgets(lay)
         panel = lay.panel
         draw_panel(surface, panel, accent_border=True)
         title = font.render("Beat Buttons", True, STYLE.accent)
@@ -192,21 +234,14 @@ class BeatPanel:
 
         labels = {key: label for key, label in BEAT_ACTIONS}
         for row in lay.rows:
-            self._draw_action_row(surface, row, labels[row.action_key], font, font_small)
+            self._draw_action_label(surface, row, labels[row.action_key], font)
 
         self._draw_button(
             surface,
             lay.indicator,
-            f"On-screen indicator: {'On' if self._indicator_on else 'Off'}",
+            f"Indicator: {'On' if self._indicator_on else 'Off'}",
             font,
             active=self._indicator_on,
-        )
-        self._draw_button(
-            surface,
-            lay.position,
-            f"Indicator position: {self._position_label}",
-            font,
-            active=False,
         )
 
         hint = font_small.render(
@@ -217,46 +252,29 @@ class BeatPanel:
         surface.blit(hint, (panel.x + _PAD, lay.close.top - _LABEL_H))
         self._draw_button(surface, lay.close, "Close", font, hovered=self._hover_close)
 
-    def _draw_action_row(
+        # Dropdowns last (closed first, open one on top) so their lists overlay all.
+        dds = self._dropdowns()
+        open_dd = next((dd for dd in dds if dd.open), None)
+        for dd in dds:
+            if dd is not open_dd:
+                dd.draw(surface, font_small)
+        if open_dd is not None:
+            open_dd.draw(surface, font_small)
+
+    def _draw_action_label(
         self,
         surface: pygame.Surface,
         row: _ActionRow,
         label: str,
         font: pygame.font.Font,
-        font_small: pygame.font.Font,
     ) -> None:
-        level = self._levels.get(row.action_key, 0)
-        on = level > 0
-        draw_panel(surface, row.rect, accent_border=on)
-        name_w = row.band_rect.x - row.rect.x - TEXT_PAD * 2
-        name = fit_text(font, label, name_w)
+        on = self._level_dd[row.action_key].current_label != BEAT_SENSITIVITY_LABELS[0]
         color = COLOR_TEXT if on else COLOR_TEXT_DIM
+        name = fit_text(font, label, row.label_rect.width - TEXT_PAD)
         text = font.render(name, True, color)
-        surface.blit(text, text.get_rect(midleft=(row.rect.x + TEXT_PAD, row.rect.centery)))
-        self._draw_badge(
-            surface,
-            row.band_rect,
-            _BAND_LABELS.get(self._bands.get(row.action_key, "all"), "All"),
-            font_small,
-            active=on,
+        surface.blit(
+            text, text.get_rect(midleft=(row.label_rect.x + TEXT_PAD, row.label_rect.centery))
         )
-        self._draw_badge(
-            surface, row.level_rect, BEAT_SENSITIVITY_LABELS[level], font_small, active=on
-        )
-
-    @staticmethod
-    def _draw_badge(
-        surface: pygame.Surface,
-        rect: pygame.Rect,
-        text: str,
-        font: pygame.font.Font,
-        *,
-        active: bool,
-    ) -> None:
-        badge = pygame.Rect(rect.x, rect.centery - 13, rect.width, 26)
-        draw_panel(surface, badge, accent_fill=active)
-        label = font.render(text, True, COLOR_TEXT)
-        surface.blit(label, label.get_rect(center=badge.center))
 
     @staticmethod
     def _draw_button(

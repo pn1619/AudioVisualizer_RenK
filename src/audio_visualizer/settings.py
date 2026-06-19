@@ -49,6 +49,8 @@ from audio_visualizer.config import (
     RANDOM_INTERVAL_DEFAULT,
     RANDOM_INTERVAL_MAX,
     RANDOM_INTERVAL_MIN,
+    SENS_BAND_DEFAULT,
+    SENS_BANDS,
     SETTINGS_FILENAME,
     SETTINGS_SCHEMA_VERSION,
     SIZE_SCALE_DEFAULT,
@@ -73,6 +75,9 @@ class Settings:
     schema_version: int = SETTINGS_SCHEMA_VERSION
     mode: str = ""  # active visual-mode key ("" -> app default)
     sensitivity: float = 1.0
+    # Which frequency band the Sensitivity gain targets (schema v15). "all" scales the
+    # whole spectrum (legacy behavior); bass/mid/high scale only that third.
+    sens_band: str = SENS_BAND_DEFAULT
     smoothing: float = SMOOTHING_DEFAULT
     reduce_motion: bool = False
     fullscreen: bool = False
@@ -190,6 +195,9 @@ def _from_dict(raw: dict) -> Settings:
         schema_version=SETTINGS_SCHEMA_VERSION,
         mode=MERGED_MODE_KEYS.get(mode, mode),  # remap modes merged in Phase 10.07
         sensitivity=_float(raw.get("sensitivity"), defaults.sensitivity),
+        sens_band=_choice(
+            raw.get("sens_band"), tuple(key for key, _label in SENS_BANDS), defaults.sens_band
+        ),
         smoothing=_float(raw.get("smoothing"), defaults.smoothing),
         reduce_motion=_bool(raw.get("reduce_motion"), defaults.reduce_motion),
         fullscreen=_bool(raw.get("fullscreen"), defaults.fullscreen),
