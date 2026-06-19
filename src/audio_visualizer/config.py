@@ -16,9 +16,10 @@ Magic-number policy (see .cursor/rules/python-coding-style.mdc):
 from __future__ import annotations
 
 APP_NAME = "AudioVisualizer"
-# FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
-# so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0B.15"
+# Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
+# FF is the development phase ("0A", "0B", …); BB is the build within the phase.
+# (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
+APP_VERSION = "00.0B.10"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"

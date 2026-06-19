@@ -70,6 +70,20 @@ MIRROR_OPTION = ModeOption(
 GLOW_OPTION = ModeOption(
     "glow", "Glow", (OptionChoice("Off", 0), OptionChoice("Soft", 1)), default_index=0
 )
+# How frequency is arranged along a mode's bar axis. The two folded layouts mirror
+# the spectrum about center (see ``freq_order``). Interpreted per-mode by reading the
+# per-slot energies through ``freq_order`` (frequency-modes only: spectrum/meters/matrix).
+FREQ_DIRECTION_OPTION = ModeOption(
+    "freqdir",
+    "Direction",
+    (
+        OptionChoice("Low\u2192High", 0),
+        OptionChoice("High\u2192Low", 1),
+        OptionChoice("Center\u2192Out", 2),
+        OptionChoice("Out\u2192Center", 3),
+    ),
+    default_index=0,
+)
 # Line/element width.
 THICKNESS_OPTION = ModeOption(
     "thickness",
@@ -259,6 +273,27 @@ def range_energies(bands: NDArray[np.float32], slices: int) -> NDArray[np.float3
         [bands[edges[i] : max(edges[i] + 1, edges[i + 1])].mean() for i in range(slices)],
         dtype=np.float32,
     )
+
+
+def freq_order(n: int, direction: int) -> NDArray[np.intp]:
+    """Per-slot -> band-index map for a :data:`FREQ_DIRECTION_OPTION` value.
+
+    ``0`` Low->High keeps the natural order; ``1`` High->Low reverses it. The folded
+    layouts put the lowest band in the **middle** (``2`` Center->Out) or at the **edges**
+    (``3`` Out->Center) and rise to the other end, mirrored about center — so each half
+    spans the full range at roughly half resolution.
+    """
+    base = np.arange(max(0, n), dtype=np.intp)
+    if n <= 1 or direction == 0:
+        return base
+    if direction == 1:
+        return base[::-1].copy()
+    center = (n - 1) / 2.0
+    dist = np.abs(base - center)
+    rank = np.rint(dist / center * (n - 1)).astype(np.intp)  # center=low .. edge=high
+    if direction == 3:  # out->center: edges low, center high
+        rank = (n - 1) - rank
+    return rank
 
 
 def ring_points(
