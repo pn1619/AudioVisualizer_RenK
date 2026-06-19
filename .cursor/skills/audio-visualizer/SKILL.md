@@ -27,7 +27,7 @@ look (mode + options + theme + sensitivity/smoothing + Background/Logo snapshot)
 `looks.py` store (own `looks.json`); applying a look overlays live global and `None / Live`
 restores the live (pre-look) state. **Saving bookmarks the current look without auto-activating**
 (you stay on `None / Live`), so the saved entry never collides with the baseline.
-**Auto-cycle ("shuffle", v00.0B.03–06):** an `Auto` toggle + `Next` button +
+**Auto-cycle ("shuffle", v00.0B.03–07):** an `Auto` toggle + `Next` button +
 `Shuffle…` modal (`A` / `N` keys) auto-switch the active visual every interval. `ModeTransition`
 (`visuals/_transition.py`) does a **live cross-fade for mode→mode** (the outgoing visual keeps
 animating; `App._draw` re-paints it onto the frame's background) and a **frozen-snapshot dissolve**
@@ -38,6 +38,14 @@ user-adjustable **`random_fade`** time persist (schema v12). A small chip names 
 (`Auto · Mode: … / Look: … · next in Ns`). Auto is never persisted on; stopping leaves the
 current visual. The full, current mode catalog is
 > `plan/visual-mode-ideas.md`; the build-order list below is a per-phase history.
+
+**Mode option tweaks (v00.0B.07):** a shared **`SIZE_OPTION`** (`S`…`XXXL` multiplier, `M`=original
+size) in `_helpers.py` is reused by **Vectorscope** (replaces its old size), **Pulse Rings**,
+**Audio Sun**, **Kaleidoscope**. **VU Meters** gained a **`Spark`** option (needle tip throws embers;
+ladder/bar spray rising rainbow sparks via the shared `SparkField`). **Pulse Rings** now shoot
+expanding fading circles on beats matching the draw style (dashed→dashed) and **`Spin: Off`** truly
+freezes (the angle no longer advanced regardless). **Ripples** gained a **`Size`** option (incl.
+per-ring `Random`).
 
 ## Read first (canonical docs)
 

@@ -84,6 +84,23 @@ SPEED_OPTION = ModeOption(
     (OptionChoice("Slow", 0.5), OptionChoice("Normal", 1.0), OptionChoice("Fast", 2.0)),
     default_index=1,
 )
+# Overall size multiplier for modes whose figure scales out from the center. ``M``
+# (1.0) leaves a mode at its original size; the large steps deliberately spill well
+# past the canvas edges so a mode can fill (or overflow) the window. Each mode reads
+# the value and multiplies its own base radius/scale by it.
+SIZE_OPTION = ModeOption(
+    "size",
+    "Size",
+    (
+        OptionChoice("S", 0.65),
+        OptionChoice("M", 1.0),
+        OptionChoice("L", 1.4),
+        OptionChoice("XL", 1.9),
+        OptionChoice("XXL", 2.5),
+        OptionChoice("XXXL", 3.2),
+    ),
+    default_index=1,
+)
 # Shared "add particles" axis used by the merged base/"+particles" modes. The value
 # is a spawn-rate multiplier; ``Off`` (0.0) disables spawning entirely.
 PARTICLES_OPTION = ModeOption(

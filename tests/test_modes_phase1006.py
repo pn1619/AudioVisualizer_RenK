@@ -84,14 +84,16 @@ def test_vectorscope_size_option_scales_trace() -> None:
     visual.on_enter()
     frame = _active_frame()
 
+    from audio_visualizer.visuals.vectorscope import _SIZE_BASE
+
     def trace_span(size_index: int) -> float:
-        visual.set_option_index("vsize", size_index)
-        radius = min(320, 200) * float(visual.option("vsize"))
+        visual.set_option_index("size", size_index)
+        radius = min(320, 200) * _SIZE_BASE * float(visual.option("size"))
         pts = visual._trace_points(frame, 160.0, 100.0, radius)
         xs = [p[0] for p in pts]
         return max(xs) - min(xs)
 
-    assert trace_span(0) < trace_span(3)  # S is smaller than XL
+    assert trace_span(0) < trace_span(5)  # S is smaller than XXXL
 
 
 def test_ripples_width_option() -> None:
@@ -104,3 +106,56 @@ def test_ripples_width_option() -> None:
     rand = Ripples._line_width(-2.0, rp)
     assert thick > thin >= 1
     assert rand >= auto  # Random scales the auto width by width_mul (2.0 here)
+
+
+def test_size_option_present_on_scaling_modes() -> None:
+    """Audio Sun / Kaleidoscope / Pulse Rings / Vectorscope expose the shared Size axis."""
+    for key in ("radial_spectrum", "kaleidoscope", "pulse_rings", "vectorscope"):
+        keys = {opt.key for opt in registry.create(key).OPTIONS}
+        assert "size" in keys, f"{key} is missing the Size option"
+
+
+def test_pulse_rings_spin_off_freezes_angle() -> None:
+    from audio_visualizer.visuals.pulse_rings import PulseRings
+
+    visual = PulseRings()
+    visual.theme = Theme()
+    visual.on_enter()
+    visual.set_option_index("rrotate", 0)  # Off
+    for _ in range(10):
+        visual._advance(_active_frame(), 0.05)
+    assert visual._angle == 0.0  # "Off" must not rotate the dashed arcs
+
+    visual.on_enter()
+    visual.set_option_index("rrotate", 1)  # Spin
+    for _ in range(10):
+        visual._advance(_active_frame(), 0.05)
+    assert visual._angle > 0.0
+
+
+def test_pulse_rings_beat_shoots_fading_pulses() -> None:
+    from audio_visualizer.visuals.pulse_rings import PulseRings
+
+    visual = PulseRings()
+    visual.theme = Theme()
+    visual.on_enter()
+    visual.set_option_index("beat", 0)  # On (index 0 == value 1)
+    surface = pygame.Surface((320, 200))
+    # An onset (frame.onset == 1.0) after a quiet prev frame must birth a pulse.
+    visual._advance(_silent_frame(), 0.05)
+    visual._advance(_active_frame(), 0.05)
+    assert visual._pulses, "an onset should shoot out a pulse"
+    visual.draw(surface, _active_frame(), 0.05)  # renders the expanding circle safely
+
+
+def test_meters_spark_emits_particles() -> None:
+    from audio_visualizer.visuals.meters import Meters
+
+    visual = Meters()
+    visual.theme = Theme()
+    visual.on_enter()
+    visual.set_option_index("spark", 1)  # On
+    surface = pygame.Surface((320, 200))
+    for _ in range(20):
+        visual.draw(surface, _active_frame(), 0.05)
+    assert visual._sparks.count > 0, "spark On should emit particles on a loud frame"

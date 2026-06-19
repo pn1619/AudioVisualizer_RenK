@@ -68,6 +68,20 @@ _WIDTH = ModeOption(
     ),
     default_index=0,
 )
+# How far each ring grows before it leaves the canvas. The fixed steps multiply the
+# reach uniformly; ``Random`` (-1) gives every ring its own size for a varied spread.
+_SIZE = ModeOption(
+    "rsize",
+    "Size",
+    (
+        OptionChoice("S", 0.6),
+        OptionChoice("M", 1.0),
+        OptionChoice("L", 1.5),
+        OptionChoice("XL", 2.0),
+        OptionChoice("Random", -1.0),
+    ),
+    default_index=1,
+)
 
 
 @dataclass
@@ -81,13 +95,14 @@ class _Ripple:
     hue: float
     strength: float
     width_mul: float = 1.0  # per-ring random factor, used only by the "Random" width
+    size_mul: float = 1.0  # per-ring random factor, used only by the "Random" size
 
 
 @register(key="ripples", display_name="Ripples", order=125)
 class Ripples(BaseVisualizer):
     """Beat-born expanding rings that grow and fade across the canvas."""
 
-    OPTIONS = (_SPAWN, _ORIGIN, _STYLE, _WIDTH, _MAX, SPEED_OPTION, COLOR_OPTION)
+    OPTIONS = (_SPAWN, _ORIGIN, _STYLE, _WIDTH, _SIZE, _MAX, SPEED_OPTION, COLOR_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -144,6 +159,7 @@ class Ripples(BaseVisualizer):
                 hue=self._rng.random(),
                 strength=clamp(strength),
                 width_mul=self._rng.uniform(0.4, 2.6),
+                size_mul=self._rng.uniform(0.45, 1.8),
             )
         )
 
@@ -161,10 +177,12 @@ class Ripples(BaseVisualizer):
         style = int(self.option("rstyle"))
         color_opt = int(self.option("color"))
         width_opt = self.option("rwidth")
+        size_opt = self.option("rsize")
         scheme, phase = self.theme.color_scheme, self.theme.color_phase
         for rp in self._ripples:
             cx, cy = int(rp.x * w), int(rp.y * h)
-            r = int(rp.radius * diag * 0.5)
+            size_f = rp.size_mul if size_opt == -1.0 else size_opt
+            r = int(rp.radius * diag * 0.5 * size_f)
             if r < 1:
                 continue
             fade = clamp(rp.life / _LIFETIME)

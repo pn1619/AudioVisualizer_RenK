@@ -1129,8 +1129,8 @@ class App:
         self._layout = Layout.compute(size, show_control_bar=show, control_bar_height=bar_h)
         self._controls.relayout(self._layout.control_bar)
         self._visual.on_resize(self._layout.canvas.size)
-        if self._transition is not None:
-            self._transition.incoming.on_resize(self._layout.canvas.size)
+        if self._transition is not None and self._transition.prev_visual is not None:
+            self._transition.prev_visual.on_resize(self._layout.canvas.size)
 
     def _update(self, dt: float = 0.0) -> None:
         # Auto-cycle runs regardless of capture/silence (it's a visual choice).

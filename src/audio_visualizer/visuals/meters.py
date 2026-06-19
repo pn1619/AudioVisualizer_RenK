@@ -9,6 +9,7 @@ a per-group sweep, or classic green/amber/red broadcast zones.
 from __future__ import annotations
 
 import math
+import random
 
 import numpy as np
 import pygame
@@ -17,6 +18,7 @@ from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import COLOR_ACCENT, PALETTE
 from audio_visualizer.visuals._helpers import (
     GLOW_OPTION,
+    SparkField,
     palette_color,
     range_energies,
     scale_color,
@@ -28,6 +30,8 @@ _ZONE_GREEN = (60, 220, 90)
 _ZONE_AMBER = (240, 200, 50)
 _ZONE_RED = (240, 70, 60)
 _PEAK_DECAY = 0.35  # peak-hold pip fall speed (level fraction per second)
+_SPARK_LEVEL_FLOOR = 0.12  # below this level a meter emits no sparks
+_SPARK_RATE = 42.0  # expected sparks/second from a meter at full level
 
 _STYLE = ModeOption(
     "style",
@@ -66,23 +70,34 @@ _COLOR = ModeOption(
     (OptionChoice("Zones", 0), OptionChoice("Accent", 1), OptionChoice("Per-band", 2)),
     default_index=0,
 )
+# Emit little particles from each meter: needles shoot sparks off the tip, ladders/
+# bars spray them up off the level. Hues sweep per band for a rainbow-across-boxes
+# look (full rainbow under a rainbow color scheme).
+_SPARK = ModeOption(
+    "spark", "Spark", (OptionChoice("Off", 0), OptionChoice("On", 1)), default_index=0
+)
 
 
 @register(key="meters", display_name="VU Meters", order=110)
 class Meters(BaseVisualizer):
     """Frequency-grouped level meters (ladder / bar / needle) with peak hold."""
 
-    OPTIONS = (_STYLE, _GROUPS, _SEGMENTS, _PEAK, _DECAY, _ORIENT, _COLOR, GLOW_OPTION)
+    OPTIONS = (_STYLE, _GROUPS, _SEGMENTS, _PEAK, _DECAY, _ORIENT, _COLOR, _SPARK, GLOW_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
         self._levels = np.zeros(0, dtype=np.float32)
         self._peaks = np.zeros(0, dtype=np.float32)
         self._glow = False
+        self._sparks = SparkField(cap=0, lifetime=0.6, trail_len=0)
+        self._rng = random.Random(11)
+        self._hue_drift = 0.0
 
     def on_enter(self) -> None:
         self._levels = np.zeros(0, dtype=np.float32)
         self._peaks = np.zeros(0, dtype=np.float32)
+        self._sparks.clear()
+        self._hue_drift = 0.0
 
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
         w, h = surface.get_size()
@@ -95,6 +110,10 @@ class Meters(BaseVisualizer):
         margin = int(min(w, h) * 0.06)
         horiz = int(self.option("orient")) == 1
         style = int(self.option("style"))
+        spark_on = int(self.option("spark")) == 1 and not self.reduce_motion
+        if spark_on:
+            self._sparks.cap = max(48, groups * 12)
+            self._hue_drift = (self._hue_drift + dt * 0.15) % 1.0
         for i in range(groups):
             cell = self._cell_rect(i, groups, w, h, margin, horiz)
             level = float(self._levels[i])
@@ -105,6 +124,10 @@ class Meters(BaseVisualizer):
                 self._draw_bar(surface, cell, level, peak, i, groups, horiz)
             else:
                 self._draw_needle(surface, cell, level, i, groups)
+            if spark_on:
+                self._emit(style, cell, level, i, groups, horiz, w, h, dt)
+        if spark_on:
+            self._render_sparks(surface, style, w, h, dt)
 
     def _update_levels(self, frame: AnalysisFrame | None, groups: int, dt: float) -> None:
         if self._levels.size != groups:
@@ -234,6 +257,85 @@ class Meters(BaseVisualizer):
     def _arc_rect(pivot: tuple[int, int], radius: float) -> pygame.Rect:
         return pygame.Rect(
             int(pivot[0] - radius), int(pivot[1] - radius), int(radius * 2), int(radius * 2)
+        )
+
+    def _emit(
+        self,
+        style: int,
+        cell: pygame.Rect,
+        level: float,
+        i: int,
+        groups: int,
+        horiz: bool,
+        w: int,
+        h: int,
+        dt: float,
+    ) -> None:
+        """Spawn sparks for one meter, with count rising with its level."""
+        if level < _SPARK_LEVEL_FLOOR:
+            return
+        expected = (level - _SPARK_LEVEL_FLOOR) * _SPARK_RATE * dt
+        count = int(expected) + (1 if self._rng.random() < expected - int(expected) else 0)
+        if count <= 0:
+            return
+        hue = (i + 0.5) / max(1, groups) + self._hue_drift
+        if style == 2:
+            self._emit_needle(cell, level, count, hue, w, h)
+        else:
+            self._emit_bar(cell, level, count, hue, horiz, w, h)
+
+    def _emit_needle(
+        self, cell: pygame.Rect, level: float, count: int, hue: float, w: int, h: int
+    ) -> None:
+        """Shoot sparks off the needle tip, flying outward along the needle's angle."""
+        pivot = (cell.centerx, cell.bottom)
+        radius = min(cell.width, cell.height) * 0.9
+        angle = math.radians(150 - level * 120)
+        tip_x = pivot[0] + math.cos(angle) * radius
+        tip_y = pivot[1] - math.sin(angle) * radius
+        dir_x, dir_y = math.cos(angle), -math.sin(angle)  # screen y points down
+        speed = 0.25 + 0.55 * level
+        for _ in range(count):
+            spread = self._rng.uniform(-0.13, 0.13)
+            self._sparks.spawn(
+                tip_x / w,
+                tip_y / h,
+                (dir_x + spread) * speed,
+                (dir_y + spread) * speed,
+                hue + self._rng.uniform(-0.04, 0.04),
+                size=self._rng.uniform(0.7, 1.3),
+            )
+
+    def _emit_bar(
+        self, cell: pygame.Rect, level: float, count: int, hue: float, horiz: bool, w: int, h: int
+    ) -> None:
+        """Spray sparks off the lit edge of a ladder/bar meter (up, or out when horizontal)."""
+        for _ in range(count):
+            if horiz:
+                x = cell.left + cell.width * level
+                y = self._rng.uniform(cell.top, cell.bottom)
+                vx, vy = self._rng.uniform(0.06, 0.32), self._rng.uniform(-0.13, 0.13)
+            else:
+                x = self._rng.uniform(cell.left, cell.right)
+                y = cell.bottom - cell.height * level
+                vx, vy = self._rng.uniform(-0.13, 0.13), self._rng.uniform(-0.34, -0.1)
+            self._sparks.spawn(
+                x / w,
+                y / h,
+                vx,
+                vy,
+                hue + self._rng.uniform(-0.04, 0.04),
+                size=self._rng.uniform(0.6, 1.2),
+            )
+
+    def _render_sparks(
+        self, surface: pygame.Surface, style: int, w: int, h: int, dt: float
+    ) -> None:
+        gravity = 0.6 if style == 2 else 0.2  # needle embers fall harder than rising bar sparks
+        self._sparks.advance(dt, self.theme.speed_scale, gravity)
+        size_scale = max(1.0, min(w, h) / 260.0)
+        self._sparks.render(
+            surface, self.theme.color_scheme, self.theme.color_phase, w, h, size_scale, trails=False
         )
 
     @staticmethod

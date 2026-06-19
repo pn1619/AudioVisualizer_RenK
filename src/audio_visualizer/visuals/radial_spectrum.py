@@ -17,6 +17,7 @@ import pygame
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import COLOR_ACCENT, PALETTE
 from audio_visualizer.visuals._helpers import (
+    SIZE_OPTION,
     clamp,
     draw_ring,
     resample_to,
@@ -61,7 +62,7 @@ _DISKS = ModeOption(
 class RadialSpectrum(BaseVisualizer):
     """Radial spectrum rays around a glowing two-ring core + an oscilloscope ring."""
 
-    OPTIONS = (_MIRROR, _THICKNESS, _DISKS)
+    OPTIONS = (_MIRROR, _THICKNESS, _DISKS, SIZE_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -79,7 +80,7 @@ class RadialSpectrum(BaseVisualizer):
         if w < 8 or h < 8:
             return
         cx, cy = w / 2.0, h / 2.0
-        scale = min(w, h) / 2.0
+        scale = min(w, h) / 2.0 * float(self.option("size"))
         core_r = scale * _CORE_FRACTION
         max_len = scale * _LEN_FRACTION
         scheme, phase = self.theme.color_scheme, self.theme.color_phase

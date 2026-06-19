@@ -16,7 +16,7 @@ import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
-from audio_visualizer.visuals._helpers import clamp, resample_to, themed_color
+from audio_visualizer.visuals._helpers import SIZE_OPTION, clamp, resample_to, themed_color
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
 
@@ -54,7 +54,7 @@ _SPIN = ModeOption(
 class Kaleidoscope(BaseVisualizer):
     """Mirrors an audio-driven wedge into a rotating symmetric mandala."""
 
-    OPTIONS = (_SEGMENTS, _CENTER, _SPIN)
+    OPTIONS = (_SEGMENTS, _CENTER, _SPIN, SIZE_OPTION)
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -70,7 +70,7 @@ class Kaleidoscope(BaseVisualizer):
         if w < 16 or h < 16:
             return
         cx, cy = w / 2.0, h / 2.0
-        scale = min(w, h) / 2.0
+        scale = min(w, h) / 2.0 * float(self.option("size"))
         core_r = scale * _CORE_FRACTION
         max_len = scale * _LEN_FRACTION
         segments = int(self.option("segments"))

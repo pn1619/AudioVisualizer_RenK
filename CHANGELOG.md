@@ -11,6 +11,34 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.07` — Phase 0B-c (build 5): meter sparks, ring pulses, shared Size axis
+
+- **VU Meters can now throw sparks.** New **`Spark`** option (`Off` / `On`). With it on, **Needle**
+  meters shoot little particles off the tip along the needle's angle (they arc out and fall like
+  embers), while **Ladder** / **Bar** meters spray sparks up off the lit level. Spark count rises
+  with each meter's level and hues sweep per band (a full rainbow under a rainbow color scheme).
+  Reuses the shared `SparkField`; honors reduce-motion (no sparks). (`visuals/meters.py`)
+- **Pulse Rings `Spin: Off` actually stops now.** Previously the internal rotation angle advanced
+  regardless of the `Spin` choice, so dashed rings kept turning even on `Off`. The angle now only
+  advances for `Spin` / `Counter`. (`visuals/pulse_rings.py`)
+- **Pulse Rings shoot expanding circles on beats.** Each beat now births a ring that flies outward,
+  growing and fading until invisible — and it **adopts the draw style**, so a `Dashed` look shoots
+  dashed circles, `Filled` shoots thick ones, `Outline` shoots thin rings. (Tied to the `Beat`
+  option.)
+- **Shared `Size` axis (`S`…`XXXL`).** A reusable `SIZE_OPTION` multiplier (`M` = original size) is
+  now offered by **Vectorscope** (replacing its old 4-step size, now incl. `XXL`/`XXXL`),
+  **Pulse Rings**, **Audio Sun**, and **Kaleidoscope** — so each can grow well past the canvas edges
+  or shrink down. (`visuals/_helpers.py` `SIZE_OPTION`.)
+- **Ripples ring size.** New **`Size`** option (`S` / `M` / `L` / `XL`, plus **`Random`** giving each
+  ring its own reach) alongside the existing random `Width`.
+- **Fix:** resizing the window mid cross-fade no longer crashes (`App._relayout` referenced a
+  non-existent `ModeTransition.incoming`; it now resizes the live `prev_visual`).
+- Tests: meter spark emission, Pulse Rings spin-off freeze + beat-pulse birth/render, the shared
+  `Size` axis is present on the scaling modes, and Vectorscope `S < XXXL` span (plus the every-option
+  render sweep covers all new choices).
+
+---
+
 ## `00.0B.06` — Phase 0B-c (build 4): live cross-fade + adjustable fade + mode tweaks
 
 - **Adjustable cross-fade time.** New **`Fade`** stepper in the `Shuffle…` modal (`0.0s`–`3.0s`,

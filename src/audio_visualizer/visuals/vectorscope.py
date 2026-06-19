@@ -16,6 +16,7 @@ import pygame
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.visuals._helpers import (
     MIRROR_OPTION,
+    SIZE_OPTION,
     THICKNESS_OPTION,
     clamp,
     mirror_points,
@@ -30,20 +31,10 @@ _PHOSPHOR = (70, 255, 130)
 # floor caps the gain so quiet passages stay small instead of amplifying noise.
 _NORM_FLOOR = 0.25
 
-# User-selectable scope size: the radius as a fraction of the smaller window edge
-# (grid + trace both use it). XL intentionally spills past the short edge to fill
-# the canvas. Default is large since the old fixed size read as too small.
-_SIZE = ModeOption(
-    "vsize",
-    "Size",
-    (
-        OptionChoice("S", 0.32),
-        OptionChoice("M", 0.46),
-        OptionChoice("L", 0.60),
-        OptionChoice("XL", 0.78),
-    ),
-    default_index=2,
-)
+# Scope radius as a fraction of the smaller window edge, before the shared Size
+# multiplier. ``M`` (×1.0) lands on this; the larger steps (XL/XXL/XXXL) spill past
+# the short edge to fill — or overflow — the canvas.
+_SIZE_BASE = 0.6
 
 _DELAY = ModeOption(
     "delay",
@@ -90,7 +81,7 @@ class Vectorscope(BaseVisualizer):
         _COLOR,
         _ROTATE,
         _GRID,
-        _SIZE,
+        SIZE_OPTION,
         MIRROR_OPTION,
     )
 
@@ -118,7 +109,7 @@ class Vectorscope(BaseVisualizer):
         mirror = int(self.option("mirror"))
         persist_mode = int(self.option("persist"))
         cx, cy = w / 2.0, h / 2.0
-        radius = min(w, h) * float(self.option("vsize"))
+        radius = min(w, h) * _SIZE_BASE * float(self.option("size"))
         if persist_mode == 0:
             self._blit_grid(surface, w, h, radius)
             pts = self._trace_points(frame, cx, cy, radius)
