@@ -18,7 +18,7 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0B.05"
+APP_VERSION = "00.0B.06"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-18"
@@ -401,7 +401,8 @@ SETTINGS_FILENAME = "settings.json"
 # v9 (Phase 0B-b) added the last-active user look id (active_look).
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
-SETTINGS_SCHEMA_VERSION = 11
+# v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
+SETTINGS_SCHEMA_VERSION = 12
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad
@@ -433,10 +434,16 @@ RANDOM_INTERVAL_DEFAULT = 20.0  # seconds between auto-switches
 RANDOM_INTERVAL_MIN = 3.0
 RANDOM_INTERVAL_MAX = 300.0
 RANDOM_INTERVAL_STEP = 5.0
-# Cross-fade length when auto-switching. Two modes are rendered to offscreen
-# surfaces only while a fade is in flight, so steady-state cost is unchanged.
-# Reduce-motion shortens this to a hard cut (no double-render).
-TRANSITION_DURATION = 0.6
+# Cross-fade length when auto-switching, user-adjustable in the Shuffle modal and
+# persisted as ``random_fade``. A mode->mode switch renders **both** visuals live
+# while the fade is in flight (the outgoing one keeps animating); a switch onto a
+# saved look uses a frozen-snapshot dissolve (it also changes background/logo/theme).
+# Reduce-motion (or a 0s fade) hard-cuts with no double-render.
+TRANSITION_DURATION = 0.6  # default fade seconds (RANDOM_FADE_DEFAULT)
+RANDOM_FADE_DEFAULT = TRANSITION_DURATION
+RANDOM_FADE_MIN = 0.0  # 0 = instant hard cut
+RANDOM_FADE_MAX = 3.0
+RANDOM_FADE_STEP = 0.1
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error

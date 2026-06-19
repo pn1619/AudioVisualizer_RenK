@@ -7,6 +7,9 @@ import pytest
 
 from audio_visualizer.app import App
 from audio_visualizer.config import (
+    RANDOM_FADE_MAX,
+    RANDOM_FADE_MIN,
+    RANDOM_FADE_STEP,
     RANDOM_INTERVAL_DEFAULT,
     RANDOM_INTERVAL_MAX,
     RANDOM_INTERVAL_MIN,
@@ -46,6 +49,16 @@ def test_random_options_roundtrip(tmp_path) -> None:
     save_settings(Settings(random_options=True), path)
     assert load_settings(path).random_options is True
     assert load_settings(path).schema_version >= 11
+
+
+def test_random_fade_roundtrip_and_clamp(tmp_path) -> None:
+    path = tmp_path / "settings.json"
+    save_settings(Settings(random_fade=1.5), path)
+    loaded = load_settings(path)
+    assert loaded.random_fade == 1.5
+    assert loaded.schema_version >= 12
+    path.write_text('{"schema_version": 12, "random_fade": 99}', encoding="utf-8")
+    assert load_settings(path).random_fade == RANDOM_FADE_MAX  # clamped to range
 
 
 def test_interval_below_range_clamps(tmp_path) -> None:
@@ -207,6 +220,71 @@ def test_transition_lifecycle_applies_then_clears(app: App) -> None:
     assert app._mode_index == 1  # exactly one active visual
 
 
+def test_mode_to_mode_uses_live_crossfade(app: App) -> None:
+    keys = app._mode_keys
+    app._reduce_motion = False
+    app._set_pool_all(False)
+    app._toggle_pool_item(f"mode:{keys[1]}")
+    app._set_mode_index(0)
+    old_visual = app._visual
+    app._auto_current = f"mode:{keys[0]}"
+    app._auto_advance()
+    assert app._transition is not None
+    assert app._transition.is_live  # both visuals animate during the fade
+    assert app._transition.prev_visual is old_visual
+    assert app._transition.snapshot is None
+
+
+def test_switch_onto_look_uses_frozen_dissolve(app: App) -> None:
+    keys = app._mode_keys
+    look = app._capture_look("Pinned")
+    look.base_mode_key = keys[1]
+    created = app._looks_store.add(look)
+    assert created is not None
+    tag = f"look:{created.id}"
+    app._reduce_motion = False
+    app._set_pool_all(False)
+    app._toggle_pool_item(tag)
+    app._set_mode_index(0)
+    app._auto_current = f"mode:{keys[0]}"
+    app._auto_advance()
+    assert app._transition is not None
+    assert not app._transition.is_live  # looks change globals -> frozen snapshot
+    assert app._transition.snapshot is not None
+
+
+def test_adjust_fade_clamps_and_snaps(app: App) -> None:
+    app._auto_fade = 0.6
+    app._adjust_fade(RANDOM_FADE_STEP)
+    assert app._auto_fade == pytest.approx(0.7)
+    app._adjust_fade(-100.0)
+    assert app._auto_fade == RANDOM_FADE_MIN
+    app._adjust_fade(100.0)
+    assert app._auto_fade == RANDOM_FADE_MAX
+
+
+def test_zero_fade_hard_cuts(app: App) -> None:
+    keys = app._mode_keys
+    app._reduce_motion = False
+    app._auto_fade = 0.0
+    app._set_pool_all(False)
+    app._toggle_pool_item(f"mode:{keys[1]}")
+    app._set_mode_index(0)
+    app._auto_advance()
+    assert app._transition is None  # 0s fade is an instant cut
+
+
+def test_status_chip_label_mode_vs_look(app: App) -> None:
+    keys = app._mode_keys
+    app._auto_current = f"mode:{keys[0]}"
+    assert app._current_item_label().startswith("Mode: ")
+    look = app._capture_look("Neon")
+    created = app._looks_store.add(look)
+    assert created is not None
+    app._auto_current = f"look:{created.id}"
+    assert app._current_item_label() == "Look: Neon"
+
+
 def test_manual_switch_cancels_active_fade(app: App) -> None:
     keys = app._mode_keys
     app._reduce_motion = False
@@ -250,7 +328,8 @@ def test_draw_transition_renders_without_error(app: App) -> None:
     app._auto_elapsed = app._auto_interval
     app._update_auto(0.0)
     surface = pygame.Surface(app._layout.canvas.size)
-    app._draw_transition(surface)  # must not raise
+    bg_copy = surface.copy()
+    app._draw_transition(surface, 0.016, bg_copy)  # must not raise
 
 
 def test_auto_status_overlay_runs(app: App) -> None:
@@ -277,12 +356,15 @@ def test_shuffle_panel_routes_clicks() -> None:
         "up": 0,
         "all": [],
         "rand": 0,
+        "fade": 0,
     }
     actions = ShuffleActions(
         toggle_auto=lambda: events.__setitem__("auto", int(events["auto"]) + 1),  # type: ignore[arg-type]
         shuffle_next=lambda: events.__setitem__("next", int(events["next"]) + 1),  # type: ignore[arg-type]
         interval_down=lambda: None,
         interval_up=lambda: events.__setitem__("up", int(events["up"]) + 1),  # type: ignore[arg-type]
+        fade_down=lambda: None,
+        fade_up=lambda: events.__setitem__("fade", int(events["fade"]) + 1),  # type: ignore[arg-type]
         toggle_item=lambda key: events["toggled"].append(key),  # type: ignore[union-attr]
         set_all=lambda on: events["all"].append(on),  # type: ignore[union-attr]
         toggle_random_options=lambda: events.__setitem__("rand", int(events["rand"]) + 1),  # type: ignore[arg-type]
@@ -293,6 +375,7 @@ def test_shuffle_panel_routes_clicks() -> None:
         "Every 20s",
         False,
         False,
+        "Fade: 0.6s",
     )
     panel.toggle()
     canvas = pygame.Rect(0, 0, 800, 600)
@@ -301,6 +384,7 @@ def test_shuffle_panel_routes_clicks() -> None:
     panel._handle_click(lay.next_btn.center, lay)
     panel._handle_click(lay.auto.center, lay)
     panel._handle_click(lay.interval_up.center, lay)
+    panel._handle_click(lay.fade_up.center, lay)
     panel._handle_click(lay.random_opts.center, lay)
     panel._handle_click(lay.all_btn.center, lay)
     panel._handle_click(lay.none_btn.center, lay)
@@ -308,5 +392,6 @@ def test_shuffle_panel_routes_clicks() -> None:
     assert events["next"] == 1
     assert events["auto"] == 1
     assert events["up"] == 1
+    assert events["fade"] == 1
     assert events["rand"] == 1
     assert events["all"] == [True, False]

@@ -33,6 +33,8 @@ class ShuffleActions:
     shuffle_next: Callable[[], None]
     interval_down: Callable[[], None]
     interval_up: Callable[[], None]
+    fade_down: Callable[[], None]
+    fade_up: Callable[[], None]
     toggle_item: Callable[[str], None]
     set_all: Callable[[bool], None]
     toggle_random_options: Callable[[], None]
@@ -56,6 +58,9 @@ class _PanelLayout:
     interval_down: pygame.Rect
     interval_chip: pygame.Rect
     interval_up: pygame.Rect
+    fade_down: pygame.Rect
+    fade_chip: pygame.Rect
+    fade_up: pygame.Rect
     random_opts: pygame.Rect
     label_y: int
     all_btn: pygame.Rect
@@ -74,6 +79,7 @@ class ShufflePanel:
         self._interval_label = ""
         self._auto_on = False
         self._random_options_on = False
+        self._fade_label = ""
         self._scroll = 0
 
     # -- state ----------------------------------------------------------------
@@ -83,12 +89,14 @@ class ShufflePanel:
         interval_label: str,
         auto_on: bool,
         random_options_on: bool = False,
+        fade_label: str = "",
     ) -> None:
-        """Refresh the item checklist, interval text, and toggles (each frame)."""
+        """Refresh the item checklist, interval/fade text, and toggles (each frame)."""
         self._rows = rows
         self._interval_label = interval_label
         self._auto_on = auto_on
         self._random_options_on = random_options_on
+        self._fade_label = fade_label
 
     def toggle(self) -> None:
         self.open = not self.open
@@ -105,6 +113,8 @@ class ShufflePanel:
             + _ROW_H  # auto toggle
             + _GAP
             + _ROW_H  # interval stepper
+            + _GAP
+            + _ROW_H  # fade stepper
             + _GAP
             + _ROW_H  # randomize-options toggle
             + _GAP
@@ -138,6 +148,12 @@ class ShufflePanel:
             _ROW_H,
         )
         y += _ROW_H + _GAP
+        fade_down = pygame.Rect(x, y, step, _ROW_H)
+        fade_up = pygame.Rect(panel.right - _PAD - step, y, step, _ROW_H)
+        fade_chip = pygame.Rect(
+            fade_down.right + _GAP, y, fade_up.x - fade_down.right - _GAP * 2, _ROW_H
+        )
+        y += _ROW_H + _GAP
         random_opts = pygame.Rect(x, y, w, _ROW_H)
         y += _ROW_H + _GAP
         label_y = y
@@ -158,6 +174,9 @@ class ShufflePanel:
             interval_down=interval_down,
             interval_chip=interval_chip,
             interval_up=interval_up,
+            fade_down=fade_down,
+            fade_chip=fade_chip,
+            fade_up=fade_up,
             random_opts=random_opts,
             label_y=label_y,
             all_btn=all_btn,
@@ -192,6 +211,12 @@ class ShufflePanel:
             return True
         if lay.interval_up.collidepoint(pos):
             self._actions.interval_up()
+            return True
+        if lay.fade_down.collidepoint(pos):
+            self._actions.fade_down()
+            return True
+        if lay.fade_up.collidepoint(pos):
+            self._actions.fade_up()
             return True
         if lay.random_opts.collidepoint(pos):
             self._actions.toggle_random_options()
@@ -244,6 +269,9 @@ class ShufflePanel:
         self._draw_button(surface, lay.interval_down, "\u2212", font)
         self._draw_button(surface, lay.interval_chip, self._interval_label, font)
         self._draw_button(surface, lay.interval_up, "+", font)
+        self._draw_button(surface, lay.fade_down, "\u2212", font)
+        self._draw_button(surface, lay.fade_chip, self._fade_label, font)
+        self._draw_button(surface, lay.fade_up, "+", font)
         self._draw_button(
             surface,
             lay.random_opts,

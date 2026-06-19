@@ -37,6 +37,9 @@ from audio_visualizer.config import (
     LOGO_SPIN_DIR_DEFAULT,
     LOGO_SPIN_DIRS,
     MERGED_MODE_KEYS,
+    RANDOM_FADE_DEFAULT,
+    RANDOM_FADE_MAX,
+    RANDOM_FADE_MIN,
     RANDOM_INTERVAL_DEFAULT,
     RANDOM_INTERVAL_MAX,
     RANDOM_INTERVAL_MIN,
@@ -106,6 +109,8 @@ class Settings:
     # options (e.g. Ripples' spawn origin). Background/Logo are never touched
     # by this. Saved looks keep their own captured options. (schema v11)
     random_options: bool = False
+    # User-adjustable cross-fade length (seconds) for auto-cycle switches. (schema v12)
+    random_fade: float = RANDOM_FADE_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -200,6 +205,7 @@ def _from_dict(raw: dict) -> Settings:
         random_pool=_str_list(raw.get("random_pool"), defaults.random_pool),
         random_interval=_interval(raw.get("random_interval"), defaults.random_interval),
         random_options=_bool(raw.get("random_options"), defaults.random_options),
+        random_fade=_fade(raw.get("random_fade"), defaults.random_fade),
     )
 
 
@@ -219,6 +225,13 @@ def _interval(value: object, default: float) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         return default
     return float(min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, float(value))))
+
+
+def _fade(value: object, default: float) -> float:
+    """Clamp a stored cross-fade length into the allowed range (lenient)."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return default
+    return float(min(RANDOM_FADE_MAX, max(RANDOM_FADE_MIN, float(value))))
 
 
 def _bool(value: object, default: bool) -> bool:

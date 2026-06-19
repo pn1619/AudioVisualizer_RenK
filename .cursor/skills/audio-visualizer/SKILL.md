@@ -27,13 +27,15 @@ look (mode + options + theme + sensitivity/smoothing + Background/Logo snapshot)
 `looks.py` store (own `looks.json`); applying a look overlays live global and `None / Live`
 restores the live (pre-look) state. **Saving bookmarks the current look without auto-activating**
 (you stay on `None / Live`), so the saved entry never collides with the baseline.
-**Auto-cycle ("shuffle", v00.0B.03–05):** an `Auto` toggle + `Next` button +
-`Shuffle…` modal (`A` / `N` keys) auto-switch the active visual every interval with a
-**frozen-snapshot dissolve** (`visuals/_transition.py` `ModeTransition`; reduce-motion = hard
-cut). The rotation pool (`random_pool`, tagged `mode:<key>` **and** `look:<id>`), `random_interval`,
-and a **`random_options`** toggle (randomize a mode's own options on landing — not Background/Logo)
-persist (schema v11); a switch onto a look applies the whole look and dissolves cleanly. A small
-`Auto · next in Ns` chip shows the countdown. Auto is never persisted on; stopping leaves the
+**Auto-cycle ("shuffle", v00.0B.03–06):** an `Auto` toggle + `Next` button +
+`Shuffle…` modal (`A` / `N` keys) auto-switch the active visual every interval. `ModeTransition`
+(`visuals/_transition.py`) does a **live cross-fade for mode→mode** (the outgoing visual keeps
+animating; `App._draw` re-paints it onto the frame's background) and a **frozen-snapshot dissolve**
+for switches involving a saved look; reduce-motion or a `0s` fade hard-cuts. The rotation pool
+(`random_pool`, tagged `mode:<key>` **and** `look:<id>`), `random_interval`, a **`random_options`**
+toggle (randomize a built-in mode's own options on landing — not Background/Logo/looks), and the
+user-adjustable **`random_fade`** time persist (schema v12). A small chip names the current item
+(`Auto · Mode: … / Look: … · next in Ns`). Auto is never persisted on; stopping leaves the
 current visual. The full, current mode catalog is
 > `plan/visual-mode-ideas.md`; the build-order list below is a per-phase history.
 

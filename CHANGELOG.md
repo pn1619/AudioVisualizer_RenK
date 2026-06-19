@@ -11,6 +11,31 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.06` — Phase 0B-c (build 4): live cross-fade + adjustable fade + mode tweaks
+
+- **Adjustable cross-fade time.** New **`Fade`** stepper in the `Shuffle…` modal (`0.0s`–`3.0s`,
+  where `0.0s` = instant cut). Persisted as `random_fade` (settings schema **v11 → v12**).
+- **Live cross-fade for mode→mode switches.** When shuffle moves between two built-in modes, the
+  **outgoing visual keeps animating** during the fade (both render live each frame) instead of
+  fading out a frozen still. Switches onto/off a **My Look** still use the frozen-snapshot dissolve
+  (a look also owns Background/Logo/theme, which can't be cheaply double-rendered). Reduce-motion
+  or a `0.0s` fade hard-cuts. (`visuals/_transition.py` `ModeTransition` now carries either a live
+  `prev_visual` or a `snapshot`; `App._draw` grabs the frame's background so the outgoing mode can
+  be re-painted onto it.)
+- **Shuffle status chip names the current item.** The top-right chip now reads e.g.
+  `Auto · Mode: Ripples · next in 8s` or `Auto · Look: Neon · switching…`, so you can tell whether
+  the current visual came from a built-in mode or one of your saved looks.
+- **Ripples line thickness.** New **`Width`** option: `Auto` (loudness-driven, the original look),
+  `Thin` / `Normal` / `Thick` (fixed), or **`Random`** (each ring gets its own thickness).
+- **Vectorscope size.** New **`Size`** option (`S` / `M` / `L` / `XL`, default `L`) to make the
+  figure as big or small as you like; the persistence (trail) surface is now full-canvas so large
+  sizes — including `XL` spilling past the short edge — aren't clipped.
+- Tests: `random_fade` round-trip/clamp, live-vs-frozen transition selection, `0s` cut, fade
+  stepper routing + clamp/snap, status-chip mode/look label, Ripples width resolution, and
+  Vectorscope size scaling (plus the existing every-option render sweep covers the new choices).
+
+---
+
 ## `00.0B.05` — Phase 0B-c (build 3): looks/shuffle fixes + bigger Vectorscope
 
 Three fixes on top of `00.0B.04`.

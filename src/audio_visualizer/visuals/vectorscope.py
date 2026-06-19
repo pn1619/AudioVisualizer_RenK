@@ -26,12 +26,24 @@ from audio_visualizer.visuals.registry import register
 
 _POINTS = 256  # trace resolution (waveform resampled to this)
 _PHOSPHOR = (70, 255, 130)
-# Fraction of the smaller window edge the scope (grid + trace) spans. Bigger than
-# the old 0.4 so the figure occupies most of the canvas, not a small central box.
-_RADIUS_FRAC = 0.46
 # Auto-gain: scale each frame so its loudest sample reaches the scope edge. The
 # floor caps the gain so quiet passages stay small instead of amplifying noise.
 _NORM_FLOOR = 0.25
+
+# User-selectable scope size: the radius as a fraction of the smaller window edge
+# (grid + trace both use it). XL intentionally spills past the short edge to fill
+# the canvas. Default is large since the old fixed size read as too small.
+_SIZE = ModeOption(
+    "vsize",
+    "Size",
+    (
+        OptionChoice("S", 0.32),
+        OptionChoice("M", 0.46),
+        OptionChoice("L", 0.60),
+        OptionChoice("XL", 0.78),
+    ),
+    default_index=2,
+)
 
 _DELAY = ModeOption(
     "delay",
@@ -70,12 +82,22 @@ _FADE = {1: 0.80, 2: 0.92}
 class Vectorscope(BaseVisualizer):
     """Lissajous XY scope with phosphor persistence and optional rotation."""
 
-    OPTIONS = (_DELAY, _PERSIST, _DRAW, THICKNESS_OPTION, _COLOR, _ROTATE, _GRID, MIRROR_OPTION)
+    OPTIONS = (
+        _DELAY,
+        _PERSIST,
+        _DRAW,
+        THICKNESS_OPTION,
+        _COLOR,
+        _ROTATE,
+        _GRID,
+        _SIZE,
+        MIRROR_OPTION,
+    )
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
         self._persist: pygame.Surface | None = None
-        self._persist_side = 0
+        self._persist_size = (0, 0)
         self._angle = 0.0
 
     def on_enter(self) -> None:
@@ -95,29 +117,29 @@ class Vectorscope(BaseVisualizer):
 
         mirror = int(self.option("mirror"))
         persist_mode = int(self.option("persist"))
+        cx, cy = w / 2.0, h / 2.0
+        radius = min(w, h) * float(self.option("vsize"))
         if persist_mode == 0:
-            self._blit_grid(surface, w, h)
-            pts = self._trace_points(frame, w / 2.0, h / 2.0, min(w, h) * _RADIUS_FRAC)
-            for copy in mirror_points(pts, w / 2.0, h / 2.0, mirror):
+            self._blit_grid(surface, w, h, radius)
+            pts = self._trace_points(frame, cx, cy, radius)
+            for copy in mirror_points(pts, cx, cy, mirror):
                 self._render(surface, copy)
             return
 
-        # Persistence is confined to the scope's square so the full-canvas blends stay cheap.
-        side = self._persist_side or 1
+        # The persistence surface is full-canvas so any Size (incl. XL spilling past
+        # the short edge) is held without clipping; the fade/add blits cover it.
         target = self._ensure_persist(w, h)
         target.fill((int(255 * _FADE[persist_mode]),) * 3, special_flags=pygame.BLEND_RGB_MULT)
-        pts = self._trace_points(frame, side / 2.0, side / 2.0, side * 0.48)
-        for copy in mirror_points(pts, side / 2.0, side / 2.0, mirror):
+        pts = self._trace_points(frame, cx, cy, radius)
+        for copy in mirror_points(pts, cx, cy, mirror):
             self._render(target, copy)
-        self._blit_grid(surface, w, h)
-        off = ((w - side) // 2, (h - side) // 2)
-        surface.blit(target, off, special_flags=pygame.BLEND_RGB_ADD)
+        self._blit_grid(surface, w, h, radius)
+        surface.blit(target, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
     def _ensure_persist(self, w: int, h: int) -> pygame.Surface:
-        side = int(min(w, h) * 0.95)
-        if self._persist is None or self._persist_side != side:
-            self._persist = pygame.Surface((side, side))
-            self._persist_side = side
+        if self._persist is None or self._persist_size != (w, h):
+            self._persist = pygame.Surface((w, h))
+            self._persist_size = (w, h)
         return self._persist
 
     def _trace_points(
@@ -186,11 +208,11 @@ class Vectorscope(BaseVisualizer):
             speed = 0.0
         return rainbow_color(0.55 - 0.55 * speed + phase)
 
-    def _blit_grid(self, surface: pygame.Surface, w: int, h: int) -> None:
+    def _blit_grid(self, surface: pygame.Surface, w: int, h: int, radius: float) -> None:
         if int(self.option("grid")) == 0:
             return
         cx, cy = w // 2, h // 2
-        r = int(min(w, h) * _RADIUS_FRAC)
+        r = int(radius)
         color = (30, 60, 40)
         pygame.draw.line(surface, color, (cx, cy - r), (cx, cy + r))
         pygame.draw.line(surface, color, (cx - r, cy), (cx + r, cy))

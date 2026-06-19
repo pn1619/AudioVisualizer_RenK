@@ -52,6 +52,9 @@ from audio_visualizer.config import (
     LOGO_SPIN_DIRS,
     MERGED_MODE_KEYS,
     MIN_WINDOW_SIZE,
+    RANDOM_FADE_MAX,
+    RANDOM_FADE_MIN,
+    RANDOM_FADE_STEP,
     RANDOM_INTERVAL_MAX,
     RANDOM_INTERVAL_MIN,
     RANDOM_INTERVAL_STEP,
@@ -70,7 +73,6 @@ from audio_visualizer.config import (
     SPEED_SCALE_MIN,
     SPEED_SCALE_STEP,
     TARGET_FPS,
-    TRANSITION_DURATION,
     UI_ACCENT_LABELS,
     UI_ACCENTS,
     UI_FONT_LABELS,
@@ -227,6 +229,9 @@ class App:
         self._auto_interval = float(
             min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, self._settings.random_interval))
         )
+        self._auto_fade = float(
+            min(RANDOM_FADE_MAX, max(RANDOM_FADE_MIN, self._settings.random_fade))
+        )
         self._auto_elapsed = 0.0
         # When on, shuffling to a built-in mode also randomizes that mode's own
         # options (Background/Logo stay put; saved looks keep their captured options).
@@ -308,6 +313,8 @@ class App:
             shuffle_next=self._shuffle_next,
             interval_down=lambda: self._adjust_interval(-RANDOM_INTERVAL_STEP),
             interval_up=lambda: self._adjust_interval(RANDOM_INTERVAL_STEP),
+            fade_down=lambda: self._adjust_fade(-RANDOM_FADE_STEP),
+            fade_up=lambda: self._adjust_fade(RANDOM_FADE_STEP),
             toggle_item=self._toggle_pool_item,
             set_all=self._set_pool_all,
             toggle_random_options=self._toggle_random_options,
@@ -639,6 +646,7 @@ class App:
             self._interval_label(),
             self._auto,
             self._auto_random_options,
+            self._fade_label(),
         )
         self._shuffle_panel.toggle()
 
@@ -677,6 +685,9 @@ class App:
     def _interval_label(self) -> str:
         return f"Every {self._auto_interval:g}s"
 
+    def _fade_label(self) -> str:
+        return "Fade: cut" if self._auto_fade <= 0.0 else f"Fade: {self._auto_fade:.1f}s"
+
     def _toggle_auto(self) -> None:
         """Flip auto-cycle. Turning it on with an empty pool selects everything."""
         self._auto = not self._auto
@@ -689,6 +700,11 @@ class App:
         self._auto_interval = float(
             min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, self._auto_interval + delta))
         )
+
+    def _adjust_fade(self, delta: float) -> None:
+        # Round to the step grid so repeated +/- never drifts off clean tenths.
+        value = round((self._auto_fade + delta) / RANDOM_FADE_STEP) * RANDOM_FADE_STEP
+        self._auto_fade = float(min(RANDOM_FADE_MAX, max(RANDOM_FADE_MIN, value)))
 
     def _toggle_pool_item(self, tag: str) -> None:
         if tag not in self._all_pool_tags():
@@ -740,15 +756,39 @@ class App:
         return random.choice(choices) if choices else None
 
     def _auto_advance(self) -> None:
-        """Freeze the current canvas, apply the next item live, and start the fade."""
+        """Apply the next rotation item live and start a fade from the old scene.
+
+        A **mode -> mode** switch keeps the outgoing visual alive and cross-fades
+        both **live** (they keep animating); any switch involving a saved look
+        uses a frozen-snapshot dissolve. Reduce-motion or a 0s fade hard-cuts.
+        """
         nxt = self._pick_next()
         if nxt is None:
             return
-        snapshot = self._screen.subsurface(self._layout.canvas).copy()
+        live = self._can_live_crossfade(nxt)
+        prev_visual = self._visual if live else None
+        snapshot = None if live else self._screen.subsurface(self._layout.canvas).copy()
         self._apply_pool_tag(nxt)
         self._auto_current = nxt
-        if not (self._reduce_motion or TRANSITION_DURATION <= 0.0):  # reduce-motion = hard cut
-            self._transition = ModeTransition(snapshot=snapshot, duration=TRANSITION_DURATION)
+        if self._reduce_motion or self._auto_fade <= 0.0:  # hard cut, no double-render
+            self._transition = None
+            return
+        if live:
+            self._transition = ModeTransition(duration=self._auto_fade, prev_visual=prev_visual)
+        else:
+            self._transition = ModeTransition(duration=self._auto_fade, snapshot=snapshot)
+
+    def _can_live_crossfade(self, nxt: str) -> bool:
+        """True when both outgoing and incoming items are plain built-in modes.
+
+        A live cross-fade re-renders the outgoing visual each frame, which only
+        works when the outgoing state is a mode (not a look — a look also owns
+        background/logo/theme, which we can't cheaply run a second copy of).
+        """
+        outgoing_is_mode = self._auto_current.startswith("mode:") or (
+            self._auto_current == "" and not self._active_look_id
+        )
+        return outgoing_is_mode and nxt.startswith("mode:")
 
     def _apply_pool_tag(self, tag: str) -> None:
         """Apply a rotation item to the live global (a mode swap or a full look)."""
@@ -1132,12 +1172,16 @@ class App:
             sub = screen.subsurface(canvas)
             # The background layer is composited first, behind the active mode.
             self._background.draw(sub, self._frame, dt)
+            # For a live cross-fade we need the freshly-drawn background to re-render
+            # the *outgoing* mode onto; grab it before the new mode paints over it.
+            live = self._transition is not None and self._transition.is_live
+            bg_copy = sub.copy() if live else None
             self._visual.draw(sub, self._frame, dt)
             # The RenK logo is a global overlay: drawn over every mode's output.
             self._logo.draw(sub, self._frame, dt)
-            # A shuffle switch dissolves the frozen old scene out over the live one.
+            # A shuffle switch fades the outgoing scene out over the live one.
             if self._transition is not None:
-                self._draw_transition(sub)
+                self._draw_transition(sub, dt, bg_copy)
         except Exception:  # fail-soft: a broken mode must not crash the app
             logger.exception("Visual %r failed to draw", self._visual.KEY)
 
@@ -1176,35 +1220,60 @@ class App:
             self._interval_label(),
             self._auto,
             self._auto_random_options,
+            self._fade_label(),
         )
         self._shuffle_panel.draw(screen, canvas, self._font, self._font_small)
         self._about.draw(screen, canvas, self._font, self._font_small)
 
-    def _draw_transition(self, sub: pygame.Surface) -> None:
-        """Overlay the frozen outgoing scene at a falling alpha (it dissolves away).
+    def _draw_transition(
+        self, sub: pygame.Surface, dt: float, bg_copy: pygame.Surface | None
+    ) -> None:
+        """Overlay the outgoing scene at a falling alpha (it fades away).
 
-        The live (new) scene is already on ``sub``; this just blits the snapshot
-        on top. Works for both mode swaps and full looks since the snapshot is the
-        whole canvas. Recreated-surface size mismatches (mid-fade resize) are scaled.
+        Live cross-fade (``prev_visual``): re-render the outgoing mode + logo onto
+        ``bg_copy`` (this frame's background) so it keeps animating, then blit it on
+        top. Frozen dissolve (``snapshot``): blit the captured scene. The live (new)
+        scene is already on ``sub``.
         """
         trans = self._transition
         if trans is None:
             return
+        alpha = trans.overlay_alpha()
+        if trans.prev_visual is not None and bg_copy is not None:
+            try:
+                trans.prev_visual.draw(bg_copy, self._frame, dt)
+                self._logo.draw(bg_copy, self._frame, 0.0)  # 0 dt: don't double-spin
+            except Exception:  # a dying mode must not crash the fade
+                logger.exception("Outgoing visual failed mid cross-fade")
+            bg_copy.set_alpha(alpha)
+            sub.blit(bg_copy, (0, 0))
+            return
         snapshot = trans.snapshot
+        if snapshot is None:
+            return
         if snapshot.get_size() != sub.get_size():
             snapshot = pygame.transform.smoothscale(snapshot, sub.get_size())
-        snapshot.set_alpha(trans.overlay_alpha())
+        snapshot.set_alpha(alpha)
         sub.blit(snapshot, (0, 0))
 
+    def _current_item_label(self) -> str:
+        """Human label for the item shuffle is currently showing (mode vs look)."""
+        tag = self._auto_current
+        if tag.startswith("look:"):
+            look = self._looks_store.get(tag.removeprefix("look:"))
+            return f"Look: {look.name}" if look is not None else "Look"
+        return f"Mode: {self._visual.DISPLAY_NAME}"
+
     def _draw_auto_status(self, screen: pygame.Surface, canvas: pygame.Rect) -> None:
-        """Small top-right 'Auto · next in Ns' chip shown while shuffle is running."""
+        """Small top-right chip naming the current item + countdown while shuffle runs."""
         if not self._auto or not self._valid_pool():
             return
         if self._transition is not None:
-            text = "Auto \u00b7 switching\u2026"
+            tail = "switching\u2026"
         else:
             remaining = max(1, math.ceil(self._auto_interval - self._auto_elapsed))
-            text = f"Auto \u00b7 next in {remaining}s"
+            tail = f"next in {remaining}s"
+        text = f"Auto \u00b7 {self._current_item_label()} \u00b7 {tail}"
         label = self._font_small.render(text, True, COLOR_TEXT_DIM)
         pad = 6
         box = pygame.Surface(
@@ -1273,6 +1342,7 @@ class App:
             random_pool=self._ordered_pool_tags(),
             random_interval=self._auto_interval,
             random_options=self._auto_random_options,
+            random_fade=self._auto_fade,
         )
 
     def _shutdown(self) -> None:

@@ -288,16 +288,20 @@ rails enforce the **count cap** and **name sanitize/trim**, and **ids are dedupe
 > 0B-b build-2 overlay resolver, which gives a clean pre-shuffle snapshot/restore.
 >
 > **Status: implemented across `v00.0B.03` (modes) + `v00.0B.04` (looks + Next + countdown) +
-> `v00.0B.05` (randomize-mode-options toggle).**
-> Shipped as `visuals/_transition.py` (`ModeTransition` — a **frozen-snapshot dissolve**),
-> `App._update_auto`/`_auto_advance`/`_apply_pool_tag`/`_randomize_mode_options`/`_draw_transition`/
+> `v00.0B.05` (randomize-mode-options toggle) + `v00.0B.06` (live cross-fade + adjustable fade).**
+> Shipped as `visuals/_transition.py` (`ModeTransition` — a **live cross-fade** for mode→mode and a
+> **frozen-snapshot dissolve** for look switches), `App._update_auto`/`_auto_advance`/
+> `_can_live_crossfade`/`_apply_pool_tag`/`_randomize_mode_options`/`_draw_transition`/
 > `_draw_auto_status`, an `Auto` toggle + `Next` button + `Shuffle…` modal (and the `A` / `N` keys),
 > `ui/shuffle_panel.py`, and `Settings.random_pool` (tagged `mode:`/`look:` ids) / `random_interval`
-> / `random_options` (schema v11). The rotation includes **saved looks** (a switch applies the whole
-> look and dissolves cleanly, since the snapshot covers the whole canvas). A **`Randomize mode
-> options`** toggle additionally rolls a built-in mode's own options on landing (a `preset` option is
-> forced to Custom; Background/Logo and saved-look options are untouched). Auto is never persisted on;
-> stopping leaves you on the current visual. **Still open:** dip-to-black / beat-synced transition styles.
+> / `random_options` / `random_fade` (schema v12). The rotation includes **saved looks** (a switch
+> applies the whole look and dissolves cleanly). A **`Randomize mode options`** toggle rolls a
+> built-in mode's own options on landing (a `preset` option is forced to Custom; Background/Logo and
+> saved-look options are untouched). The **cross-fade time is user-adjustable** (`Fade` stepper,
+> `0s` = cut); a mode→mode fade renders **both visuals live**, while look switches use the frozen
+> snapshot (a look also owns Background/Logo/theme). The status chip names the current item
+> (Mode vs Look). Auto is never persisted on; stopping leaves you on the current visual.
+> **Still open:** dip-to-black / beat-synced transition styles.
 
 **Goal.** A "shuffle" that automatically switches between a **user-chosen set** of modes
 (built-in and/or saved looks) every **N seconds** (user-set), **cross-fading** rather

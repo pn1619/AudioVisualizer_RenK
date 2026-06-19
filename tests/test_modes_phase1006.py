@@ -74,3 +74,33 @@ def test_every_option_choice_renders(key: str) -> None:
             for _ in range(4):
                 visual.draw(surface, frame, 0.05)
             visual.draw(surface, None, 0.05)
+
+
+def test_vectorscope_size_option_scales_trace() -> None:
+    from audio_visualizer.visuals.vectorscope import Vectorscope
+
+    visual = Vectorscope()
+    visual.theme = Theme()
+    visual.on_enter()
+    frame = _active_frame()
+
+    def trace_span(size_index: int) -> float:
+        visual.set_option_index("vsize", size_index)
+        radius = min(320, 200) * float(visual.option("vsize"))
+        pts = visual._trace_points(frame, 160.0, 100.0, radius)
+        xs = [p[0] for p in pts]
+        return max(xs) - min(xs)
+
+    assert trace_span(0) < trace_span(3)  # S is smaller than XL
+
+
+def test_ripples_width_option() -> None:
+    from audio_visualizer.visuals.ripples import Ripples, _Ripple
+
+    rp = _Ripple(x=0.5, y=0.5, radius=0.2, life=1.0, hue=0.3, strength=1.0, width_mul=2.0)
+    thin = Ripples._line_width(1.0, rp)
+    thick = Ripples._line_width(6.0, rp)
+    auto = Ripples._line_width(-1.0, rp)
+    rand = Ripples._line_width(-2.0, rp)
+    assert thick > thin >= 1
+    assert rand >= auto  # Random scales the auto width by width_mul (2.0 here)
