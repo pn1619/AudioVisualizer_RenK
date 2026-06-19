@@ -70,6 +70,10 @@ class ControlActions:
     toggle_auto: Callable[[], None] = lambda: None
     # Advances to the next rotation item now. Defaulted likewise.
     shuffle_next: Callable[[], None] = lambda: None
+    # Steps back to the previously shown look (history navigation). Defaulted likewise.
+    previous: Callable[[], None] = lambda: None
+    # Jumps to a 1-based position in the look history (typed into the Prev/Next chip).
+    history_goto: Callable[[str], None] = lambda _v: None
     # Opens the Shuffle settings modal (interval + mode/look pool). Defaulted likewise.
     open_shuffle: Callable[[], None] = lambda: None
     # Randomizes the current mode's options + global feel (no mode switch). Defaulted likewise.
@@ -132,6 +136,10 @@ class ControlBar:
         # settings button (interval + which modes/looks are in the rotation). The
         # toggle paints accent-filled when on.
         self._auto = Button("Auto", actions.toggle_auto)
+        # Prev/Next walk the session look history (browser-style back/forward); the
+        # chip between them shows "pos/total" and is click-to-edit to jump.
+        self._prev_item = Button("Prev", actions.previous)
+        self._hist_chip = Chip(on_submit=actions.history_goto)
         self._next_item = Button("Next", actions.shuffle_next)
         self._shuffle = Button("Shuffle\u2026", actions.open_shuffle)
         # Beat Buttons: music auto-presses actions (opens the Beat modal).
@@ -192,6 +200,8 @@ class ControlBar:
             (self._looks, 168),
             (self._save_look, 64),
             (self._auto, 60),
+            (self._prev_item, 54),
+            (self._hist_chip, 56),
             (self._next_item, 54),
             (self._shuffle, 84),
             (self._beat_btn, 60),
@@ -273,6 +283,10 @@ class ControlBar:
         locked = locked_globals or set()
         for lock_key, lock in self._global_locks.items():
             lock.locked = lock_key in locked
+
+    def set_history(self, position: int, total: int) -> None:
+        """Refresh the ``pos/total`` look-history chip between Prev and Next."""
+        self._hist_chip.text = f"{position}/{total}"
 
     def set_looks(self, rows: list[tuple[str, str]], selected_id: str) -> None:
         """Refresh the ``My Looks`` dropdown contents + current selection."""
