@@ -45,8 +45,10 @@ def _frame(n: int = 48, level: float = 0.8) -> AnalysisFrame:
 def test_plasma_intensity_ladder_extended() -> None:
     option = next(o for o in Plasma.OPTIONS if o.key == "intensity")
     labels = [c.label for c in option.choices]
-    assert labels == ["Soft", "Normal", "Vivid", "Intense", "Blast", "Max"]
-    assert option.choices[-1].value > option.choices[2].value  # Max is the strongest
+    # "Soft" was dropped (build 16); Normal is now the default first choice.
+    assert labels == ["Normal", "Vivid", "Intense", "Blast", "Max"]
+    assert "Soft" not in labels
+    assert option.choices[-1].value > option.choices[0].value  # Max is the strongest
 
 
 def test_plasma_draws_at_max_intensity() -> None:

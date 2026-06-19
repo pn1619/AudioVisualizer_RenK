@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.11"
+APP_VERSION = "00.0B.12"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -448,6 +448,11 @@ RANDOM_FADE_DEFAULT = TRANSITION_DURATION
 RANDOM_FADE_MIN = 0.0  # 0 = instant hard cut
 RANDOM_FADE_MAX = 3.0
 RANDOM_FADE_STEP = 0.1
+
+# Session look history (the Prev/Next back-forward queue). Each entry is a small
+# in-memory Look snapshot, never persisted, so the cap is generous and costs
+# nothing per frame (we only apply one on demand). Oldest entries roll off.
+HISTORY_MAX = 200
 
 # --- Beat Buttons (music-driven auto-triggers, Phase 0B-c) --------------------
 # Music onsets can "press" actions for you. Each action carries its own

@@ -17,6 +17,27 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.12` — Phase 0B-c (build 16): look history (Prev/Next) + Plasma trim
+
+- **New `Prev` button** (control bar, beside `Auto`/`Next`) walks a **session look history** —
+  a browser-style back/forward queue. Every action that produces a new look (`Rnd`, a produced
+  `Next`/`Auto` item, a manual mode switch, selecting a saved look) is recorded; `Prev` steps back
+  through them and `Next` replays forward until the newest entry, then produces a fresh item again.
+- **Position chip** between `Prev`/`Next` shows `pos/total` (e.g. `93/98`) and updates live as the
+  history changes (Rnd/Auto/Next/Prev). It's **click-to-edit**: type a 1-based position to jump there;
+  out-of-range jumps clamp to the latest entry and non-numeric input is ignored.
+- **History rules** (matching the agreed design): the queue is **in-memory and session-only**
+  (never persisted), capped at **`HISTORY_MAX = 200`** snapshots (oldest rolls off — each entry is a
+  tiny `Look`, so cost is negligible). Producing a new look from a back position **truncates the
+  forward branch** (e.g. `Rnd` after `Prev` drops the redo entries but keeps the earlier history).
+  **Auto** always randomizes a fresh item (it does not replay the forward branch).
+- **Plasma:** the `Soft` intensity choice is **removed** (it had a performance cost and the ladder
+  still offers `Normal · Vivid · Intense · Blast · Max`); `Normal` is now the default.
+- Tests: history seed/back/forward/produce/truncate/cap (`test_history_phase0b16.py`); Plasma ladder
+  updated to assert `Soft` is gone.
+
+---
+
 ## `00.0B.11` — Phase 0B-c (build 15): VU Meters needle-spark direction fix
 
 - **Fix:** VU Meters needle sparks now fly **along the needle** again. The tip position was

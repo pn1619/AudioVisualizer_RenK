@@ -27,7 +27,7 @@ look (mode + options + theme + sensitivity/smoothing + Background/Logo snapshot)
 `looks.py` store (own `looks.json`); applying a look overlays live global and `None / Live`
 restores the live (pre-look) state. **Saving bookmarks the current look without auto-activating**
 (you stay on `None / Live`), so the saved entry never collides with the baseline.
-**Auto-cycle ("shuffle", v00.0B.03–08):** an `Auto` toggle + `Next` button +
+**Auto-cycle ("shuffle", v00.0B.03–08):** an `Auto` toggle + `Prev`/`Next` buttons +
 `Shuffle…` modal (`A` / `N` keys) auto-switch the active visual every interval. `ModeTransition`
 (`visuals/_transition.py`) does a **live cross-fade for mode→mode** (the outgoing visual keeps
 animating; `App._draw` re-paints it onto the frame's background) and a **frozen-snapshot dissolve**
@@ -120,6 +120,17 @@ On/Off toggle (schema **v15**).
 frequency-along-an-axis, so they're excluded (they offer `Mirror` for center symmetry). No schema change.
 **Versioning fix:** `BB` is HEX — builds 8–13 were mis-numbered decimal `.10`–`.15` and were re-tagged to
 hex `.0A`–`.0F`; this build is the real hex `.10` (=16). Count `… 09, 0A, 0B, … 0F, 10` going forward.
+
+**Build 16 (v00.0B.12):** **Look history** — a `Prev` button (control bar, next to `Auto`/`Next`) backed
+by a session, in-memory, browser-style back/forward queue (`App._history` + `_history_pos`,
+`_commit_history`/`_history_back`/`_history_next`/`_apply_history`). Any action that produces a new look
+(`Rnd`, a produced `Next`/`Auto` item, a manual mode switch, selecting a saved look) commits a `Look`
+snapshot; `Prev` steps back, `Next` replays forward then produces fresh at the end, and producing from a
+back position **truncates the forward branch** (`Rnd` after `Prev` keeps earlier history, drops redo).
+`Auto` always produces fresh (no replay). Cap `HISTORY_MAX = 200`, never persisted. A **`pos/total`
+chip** between Prev/Next (`ControlBar.set_history`, `App._history_goto`) shows the position and is
+click-to-edit to jump (1-based, clamps past-the-end to latest, ignores non-numeric). **Plasma** drops the
+`Soft` intensity (perf cost; `Normal` is the new default). Tests: `test_history_phase0b16.py`.
 
 ### UI control idiom (toggle vs dropdown vs stepper)
 

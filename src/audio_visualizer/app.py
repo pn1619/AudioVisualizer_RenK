@@ -42,6 +42,7 @@ from audio_visualizer.config import (
     COLOR_TEXT_DIM,
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
+    HISTORY_MAX,
     IDLE_BANNER_DELAY,
     LOGO_COLOR_LABELS,
     LOGO_COLOR_MODES,
@@ -262,6 +263,10 @@ class App:
             tag for tag in self._settings.random_pool if self._pool_tag_valid(tag)
         }
         self._auto_current = ""  # last item shuffle landed on (for no-immediate-repeat)
+        # Session look history (Prev/Next). A list of Look snapshots with a cursor;
+        # commit truncates any forward branch, navigation just moves the cursor.
+        self._history: list[Look] = []
+        self._history_pos = -1
         self._auto_interval = float(
             min(RANDOM_INTERVAL_MAX, max(RANDOM_INTERVAL_MIN, self._settings.random_interval))
         )
@@ -288,6 +293,9 @@ class App:
         if self._active_look_id:
             self._look_baseline = self._capture_look("baseline")
             self._apply_look(self._looks_store.get(self._active_look_id))
+
+        # Seed history entry 0 with the launch look so Prev can return to it.
+        self._commit_history()
 
         self._running = False
 
@@ -345,7 +353,9 @@ class App:
             open_looks=self._open_looks_panel,
             toggle_auto=self._toggle_auto,
             open_shuffle=self._open_shuffle_panel,
-            shuffle_next=self._shuffle_next,
+            shuffle_next=self._history_next,
+            previous=self._history_back,
+            history_goto=self._history_goto,
             randomize_current=self._randomize_current_mode,
             set_sensitivity_value=self._set_sensitivity_text,
             set_smoothing_value=self._set_smoothing_text,
@@ -361,7 +371,7 @@ class App:
     def _build_shuffle_actions(self) -> ShuffleActions:
         return ShuffleActions(
             toggle_auto=self._toggle_auto,
-            shuffle_next=self._shuffle_next,
+            shuffle_next=self._history_next,
             interval_down=lambda: self._adjust_interval(-RANDOM_INTERVAL_STEP),
             interval_up=lambda: self._adjust_interval(RANDOM_INTERVAL_STEP),
             fade_down=lambda: self._adjust_fade(-RANDOM_FADE_STEP),
@@ -648,6 +658,7 @@ class App:
             self._apply_look(self._look_baseline)
             self._look_baseline = None
             self._active_look_id = ""
+            self._commit_history()
             return
         look = self._looks_store.get(look_id)
         if look is None:
@@ -656,6 +667,7 @@ class App:
             self._look_baseline = self._capture_look("baseline")
         self._apply_look(look)
         self._active_look_id = look_id
+        self._commit_history()
 
     def _save_new_look(self, name: str) -> None:
         """Bookmark the current live look. Stays on None/Live (never auto-applies).
@@ -836,6 +848,60 @@ class App:
         self._auto_elapsed = 0.0
         self._auto_advance()
 
+    # -- Look history (Prev/Next back-forward queue) -------------------------
+    def _commit_history(self) -> None:
+        """Record the current live look, truncating any forward (redo) branch.
+
+        Called after any user action that produces a *new* look (Rnd, a produced
+        Next/Auto item, a manual mode switch, selecting a saved look). Navigating
+        with Prev/Next does not commit — it only moves the cursor.
+        """
+        look = self._capture_look("")
+        del self._history[self._history_pos + 1 :]
+        self._history.append(look)
+        if len(self._history) > HISTORY_MAX:
+            self._history.pop(0)
+        self._history_pos = len(self._history) - 1
+
+    def _history_back(self) -> None:
+        """Step back to the previously shown look (no-op at the oldest entry)."""
+        if self._history_pos <= 0:
+            return
+        self._history_pos -= 1
+        self._apply_history(self._history[self._history_pos])
+
+    def _history_next(self) -> None:
+        """Replay forward through history; at the newest entry, produce a new item."""
+        if self._history_pos < len(self._history) - 1:
+            self._history_pos += 1
+            self._apply_history(self._history[self._history_pos])
+        else:
+            self._shuffle_next()  # produces a new item and commits it to history
+
+    def _history_goto(self, text: str) -> None:
+        """Jump to a 1-based history position typed into the chip (clamped to latest)."""
+        try:
+            target = int(text)
+        except ValueError:
+            return  # non-numeric input is ignored, never fatal
+        if not self._history:
+            return
+        idx = max(0, min(target - 1, len(self._history) - 1))
+        if idx == self._history_pos:
+            return
+        self._history_pos = idx
+        self._apply_history(self._history[idx])
+
+    def _apply_history(self, look: Look) -> None:
+        """Re-apply a stored look with the usual snapshot dissolve (no commit)."""
+        snapshot = self._screen.subsurface(self._layout.canvas).copy()
+        self._apply_look(look)
+        self._auto_elapsed = 0.0
+        if self._reduce_motion or self._auto_fade <= 0.0:
+            self._transition = None
+        else:
+            self._transition = ModeTransition(duration=self._auto_fade, snapshot=snapshot)
+
     def _update_auto(self, dt: float) -> None:
         """Advance any active fade, else tick the timer and start the next switch."""
         if self._transition is not None:
@@ -921,6 +987,7 @@ class App:
         snapshot = None if live else self._screen.subsurface(self._layout.canvas).copy()
         self._apply_pool_tag(nxt)
         self._auto_current = nxt
+        self._commit_history()  # a produced item is a new look; record it
         if self._reduce_motion or self._auto_fade <= 0.0:  # hard cut, no double-render
             self._transition = None
             return
@@ -1002,6 +1069,7 @@ class App:
         """
         self._randomize_mode_options()
         self._randomize_globals()
+        self._commit_history()
 
     def _toggle_global_lock(self, key: str) -> None:
         """Toggle a global-feel lock (sensitivity/smoothing/size/speed)."""
@@ -1015,10 +1083,12 @@ class App:
 
     def _cycle_mode(self, delta: int) -> None:
         self._set_mode_index((self._mode_index + delta) % len(self._mode_keys))
+        self._commit_history()
 
     def _set_mode_key(self, key: str) -> None:
         if key in self._mode_keys:
             self._set_mode_index(self._mode_keys.index(key))
+            self._commit_history()
 
     def _set_mode_index(self, index: int) -> None:
         # A manual switch resets the auto timer so a shuffle never yanks a mode
@@ -1465,6 +1535,7 @@ class App:
                 self._sens_band,
             )
             self._controls.set_looks(self._looks_rows(), self._active_look_id)
+            self._controls.set_history(self._history_pos + 1, len(self._history))
             self._controls.draw(screen, self._layout.control_bar, self._font)
 
         self._hud.draw(screen, canvas, self._hud_state(), self._font_small)
