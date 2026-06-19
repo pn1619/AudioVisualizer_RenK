@@ -31,6 +31,7 @@ from audio_visualizer.visuals._helpers import (
     draw_ring,
     range_energies,
     ring_points,
+    smooth_wave,
 )
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
 from audio_visualizer.visuals.registry import register
@@ -78,13 +79,37 @@ _THICKNESS = ModeOption(
     (OptionChoice("Thin", 1), OptionChoice("Normal", 2), OptionChoice("Thick", 4)),
     default_index=1,
 )
+# Low-pass the wrapped trace toward a smooth, sine-like ring. "Rough" is the raw scope.
+_SMOOTH = ModeOption(
+    "smooth",
+    "Trace",
+    (
+        OptionChoice("Rough", 0.0),
+        OptionChoice("Smooth", 0.02),
+        OptionChoice("Smoother", 0.05),
+        OptionChoice("Sine", 0.1),
+    ),
+    default_index=0,
+)
+# Vertical scale of the ring wobble (multiplies the wave amplitude).
+_WAVE = ModeOption(
+    "wave",
+    "Wave",
+    (
+        OptionChoice("Low", 0.6),
+        OptionChoice("Normal", 1.0),
+        OptionChoice("Tall", 1.6),
+        OptionChoice("Huge", 2.4),
+    ),
+    default_index=1,
+)
 
 
 @register(key="waveform_circle", display_name="Waveform Rings", order=16)
 class WaveformCircle(BaseVisualizer):
     """One or many concentric oscilloscope rings, with optional shed particles."""
 
-    OPTIONS = (_PRESET, _RINGS, _SIZE, _SPACING, _THICKNESS, PARTICLES_OPTION)
+    OPTIONS = (_PRESET, _RINGS, _SIZE, _SPACING, _THICKNESS, _SMOOTH, _WAVE, PARTICLES_OPTION)
     PRESETS = {
         1: {"rings": 0, "particles": 0},  # Single
         2: {"rings": 1, "particles": 1},  # Bloom
@@ -138,12 +163,12 @@ class WaveformCircle(BaseVisualizer):
     ) -> None:
         size = self.option("size")
         base_r = half * CIRCLE_BASE_RADIUS * size
-        amplitude = half * CIRCLE_WAVE_AMPLITUDE * size
+        amplitude = half * CIRCLE_WAVE_AMPLITUDE * size * float(self.option("wave"))
         width = int(self.option("thickness"))
         samples = (
             np.zeros(_RING_POINTS, dtype=np.float32)
             if frame is None or frame.is_silent
-            else frame.waveform_mono
+            else smooth_wave(frame.waveform_mono, float(self.option("smooth")), circular=True)
         )
         points = ring_points(cx, cy, base_r, amplitude, samples, _RING_POINTS)
         draw_ring(surface, self.theme.color_scheme, self.theme.color_phase, points, width)
@@ -170,12 +195,13 @@ class WaveformCircle(BaseVisualizer):
         width = int(self.option("thickness"))
         inner = half * CIRCLE_INNER_FRACTION * size
         gap = ((half * CIRCLE_OUTER_FRACTION * size - inner) / max(1, rings)) * spacing
-        amplitude = half * CIRCLE_WAVE_AMPLITUDE * CIRCLE_RING_AMP_FACTOR * size
+        wave = float(self.option("wave"))
+        amplitude = half * CIRCLE_WAVE_AMPLITUDE * CIRCLE_RING_AMP_FACTOR * size * wave
         if frame is None or frame.is_silent:
             samples = np.zeros(_RING_POINTS, dtype=np.float32)
             energies = np.zeros(rings, dtype=np.float32)
         else:
-            samples = frame.waveform_mono
+            samples = smooth_wave(frame.waveform_mono, float(self.option("smooth")), circular=True)
             energies = range_energies(frame.band_energies, rings)
         scheme = self.theme.color_scheme
         phase = self.theme.color_phase

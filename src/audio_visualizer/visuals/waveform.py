@@ -30,6 +30,7 @@ from audio_visualizer.visuals._helpers import (
     mirror_points,
     rainbow_color,
     scale_color,
+    smooth_wave,
     themed_color,
 )
 from audio_visualizer.visuals.base import BaseVisualizer, ModeOption, OptionChoice, Theme
@@ -37,6 +38,31 @@ from audio_visualizer.visuals.registry import register
 
 # Peak trace height as a fraction of the half-canvas-height (leaves a small margin).
 _AMPLITUDE_FRACTION = 0.9
+# How smooth the trace is rendered: a fraction of the sample count used as the
+# low-pass radius. "Rough" is the raw oscilloscope; higher flows toward a sine.
+_SMOOTH = ModeOption(
+    "smooth",
+    "Trace",
+    (
+        OptionChoice("Rough", 0.0),
+        OptionChoice("Smooth", 0.02),
+        OptionChoice("Smoother", 0.05),
+        OptionChoice("Sine", 0.1),
+    ),
+    default_index=0,
+)
+# Vertical scale of the trace (multiplies the amplitude fraction).
+_HEIGHT = ModeOption(
+    "height",
+    "Height",
+    (
+        OptionChoice("Short", 0.5),
+        OptionChoice("Normal", 1.0),
+        OptionChoice("Tall", 1.6),
+        OptionChoice("Huge", 2.3),
+    ),
+    default_index=1,
+)
 _POP_MAX = 260
 _POP_MAX_REDUCED = 80
 _POP_BURST = 10
@@ -83,7 +109,7 @@ class _Pop:
 class Waveform(BaseVisualizer):
     """Centered oscilloscope trace, with optional popping particles + mirroring."""
 
-    OPTIONS = (_PRESET, PARTICLES_OPTION, _THICKNESS, MIRROR_OPTION)
+    OPTIONS = (_PRESET, PARTICLES_OPTION, _THICKNESS, _SMOOTH, _HEIGHT, MIRROR_OPTION)
     PRESETS = {
         1: {"particles": 0, "mirror": 0},  # Plain
         2: {"particles": 2, "mirror": 0},  # Sparks
@@ -133,9 +159,11 @@ class Waveform(BaseVisualizer):
             return
         step = max(1, samples.size // w)
         pts = samples[::step]
+        pts = smooth_wave(pts, float(self.option("smooth")))
         n = pts.size
+        amplitude = mid * _AMPLITUDE_FRACTION * float(self.option("height"))
         xs = np.linspace(0, w, n)
-        ys = mid - pts * (mid * _AMPLITUDE_FRACTION)
+        ys = mid - pts * amplitude
         points = [(float(x), float(y)) for x, y in zip(xs, ys, strict=False)]
         for copy in mirror_points(points, w / 2.0, mid, int(self.option("mirror"))):
             self._draw_polyline(surface, copy, scheme, phase, colored, width, n)

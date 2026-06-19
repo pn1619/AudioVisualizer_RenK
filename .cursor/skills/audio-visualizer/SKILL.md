@@ -76,6 +76,12 @@ across mode switches; `App._locked_options` clear on a mode switch (honored in `
 `_handle_key`). **My Looks** Del/Dup/Import now refresh the list live via `LooksActions.refresh_state`
 → `LooksPanel._refresh` (no close-reopen).
 
+**Build 9 (v00.0B.11):** **Waveform** + **Waveform Rings** gained a `Trace` smoothing option
+(`Rough`/`Smooth`/`Smoother`/`Sine`) via `smooth_wave` in `_helpers.py` (circular for rings, reflect
+for the linear scope) plus a height scaler (`Height` / `Wave`). **VU Meters** `Spark` adds `Big`/`Huge`/
+`Max` sizes, and a `Needle` style option (`Classic`/`Gauge`/`VU`/`Comet`/`Dual`, only used when
+`Style = Needle`) with a pivot hub.
+
 ## Read first (canonical docs)
 
 | Topic | Path |

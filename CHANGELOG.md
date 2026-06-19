@@ -11,6 +11,23 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.11` — Phase 0B-c (build 9): smooth waveforms + bigger sparks & needle styles
+
+- **Waveform / Waveform Rings: `Trace` smoothing.** A new option low-passes the scope toward a
+  flowing, sine-like curve — `Rough` (the original raw trace), `Smooth`, `Smoother`, `Sine`. The ring
+  variant smooths circularly so the trace closes seamlessly. (`smooth_wave` in `visuals/_helpers.py`.)
+- **Waveform: `Height` / Waveform Rings: `Wave`.** Scale the vertical reach of the trace
+  (`Short`/`Normal`/`Tall`/`Huge` and `Low`/`Normal`/`Tall`/`Huge`) for taller, bolder waves.
+- **VU Meters: bigger `Spark` sizes.** Added `Big`, `Huge`, and `Max` on top of `Fine`/`Bold` — up to
+  ~3× the previous largest sparks.
+- **VU Meters: `Needle` styles.** When `Style = Needle`, pick the look: `Classic`, `Gauge` (tick
+  marks), `VU` (retro green/amber/red zone arc), `Comet` (glowing tapered needle with a bright tip),
+  or `Dual` (mirrored twin needles). All gain a small pivot hub.
+- Tests: smoothed trace flattens high-frequency detail and respects height scaling; ring smoothing is
+  seam-free; every needle style + bigger spark size renders without error.
+
+---
+
 ## `00.0B.10` — Phase 0B-c (build 8): randomize locks, Hotkeys modal, live looks refresh
 
 - **Per-option randomize locks.** Each option that **Rnd / Next / auto-shuffle** would re-roll now

@@ -221,6 +221,31 @@ def resample_to(values: NDArray[np.float32], n: int) -> NDArray[np.float32]:
     return arr[idx]
 
 
+def smooth_wave(
+    values: NDArray[np.float32], amount: float, *, circular: bool = False
+) -> NDArray[np.float32]:
+    """Low-pass a waveform toward a smooth, sine-like curve.
+
+    ``amount`` is a fraction of the sample count used as the Gaussian radius
+    (``0`` = untouched "rough" trace; larger = smoother). ``circular`` wraps the
+    ends so a ring's trace closes seamlessly; otherwise the edges are reflected.
+    """
+    arr = np.asarray(values, dtype=np.float32)
+    radius = int(amount * arr.size)
+    if radius < 1 or arr.size < 3:
+        return arr
+    sigma = max(1.0, radius / 2.0)
+    x = np.arange(-radius, radius + 1, dtype=np.float32)
+    kernel = np.exp(-(x * x) / (2.0 * sigma * sigma))
+    kernel /= kernel.sum()
+    if circular:
+        padded = np.concatenate([arr[-radius:], arr, arr[:radius]])
+    else:
+        padded = np.pad(arr, radius, mode="reflect")
+    out = np.convolve(padded, kernel, mode="same")
+    return out[radius:-radius].astype(np.float32)
+
+
 def range_energies(bands: NDArray[np.float32], slices: int) -> NDArray[np.float32]:
     """Mean energy of each of ``slices`` equal sub-ranges of the spectrum.
 

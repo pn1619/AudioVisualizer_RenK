@@ -78,7 +78,27 @@ _COLOR = ModeOption(
 _SPARK = ModeOption(
     "spark",
     "Spark",
-    (OptionChoice("Off", 0.0), OptionChoice("Fine", 0.55), OptionChoice("Bold", 1.0)),
+    (
+        OptionChoice("Off", 0.0),
+        OptionChoice("Fine", 0.55),
+        OptionChoice("Bold", 1.0),
+        OptionChoice("Big", 1.7),
+        OptionChoice("Huge", 2.5),
+        OptionChoice("Max", 3.3),
+    ),
+    default_index=0,
+)
+# Look of the swinging needle (only used when Style = Needle).
+_NEEDLE = ModeOption(
+    "needle",
+    "Needle",
+    (
+        OptionChoice("Classic", 0),
+        OptionChoice("Gauge", 1),
+        OptionChoice("VU", 2),
+        OptionChoice("Comet", 3),
+        OptionChoice("Dual", 4),
+    ),
     default_index=0,
 )
 
@@ -87,7 +107,18 @@ _SPARK = ModeOption(
 class Meters(BaseVisualizer):
     """Frequency-grouped level meters (ladder / bar / needle) with peak hold."""
 
-    OPTIONS = (_STYLE, _GROUPS, _SEGMENTS, _PEAK, _DECAY, _ORIENT, _COLOR, _SPARK, GLOW_OPTION)
+    OPTIONS = (
+        _STYLE,
+        _GROUPS,
+        _SEGMENTS,
+        _PEAK,
+        _DECAY,
+        _ORIENT,
+        _COLOR,
+        _NEEDLE,
+        _SPARK,
+        GLOW_OPTION,
+    )
 
     def __init__(self, reduce_motion: bool = False, theme: Theme | None = None) -> None:
         super().__init__(reduce_motion, theme)
@@ -245,20 +276,82 @@ class Meters(BaseVisualizer):
     ) -> None:
         pivot = (cell.centerx, cell.bottom)
         radius = min(cell.width, cell.height) * 0.9
+        angle = math.radians(150 - level * 120)  # 150deg (left/idle) -> 30deg (right/hot)
+        color = self._color_for(level, i, groups)
+        variant = int(self.option("needle"))
+        if variant == 2:
+            self._needle_scale_vu(surface, pivot, radius)
+        else:
+            self._needle_scale_plain(surface, pivot, radius, ticks=variant == 1)
+        if variant == 4:
+            self._draw_needle_arm(surface, pivot, radius, math.pi - angle, color)
+        self._draw_needle_arm(surface, pivot, radius, angle, color, comet=variant == 3)
+        hub = max(2, int(radius * 0.06))
+        pygame.draw.circle(surface, (210, 210, 220), pivot, hub)
+
+    def _draw_needle_arm(
+        self,
+        surface: pygame.Surface,
+        pivot: tuple[int, int],
+        radius: float,
+        angle: float,
+        color: tuple[int, int, int],
+        comet: bool = False,
+    ) -> None:
+        tip = (pivot[0] + math.cos(angle) * radius, pivot[1] - math.sin(angle) * radius)
+        if comet:
+            for frac, factor, width in ((1.0, 0.25, 9), (0.85, 0.55, 5), (0.7, 1.0, 2)):
+                end = (
+                    pivot[0] + math.cos(angle) * radius * frac,
+                    pivot[1] - math.sin(angle) * radius * frac,
+                )
+                pygame.draw.line(surface, scale_color(color, factor), pivot, end, width)
+            head = max(3, int(radius * 0.1))
+            pygame.draw.circle(surface, color, (int(tip[0]), int(tip[1])), head)
+            return
+        if self._glow:
+            pygame.draw.line(surface, scale_color(color, 0.4), pivot, tip, 7)
+        pygame.draw.line(surface, color, pivot, tip, 3)
+
+    @staticmethod
+    def _needle_scale_plain(
+        surface: pygame.Surface,
+        pivot: tuple[int, int],
+        radius: float,
+        ticks: bool = False,
+    ) -> None:
         pygame.draw.arc(
             surface,
             (60, 60, 70),
-            self._arc_rect(pivot, radius),
+            Meters._arc_rect(pivot, radius),
             math.radians(30),
             math.radians(150),
             2,
         )
-        angle = math.radians(150 - level * 120)  # 150deg (left/idle) -> 30deg (right/hot)
-        tip = (pivot[0] + math.cos(angle) * radius, pivot[1] - math.sin(angle) * radius)
-        color = self._color_for(level, i, groups)
-        if self._glow:
-            pygame.draw.line(surface, scale_color(color, 0.4), pivot, tip, 7)
-        pygame.draw.line(surface, color, pivot, tip, 3)
+        if not ticks:
+            return
+        for k in range(11):
+            ang = math.radians(150 - k * 12)
+            outer = radius
+            inner = radius * (0.82 if k % 5 else 0.72)
+            pygame.draw.line(
+                surface,
+                (110, 110, 125),
+                (pivot[0] + math.cos(ang) * inner, pivot[1] - math.sin(ang) * inner),
+                (pivot[0] + math.cos(ang) * outer, pivot[1] - math.sin(ang) * outer),
+                1,
+            )
+
+    @staticmethod
+    def _needle_scale_vu(surface: pygame.Surface, pivot: tuple[int, int], radius: float) -> None:
+        """Retro VU arc with green/amber/red broadcast zones drawn along the sweep."""
+        rect = Meters._arc_rect(pivot, radius)
+        for start, end, zone in (
+            (30, 78, _ZONE_RED),
+            (78, 102, _ZONE_AMBER),
+            (102, 150, _ZONE_GREEN),
+        ):
+            pygame.draw.arc(surface, zone, rect, math.radians(start), math.radians(end), 4)
 
     @staticmethod
     def _arc_rect(pivot: tuple[int, int], radius: float) -> pygame.Rect:
