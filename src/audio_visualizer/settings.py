@@ -13,6 +13,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from audio_visualizer.config import (
+    BEAT_ACTIONS,
+    BEAT_SENSITIVITY_LABELS,
     BG_HEIGHT_DEFAULT,
     BG_HEIGHTS,
     BG_MODE_DEFAULT,
@@ -111,6 +113,9 @@ class Settings:
     random_options: bool = False
     # User-adjustable cross-fade length (seconds) for auto-cycle switches. (schema v12)
     random_fade: float = RANDOM_FADE_DEFAULT
+    # Beat Buttons (schema v13): per-action music-trigger sensitivity index
+    # (0 = Off ... 4 = Max), keyed by action ("randomize"/"next"). Default all Off.
+    beat_levels: dict[str, int] = field(default_factory=dict)
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -206,7 +211,21 @@ def _from_dict(raw: dict) -> Settings:
         random_interval=_interval(raw.get("random_interval"), defaults.random_interval),
         random_options=_bool(raw.get("random_options"), defaults.random_options),
         random_fade=_fade(raw.get("random_fade"), defaults.random_fade),
+        beat_levels=_beat_levels(raw.get("beat_levels"), defaults.beat_levels),
     )
+
+
+def _beat_levels(value: object, default: dict[str, int]) -> dict[str, int]:
+    """Keep only known action keys with in-range level indexes (lenient on junk)."""
+    if not isinstance(value, dict):
+        return dict(default)
+    valid_keys = {key for key, _label in BEAT_ACTIONS}
+    max_level = len(BEAT_SENSITIVITY_LABELS) - 1
+    out: dict[str, int] = {}
+    for key, level in value.items():
+        if key in valid_keys and isinstance(level, int) and not isinstance(level, bool):
+            out[key] = max(0, min(max_level, level))
+    return out
 
 
 def _str(value: object, default: str) -> str:

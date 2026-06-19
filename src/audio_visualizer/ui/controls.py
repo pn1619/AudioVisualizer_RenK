@@ -86,6 +86,8 @@ class ControlActions:
     toggle_option_lock: Callable[[str], None] = lambda _k: None
     # Opens the Hotkeys reference modal. Defaulted likewise.
     open_hotkeys: Callable[[], None] = lambda: None
+    # Opens the Beat Buttons modal (music auto-presses actions). Defaulted likewise.
+    open_beat: Callable[[], None] = lambda: None
 
 
 @dataclass(frozen=True)
@@ -220,6 +222,8 @@ class ControlBar:
             self._actions.toggle_fullscreen()
         elif key == "appearance":
             self._actions.open_appearance()
+        elif key == "beat":
+            self._actions.open_beat()
         elif key == "hotkeys":
             self._actions.open_hotkeys()
         elif key == "quit":
@@ -244,6 +248,7 @@ class ControlBar:
                 ("capture", "Stop" if capturing else "Start"),
                 ("fullscreen", "Fullscreen"),
                 ("appearance", "Appearance\u2026"),
+                ("beat", "Beat Buttons\u2026"),
                 ("hotkeys", "Hotkeys\u2026"),
                 ("quit", "Quit"),
             ]

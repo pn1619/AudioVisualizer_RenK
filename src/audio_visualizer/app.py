@@ -22,6 +22,7 @@ from audio_visualizer.audio.capture import LoopbackSource
 from audio_visualizer.audio.devices import list_sources
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.audio.source import AudioSource, SourceStatus, SyntheticSource
+from audio_visualizer.beat_trigger import BeatTrigger
 from audio_visualizer.config import (
     APP_ICON_FILENAME,
     APP_NAME,
@@ -86,6 +87,7 @@ from audio_visualizer.settings import Settings
 from audio_visualizer.ui.about import AboutDialog
 from audio_visualizer.ui.appearance_panel import AppearanceActions, AppearancePanel
 from audio_visualizer.ui.background_panel import BackgroundActions, BackgroundPanel
+from audio_visualizer.ui.beat_panel import BeatPanel
 from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
 from audio_visualizer.ui.fonts import get_ui_fonts
 from audio_visualizer.ui.hotkeys import HotkeysDialog
@@ -218,6 +220,9 @@ class App:
         self._source_panel = SourcePanel(SourceActions(select=self._select_source))
         self._about = AboutDialog()
         self._hotkeys = HotkeysDialog()
+        # Beat Buttons: music onsets auto-press actions (Rnd / Next). Levels persist.
+        self._beat = BeatTrigger(self._settings.beat_levels)
+        self._beat_panel = BeatPanel(self._cycle_beat_action)
 
         # User looks ("My Looks", Phase 0B-b): a saved-look store + its modal. The
         # active look is an overlay on the live global; entering one snapshots the
@@ -333,6 +338,7 @@ class App:
             toggle_global_lock=self._toggle_global_lock,
             toggle_option_lock=self._toggle_option_lock,
             open_hotkeys=lambda: self._hotkeys.toggle(),
+            open_beat=self._open_beat_panel,
         )
 
     def _build_shuffle_actions(self) -> ShuffleActions:
@@ -828,6 +834,31 @@ class App:
             self._auto_elapsed = 0.0
             self._auto_advance()
 
+    # -- Beat Buttons (music-driven auto-triggers) ---------------------------
+    def _open_beat_panel(self) -> None:
+        self._beat_panel.set_state(self._beat.levels_dict())
+        self._beat_panel.toggle()
+
+    def _cycle_beat_action(self, action: str) -> None:
+        """Advance an action's beat sensitivity (Off->Low->...->Max->Off)."""
+        self._beat.cycle(action)
+        self._beat_panel.set_state(self._beat.levels_dict())
+        logger.debug("Beat %s sensitivity = %d", action, self._beat.level(action))
+
+    def _update_beat(self, dt: float) -> None:
+        """Let the music auto-press actions; suppressed while a modal/notice is up."""
+        frame = self._frame
+        onset = frame.onset if frame is not None else 0.0
+        idle = not self._capturing or frame is None or frame.is_silent
+        if self._modal_open() or self._notice_visible():
+            self._beat.update(onset, is_silent=True, dt=dt)  # keep baseline/cooldowns ticking
+            return
+        for action in self._beat.update(onset, idle, dt):
+            if action == "randomize":
+                self._randomize_current_mode()
+            elif action == "next":
+                self._shuffle_next()
+
     def _pick_next(self) -> str | None:
         """Choose the next pooled item at random, never repeating the current one."""
         pool = self._valid_pool()
@@ -1182,6 +1213,7 @@ class App:
             or self._looks_panel.open
             or self._shuffle_panel.open
             or self._hotkeys.open
+            or self._beat_panel.open
         )
 
     def _close_modals(self) -> None:
@@ -1193,6 +1225,7 @@ class App:
         self._looks_panel.open = False
         self._shuffle_panel.open = False
         self._hotkeys.open = False
+        self._beat_panel.open = False
 
     # -- loop body ------------------------------------------------------------
     def _handle_events(self) -> None:
@@ -1221,6 +1254,7 @@ class App:
                     self._shuffle_panel.handle_event(event, canvas)
                     self._about.handle_event(event, canvas)
                     self._hotkeys.handle_event(event, canvas)
+                    self._beat_panel.handle_event(event, canvas)
                 continue
             if event.type == pygame.VIDEORESIZE and not self._fullscreen:
                 size = (max(MIN_WINDOW_SIZE[0], event.w), max(MIN_WINDOW_SIZE[1], event.h))
@@ -1297,6 +1331,9 @@ class App:
     def _update(self, dt: float = 0.0) -> None:
         # Auto-cycle runs regardless of capture/silence (it's a visual choice).
         self._update_auto(dt)
+        # Beat Buttons read the latest frame's onset; tick before the capture guard so
+        # the baseline/cooldowns keep advancing (and decay) even while idle.
+        self._update_beat(dt)
         if not self._capturing:
             return
         self._error = self._source.status is SourceStatus.ERROR
@@ -1388,6 +1425,7 @@ class App:
         self._shuffle_panel.draw(screen, canvas, self._font, self._font_small)
         self._about.draw(screen, canvas, self._font, self._font_small)
         self._hotkeys.draw(screen, canvas, self._font, self._font_small)
+        self._beat_panel.draw(screen, canvas, self._font, self._font_small)
 
     def _draw_transition(
         self, sub: pygame.Surface, dt: float, bg_copy: pygame.Surface | None
@@ -1507,6 +1545,7 @@ class App:
             random_interval=self._auto_interval,
             random_options=self._auto_random_options,
             random_fade=self._auto_fade,
+            beat_levels=self._beat.levels_dict(),
         )
 
     def _shutdown(self) -> None:

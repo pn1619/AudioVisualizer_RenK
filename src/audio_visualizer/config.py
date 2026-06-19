@@ -18,7 +18,7 @@ from __future__ import annotations
 APP_NAME = "AudioVisualizer"
 # FF is the development phase; from phase 10 it is written in hex ("0A", "0B", …)
 # so it stays two digits. The build spec parses each PP.FF.BB part base-16.
-APP_VERSION = "00.0B.12"
+APP_VERSION = "00.0B.13"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-18"
@@ -402,7 +402,7 @@ SETTINGS_FILENAME = "settings.json"
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
 # v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
-SETTINGS_SCHEMA_VERSION = 12
+SETTINGS_SCHEMA_VERSION = 13
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad
@@ -447,6 +447,31 @@ RANDOM_FADE_DEFAULT = TRANSITION_DURATION
 RANDOM_FADE_MIN = 0.0  # 0 = instant hard cut
 RANDOM_FADE_MAX = 3.0
 RANDOM_FADE_STEP = 0.1
+
+# --- Beat Buttons (music-driven auto-triggers, Phase 0B-c) --------------------
+# Music onsets can "press" actions for you. Each action carries its own
+# sensitivity level; the engine fires when an onset spikes above a running
+# baseline (so it adapts to how loud/busy the track is) AND a per-level cooldown
+# has elapsed, so triggers are sensibly spaced (never a machine-gun, never once
+# an age). Silence emits nothing (the baseline decays and the floor gate blocks).
+BEAT_SENSITIVITY_LABELS = ("Off", "Low", "Med", "High", "Max")
+# Per level (indexes 1..4 -> Low/Med/High/Max): (onset:baseline ratio to fire,
+# absolute onset floor, minimum seconds between fires). Index 0 (Off) is ``None``.
+BEAT_SENSITIVITY_PARAMS: tuple[tuple[float, float, float] | None, ...] = (
+    None,  # Off
+    (2.4, 0.12, 4.0),  # Low  - only strong beats, well spaced
+    (1.9, 0.09, 2.0),  # Med
+    (1.5, 0.06, 1.0),  # High
+    (1.25, 0.04, 0.45),  # Max  - most beats, tightly spaced (<= ~2/s)
+)
+# Actions the beat engine can trigger, in table order: (key, label).
+BEAT_ACTIONS: tuple[tuple[str, str], ...] = (
+    ("randomize", "Rnd  \u2014 randomize current mode"),
+    ("next", "Next \u2014 shuffle to next item"),
+)
+# Time constant (seconds) the onset baseline tracks toward the live onset. Short
+# enough that beats stand out, long enough not to chase every transient.
+BEAT_BASELINE_TAU = 0.5
 
 # --- Device-change recovery ---------------------------------------------------
 DEVICE_RECOVER_INTERVAL = 2.0  # seconds between auto-reopen attempts after error

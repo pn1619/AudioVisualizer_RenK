@@ -11,6 +11,25 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.13` — Phase 0B-c (build 11): Beat Buttons (music auto-presses Rnd / Next)
+
+- **Beat Buttons.** A new **Menu → `Beat Buttons…`** table lets the **music press a button for you**.
+  Two actions to start: **Rnd** (randomize the current mode) and **Next** (shuffle to the next item).
+  Click a row to cycle its sensitivity `Off → Low → Med → High → Max → Off`. (`ui/beat_panel.py`.)
+- **Well-behaved triggering.** The engine (`beat_trigger.py`, pure/testable) tracks a slow **onset
+  baseline** so it adapts to the track's energy, fires only when a beat spikes above
+  `baseline × ratio` and clears an absolute floor, and enforces a per-level **cooldown** so it's never
+  a machine-gun and never silent for ages: `Max` ≈ at most ~2 presses/sec (fires on most beats) down
+  to `Low` ≈ only strong hits spaced ≥ 4 s. **Silence triggers nothing** (the baseline decays and the
+  floor blocks it).
+- **Persisted.** Per-action sensitivity is saved (`Settings.beat_levels`, schema **v13**); lenient load
+  drops unknown actions and clamps out-of-range levels. Off by default.
+- Tests: Off emits nothing; silence never fires; `Max` cooldown caps the rate under a constant onset;
+  `Low` fires less than `Max` but still catches strong beats; level cycling wraps; junk levels rejected;
+  panel click routes the cycle callback; settings round-trip.
+
+---
+
 ## `00.0B.12` — Phase 0B-c (build 10): clearer randomize-lock pins (instant feedback)
 
 - **Lock pins update instantly.** Clicking a randomize lock now flips its icon **on the same click**
