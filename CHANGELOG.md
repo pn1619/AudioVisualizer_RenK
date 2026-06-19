@@ -11,6 +11,28 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.14` — Phase 0B-c (build 12): Beat Buttons polish (band, more levels, indicator)
+
+- **Beat is now a control-bar button.** Moved out of the Menu to a `Beat…` button **next to `Shuffle`**.
+- **More sensitivity steps.** The ladder is now `Off · Min · Slow · Low · Med · High · Fast · Max` —
+  more *slower* (`Min` ≈ only strong hits ~8 s apart) **and** *faster* (`Max` ≈ most beats, ≤ ~3/sec)
+  options than before.
+- **Per-action frequency band.** Each action can listen to **All / Bass / Mid / High**; the engine
+  watches that band's energy for the spike that fires it (e.g. Rnd on the kick, Next on hats). Detection
+  is now energy-vs-baseline per band group, so it adapts to the track. (`BeatTrigger.cycle_band`.)
+- **On-screen indicator (optional, off by default).** A small pulsing dot whose **hue tracks the band**
+  (bass = warm, mid = green, high = cyan, all = accent) and whose **brightness/size track how close the
+  beat is to firing**, flashing white on an actual trigger — so you can watch it "charge" and see the
+  button fire. Toggle it and pick its **position** (4 corners / center) in the Beat panel.
+  (`ui/beat_indicator.py`.)
+- **Persisted** (schema **v14**): `beat_bands`, `beat_indicator`, `beat_indicator_pos` alongside the
+  existing `beat_levels`; lenient load drops junk.
+- Tests: band selectivity (bass action ignores treble), expanded-ladder rate caps, level/band cycle
+  wraps, intensity/flash track beats, panel routes band/level/indicator/position clicks, indicator draws
+  in every position/band, settings round-trip + junk rejection.
+
+---
+
 ## `00.0B.13` — Phase 0B-c (build 11): Beat Buttons (music auto-presses Rnd / Next)
 
 - **Beat Buttons.** A new **Menu → `Beat Buttons…`** table lets the **music press a button for you**.

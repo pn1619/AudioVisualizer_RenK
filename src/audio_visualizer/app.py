@@ -27,6 +27,7 @@ from audio_visualizer.config import (
     APP_ICON_FILENAME,
     APP_NAME,
     APP_VERSION,
+    BEAT_INDICATOR_POSITIONS,
     BG_HEIGHT_LABELS,
     BG_HEIGHTS,
     BG_MODE_LABELS,
@@ -87,6 +88,7 @@ from audio_visualizer.settings import Settings
 from audio_visualizer.ui.about import AboutDialog
 from audio_visualizer.ui.appearance_panel import AppearanceActions, AppearancePanel
 from audio_visualizer.ui.background_panel import BackgroundActions, BackgroundPanel
+from audio_visualizer.ui.beat_indicator import draw_beat_indicator
 from audio_visualizer.ui.beat_panel import BeatPanel
 from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
 from audio_visualizer.ui.fonts import get_ui_fonts
@@ -107,6 +109,9 @@ from audio_visualizer.visuals.logo import RenkLogo
 logger = logging.getLogger(__name__)
 
 _T = TypeVar("_T")
+
+# Zero band-energies fed to the beat engine while idle (so baselines keep decaying).
+_EMPTY_BANDS = np.zeros(0, dtype=np.float32)
 
 
 def _smoothing_to_coeffs(level: float) -> tuple[float, float]:
@@ -220,9 +225,17 @@ class App:
         self._source_panel = SourcePanel(SourceActions(select=self._select_source))
         self._about = AboutDialog()
         self._hotkeys = HotkeysDialog()
-        # Beat Buttons: music onsets auto-press actions (Rnd / Next). Levels persist.
-        self._beat = BeatTrigger(self._settings.beat_levels)
-        self._beat_panel = BeatPanel(self._cycle_beat_action)
+        # Beat Buttons: music onsets auto-press actions (Rnd / Next). Levels/bands +
+        # the on-screen indicator persist.
+        self._beat = BeatTrigger(self._settings.beat_levels, self._settings.beat_bands)
+        self._beat_indicator = bool(self._settings.beat_indicator)
+        self._beat_indicator_pos = self._settings.beat_indicator_pos
+        self._beat_panel = BeatPanel(
+            cycle_level=self._cycle_beat_action,
+            cycle_band=self._cycle_beat_band,
+            toggle_indicator=self._toggle_beat_indicator,
+            cycle_position=self._cycle_beat_indicator_pos,
+        )
 
         # User looks ("My Looks", Phase 0B-b): a saved-look store + its modal. The
         # active look is an overlay on the live global; entering one snapshots the
@@ -835,25 +848,53 @@ class App:
             self._auto_advance()
 
     # -- Beat Buttons (music-driven auto-triggers) ---------------------------
+    def _refresh_beat_panel(self) -> None:
+        self._beat_panel.set_state(
+            self._beat.levels_dict(),
+            self._beat.bands_dict(),
+            self._beat_indicator,
+            self._beat_indicator_pos_label(),
+        )
+
+    def _beat_indicator_pos_label(self) -> str:
+        labels = dict(BEAT_INDICATOR_POSITIONS)
+        return labels.get(self._beat_indicator_pos, self._beat_indicator_pos)
+
     def _open_beat_panel(self) -> None:
-        self._beat_panel.set_state(self._beat.levels_dict())
+        self._refresh_beat_panel()
         self._beat_panel.toggle()
 
     def _cycle_beat_action(self, action: str) -> None:
-        """Advance an action's beat sensitivity (Off->Low->...->Max->Off)."""
+        """Advance an action's beat sensitivity (Off->...->Max->Off)."""
         self._beat.cycle(action)
-        self._beat_panel.set_state(self._beat.levels_dict())
+        self._refresh_beat_panel()
         logger.debug("Beat %s sensitivity = %d", action, self._beat.level(action))
+
+    def _cycle_beat_band(self, action: str) -> None:
+        """Advance an action's listened band (All->Bass->Mid->High)."""
+        self._beat.cycle_band(action)
+        self._refresh_beat_panel()
+        logger.debug("Beat %s band = %s", action, self._beat.band(action))
+
+    def _toggle_beat_indicator(self) -> None:
+        self._beat_indicator = not self._beat_indicator
+        self._refresh_beat_panel()
+
+    def _cycle_beat_indicator_pos(self) -> None:
+        keys = [key for key, _label in BEAT_INDICATOR_POSITIONS]
+        idx = keys.index(self._beat_indicator_pos) if self._beat_indicator_pos in keys else 0
+        self._beat_indicator_pos = keys[(idx + 1) % len(keys)]
+        self._refresh_beat_panel()
 
     def _update_beat(self, dt: float) -> None:
         """Let the music auto-press actions; suppressed while a modal/notice is up."""
         frame = self._frame
-        onset = frame.onset if frame is not None else 0.0
+        bands = frame.band_energies if frame is not None else _EMPTY_BANDS
         idle = not self._capturing or frame is None or frame.is_silent
         if self._modal_open() or self._notice_visible():
-            self._beat.update(onset, is_silent=True, dt=dt)  # keep baseline/cooldowns ticking
+            self._beat.update(bands, is_silent=True, dt=dt)  # keep baseline/cooldowns ticking
             return
-        for action in self._beat.update(onset, idle, dt):
+        for action in self._beat.update(bands, idle, dt):
             if action == "randomize":
                 self._randomize_current_mode()
             elif action == "next":
@@ -1402,6 +1443,15 @@ class App:
 
         self._hud.draw(screen, canvas, self._hud_state(), self._font_small)
         self._draw_auto_status(screen, canvas)
+        if self._beat_indicator and self._beat.any_enabled():
+            draw_beat_indicator(
+                screen,
+                canvas,
+                self._beat_indicator_pos,
+                self._beat.intensity,
+                self._beat.active_band,
+                self._beat.flash,
+            )
         if self._notice_visible():
             self._hud.draw_notice(screen, canvas, self._font, self._font_small)
 
@@ -1546,6 +1596,9 @@ class App:
             random_options=self._auto_random_options,
             random_fade=self._auto_fade,
             beat_levels=self._beat.levels_dict(),
+            beat_bands=self._beat.bands_dict(),
+            beat_indicator=self._beat_indicator,
+            beat_indicator_pos=self._beat_indicator_pos,
         )
 
     def _shutdown(self) -> None:

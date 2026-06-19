@@ -88,12 +88,18 @@ each state refresh). Pins sit in a **tight gap** hugging the chip/dropdown they 
 same wrap row (`ControlBar._flow`, `_LOCK_GAP`).
 
 **Build 11 (v00.0B.13):** **Beat Buttons** — music auto-presses actions. `beat_trigger.py` (`BeatTrigger`,
-pure/testable) tracks a slow onset baseline and fires an action when onset > `baseline*ratio` + floor +
-a per-level **cooldown** elapsed (`Off/Low/Med/High/Max`; Max ≈ ≤2/s, Low ≈ strong beats ≥4s apart;
-silence emits nothing). Two actions wired: `randomize` (`_randomize_current_mode`) and `next`
-(`_shuffle_next`). Config in `BEAT_*` (`config.py`); modal `ui/beat_panel.py` (Menu → Beat Buttons…,
-click a row to cycle); `App._update_beat` ticks each frame (suppressed while a modal/notice is up).
-Persisted as `Settings.beat_levels` (schema **v13**), off by default.
+pure/testable) fires an action when a band's energy spikes above `baseline*ratio` + floor + a per-level
+**cooldown** elapsed; silence emits nothing. Two actions wired: `randomize` (`_randomize_current_mode`)
+and `next` (`_shuffle_next`). Config in `BEAT_*` (`config.py`); `App._update_beat` ticks each frame
+(suppressed while a modal/notice is up). Persisted in `Settings`, off by default.
+
+**Build 12 (v00.0B.14):** Beat Buttons polish. Moved to a `Beat…` **control-bar button** next to Shuffle
+(no longer in the Menu). Sensitivity ladder expanded to `Off/Min/Slow/Low/Med/High/Fast/Max` (Min ≈ ~8s
+apart, Max ≈ ≤3/s). Each action picks a **band** (`All/Bass/Mid/High`) — `BeatTrigger.update` now takes
+`band_energies` and detects per-band energy-vs-baseline (`cycle_band`). Optional **on-screen indicator**
+(`ui/beat_indicator.py`, off by default): a pulsing dot, hue by band, brightness/size by intensity,
+white flash on fire; toggle + position (corners/center) in the panel. The engine exposes
+`intensity`/`active_band`/`flash`. Persisted `beat_bands`/`beat_indicator`/`beat_indicator_pos` (schema **v14**).
 
 ## Read first (canonical docs)
 

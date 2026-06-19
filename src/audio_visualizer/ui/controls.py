@@ -131,6 +131,8 @@ class ControlBar:
         self._auto = Button("Auto", actions.toggle_auto)
         self._next_item = Button("Next", actions.shuffle_next)
         self._shuffle = Button("Shuffle\u2026", actions.open_shuffle)
+        # Beat Buttons: music auto-presses actions (opens the Beat modal).
+        self._beat_btn = Button("Beat\u2026", actions.open_beat)
 
         # Compact steppers: [-] <Name value> [+]; the chip carries the name+value so
         # the tiny buttons stay unambiguous without long labels (which the wider
@@ -186,6 +188,7 @@ class ControlBar:
             (self._auto, 60),
             (self._next_item, 54),
             (self._shuffle, 84),
+            (self._beat_btn, 60),
             (self._sens_down, step),
             (self._sens_chip, 96),
             (self._sens_up, step),
@@ -222,8 +225,6 @@ class ControlBar:
             self._actions.toggle_fullscreen()
         elif key == "appearance":
             self._actions.open_appearance()
-        elif key == "beat":
-            self._actions.open_beat()
         elif key == "hotkeys":
             self._actions.open_hotkeys()
         elif key == "quit":
@@ -248,7 +249,6 @@ class ControlBar:
                 ("capture", "Stop" if capturing else "Start"),
                 ("fullscreen", "Fullscreen"),
                 ("appearance", "Appearance\u2026"),
-                ("beat", "Beat Buttons\u2026"),
                 ("hotkeys", "Hotkeys\u2026"),
                 ("quit", "Quit"),
             ]

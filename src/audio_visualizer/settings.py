@@ -14,6 +14,10 @@ from pathlib import Path
 
 from audio_visualizer.config import (
     BEAT_ACTIONS,
+    BEAT_BANDS,
+    BEAT_INDICATOR_ENABLED_DEFAULT,
+    BEAT_INDICATOR_POSITION_DEFAULT,
+    BEAT_INDICATOR_POSITIONS,
     BEAT_SENSITIVITY_LABELS,
     BG_HEIGHT_DEFAULT,
     BG_HEIGHTS,
@@ -114,8 +118,13 @@ class Settings:
     # User-adjustable cross-fade length (seconds) for auto-cycle switches. (schema v12)
     random_fade: float = RANDOM_FADE_DEFAULT
     # Beat Buttons (schema v13): per-action music-trigger sensitivity index
-    # (0 = Off ... 4 = Max), keyed by action ("randomize"/"next"). Default all Off.
+    # (0 = Off ... Max), keyed by action ("randomize"/"next"). Default all Off.
     beat_levels: dict[str, int] = field(default_factory=dict)
+    # Beat Buttons frequency band + on-screen indicator (schema v14). ``beat_bands``
+    # maps each action to the band it listens to ("all"/"bass"/"mid"/"high").
+    beat_bands: dict[str, str] = field(default_factory=dict)
+    beat_indicator: bool = BEAT_INDICATOR_ENABLED_DEFAULT
+    beat_indicator_pos: str = BEAT_INDICATOR_POSITION_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -212,6 +221,13 @@ def _from_dict(raw: dict) -> Settings:
         random_options=_bool(raw.get("random_options"), defaults.random_options),
         random_fade=_fade(raw.get("random_fade"), defaults.random_fade),
         beat_levels=_beat_levels(raw.get("beat_levels"), defaults.beat_levels),
+        beat_bands=_beat_bands(raw.get("beat_bands"), defaults.beat_bands),
+        beat_indicator=_bool(raw.get("beat_indicator"), defaults.beat_indicator),
+        beat_indicator_pos=_choice(
+            raw.get("beat_indicator_pos"),
+            tuple(key for key, _label in BEAT_INDICATOR_POSITIONS),
+            defaults.beat_indicator_pos,
+        ),
     )
 
 
@@ -226,6 +242,19 @@ def _beat_levels(value: object, default: dict[str, int]) -> dict[str, int]:
         if key in valid_keys and isinstance(level, int) and not isinstance(level, bool):
             out[key] = max(0, min(max_level, level))
     return out
+
+
+def _beat_bands(value: object, default: dict[str, str]) -> dict[str, str]:
+    """Keep only known action keys mapped to a known band id (lenient on junk)."""
+    if not isinstance(value, dict):
+        return dict(default)
+    valid_actions = {key for key, _label in BEAT_ACTIONS}
+    valid_bands = {key for key, _label in BEAT_BANDS}
+    return {
+        key: band
+        for key, band in value.items()
+        if key in valid_actions and isinstance(band, str) and band in valid_bands
+    }
 
 
 def _str(value: object, default: str) -> str:
