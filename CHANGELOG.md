@@ -17,6 +17,32 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.18` — Phase 0B-c (build 22): cursor shape + effect, color picker popup
+
+- **Cursor split into Shape + Effect (dropdowns)** — the single click-to-cycle cursor row
+  is now **two dropdowns** in the Appearance panel:
+  - **Cursor shape** — `System (OS arrow)`, `Neon arrow`, `Dot`, `Ring`, `Crosshair`, `Star`,
+    `Heart`, `Diamond`, `Triangle`.
+  - **Cursor effect** — `None`, `Glow halo`, `Comet trail`, `Sparkles`, `Beat pulse`, `Ripple rings`.
+  Shape and effect are independent, so you can mix them (e.g. **Heart + Sparkles**, or
+  **Star + Comet trail**). Effects even work on the **System** shape (keep your normal arrow but
+  add a sparkle/comet trail around it). All shapes/effects use the active color scheme + hue, react
+  to loudness/beats, honor **reduce-motion**, only paint while the window is focused, and are
+  fail-soft.
+- **Appearance panel → dropdowns** — Control style / Accent color / Text font joined the cursor
+  rows as **dropdown menus** (was click-to-cycle), matching the Background and Beat panels.
+- **Custom-color picker popup** — choosing **Solid (pick)** or **Mono (pick)** from the control-bar
+  **Color** dropdown now opens a dedicated **Custom color** popup (hue bar + live preview swatch +
+  `Solid`/`Mono` buttons) right where you made the choice, instead of hiding the hue bar inside the
+  Appearance panel. The picker's preview shows a flat swatch for Solid and a light→dark ramp for Mono.
+- Settings **schema v20**: replaces v19's single `cursor_mode` with `cursor_shape` + `cursor_effect`;
+  old files migrate automatically (e.g. `comet` → shape `dot` + effect `comet`).
+- Tests: `test_cursor_color_phase0b18.py` (every shape×effect combo draws, default/unfocused no-ops,
+  picker hue/scheme/close routing, settings round-trip + legacy `cursor_mode` migration);
+  `test_ui_phase903.py` updated for the dropdown-based Appearance panel.
+
+---
+
 ## `00.0B.17` — Phase 0B-c (build 21): easy Solid/Mono color + custom mouse cursor
 
 - **One-stop custom color** — the **Appearance** panel's *Custom color* section now pairs the

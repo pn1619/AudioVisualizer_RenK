@@ -1,10 +1,11 @@
-"""Modal panel to pick the UI appearance: control style, accent, font, cursor + color.
+"""Modal panel to pick UI appearance via dropdowns: style, accent, font, cursor.
 
-The first rows show ``Label … Value`` and clicking cycles to the next value. Below
-them a **Custom color** section pairs a hue bar with **Solid** / **Mono** buttons so
-the user can pick a single/mono color from one place (dragging the bar also switches
-to a pick scheme so it takes effect immediately). The App owns the panel, feeds
-current values via :meth:`set_state`, and wires each control to a callback.
+Each row is a ``Label`` on the left and a **dropdown** on the right (mirrors the
+Background panel). The cursor is two independent rows — **shape** (the pointer
+drawn) and **effect** (the audio-reactive decoration). The App owns the panel,
+feeds current selections via :meth:`set_state`, and wires each dropdown to a
+callback that mutates + persists. The Solid/Mono color picker now lives in its
+own popup (opened from the Color dropdown), not here.
 """
 
 from __future__ import annotations
@@ -14,107 +15,102 @@ from dataclasses import dataclass
 
 import pygame
 
-from audio_visualizer.config import COLOR_BG, COLOR_TEXT, COLOR_TEXT_DIM
-from audio_visualizer.ui.hue_bar import HueBar
-from audio_visualizer.ui.style import STYLE, TEXT_PAD, draw_panel, fit_text
+from audio_visualizer.config import COLOR_BG, COLOR_TEXT
+from audio_visualizer.ui.dropdown import Dropdown
+from audio_visualizer.ui.style import STYLE, draw_panel
 
-_ROW_KEYS: tuple[str, ...] = ("style", "accent", "font", "cursor")
+_ROW_KEYS: tuple[str, ...] = ("style", "accent", "font", "cursor_shape", "cursor_effect")
 _ROW_LABELS: dict[str, str] = {
     "style": "Control style",
     "accent": "Accent color",
     "font": "Text font",
-    "cursor": "Mouse cursor",
+    "cursor_shape": "Cursor shape",
+    "cursor_effect": "Cursor effect",
 }
 
-_PANEL_W = 360
-_ROW_H = 42
+_PANEL_W = 420
+_ROW_H = 34
 _PAD = 14
-_HUE_H = 26  # height of the custom-color hue bar
-_BTN_H = 30  # Solid / Mono buttons under the hue bar
+_GAP = 8
+_LABEL_W = 150  # left label column; the dropdown fills the rest of the row
 
 
 @dataclass
 class AppearanceActions:
-    """Callbacks invoked when a control is used (App mutates state + persists)."""
+    """Callbacks invoked when a dropdown value is chosen (App mutates + persists)."""
 
-    cycle_style: Callable[[], None]
-    cycle_accent: Callable[[], None]
-    cycle_font: Callable[[], None]
-    cycle_cursor: Callable[[], None]
-    set_hue: Callable[[float], None]
-    set_color_scheme: Callable[[str], None]
+    set_style: Callable[[str], None]
+    set_accent: Callable[[str], None]
+    set_font: Callable[[str], None]
+    set_cursor_shape: Callable[[str], None]
+    set_cursor_effect: Callable[[str], None]
 
 
 class AppearancePanel:
-    """A centered modal listing UI appearance settings + a custom-color picker."""
+    """A centered modal listing UI appearance settings; each row is a dropdown."""
 
-    def __init__(self, actions: AppearanceActions) -> None:
-        self._actions: dict[str, Callable[[], None]] = {
-            "style": actions.cycle_style,
-            "accent": actions.cycle_accent,
-            "font": actions.cycle_font,
-            "cursor": actions.cycle_cursor,
-        }
-        self._set_color_scheme = actions.set_color_scheme
+    def __init__(
+        self,
+        actions: AppearanceActions,
+        style_options: list[tuple[str, str]],
+        accent_options: list[tuple[str, str]],
+        font_options: list[tuple[str, str]],
+        cursor_shape_options: list[tuple[str, str]],
+        cursor_effect_options: list[tuple[str, str]],
+    ) -> None:
         self.open = False
-        self._values: dict[str, str] = {key: "" for key in _ROW_KEYS}
-        self._scheme = ""
-        self._hover_key: str | None = None
         self._hover_close = False
-        self._hue_bar = HueBar(actions.set_hue)
+        self._dd: dict[str, Dropdown] = {
+            "style": Dropdown(actions.set_style),
+            "accent": Dropdown(actions.set_accent),
+            "font": Dropdown(actions.set_font),
+            "cursor_shape": Dropdown(actions.set_cursor_shape),
+            "cursor_effect": Dropdown(actions.set_cursor_effect),
+        }
+        self._dd["style"].set_options(style_options)
+        self._dd["accent"].set_options(accent_options)
+        self._dd["font"].set_options(font_options)
+        self._dd["cursor_shape"].set_options(cursor_shape_options)
+        self._dd["cursor_effect"].set_options(cursor_effect_options)
 
-    def set_state(self, values: dict[str, str], hue: float = 0.0, scheme: str = "") -> None:
-        self._values.update(values)
-        self._hue_bar.set_hue(hue)
-        self._scheme = scheme
+    def set_state(self, values: dict[str, str]) -> None:
+        """Select each dropdown's current option by key."""
+        for key, dd in self._dd.items():
+            if key in values:
+                dd.set_selected(values[key])
 
     def toggle(self) -> None:
         self.open = not self.open
+        if not self.open:
+            self._close_dropdowns()
+
+    def _dropdowns(self) -> list[Dropdown]:
+        return [self._dd[key] for key in _ROW_KEYS]
+
+    def _close_dropdowns(self) -> None:
+        for dd in self._dropdowns():
+            dd.open = False
 
     # -- geometry -------------------------------------------------------------
     def _panel_rect(self, canvas: pygame.Rect) -> pygame.Rect:
-        height = (
-            _PAD
-            + _ROW_H * len(_ROW_KEYS)
-            + 20  # section caption
-            + _HUE_H
-            + 8
-            + _BTN_H  # Solid / Mono buttons
-            + _PAD
-            + _ROW_H  # close button
-            + _PAD
-        )
+        height = _PAD * 2 + len(_ROW_KEYS) * (_ROW_H + _GAP) + _GAP + _ROW_H  # rows + close
         rect = pygame.Rect(0, 0, _PANEL_W, height)
         rect.center = canvas.center
         return rect
 
-    def _row_rects(self, canvas: pygame.Rect) -> list[tuple[str, pygame.Rect]]:
+    def _row_rects(self, canvas: pygame.Rect) -> list[tuple[str, pygame.Rect, pygame.Rect]]:
+        """(key, label_rect, dropdown_rect) for each row."""
         panel = self._panel_rect(canvas)
         x = panel.x + _PAD
         w = panel.width - _PAD * 2
-        rows: list[tuple[str, pygame.Rect]] = []
+        rows: list[tuple[str, pygame.Rect, pygame.Rect]] = []
         y = panel.y + _PAD
         for key in _ROW_KEYS:
-            rows.append((key, pygame.Rect(x, y, w, _ROW_H)))
-            y += _ROW_H
+            label = pygame.Rect(x, y, _LABEL_W, _ROW_H)
+            dd = pygame.Rect(x + _LABEL_W, y, w - _LABEL_W, _ROW_H)
+            rows.append((key, label, dd))
+            y += _ROW_H + _GAP
         return rows
-
-    def _hue_rect(self, canvas: pygame.Rect) -> pygame.Rect:
-        panel = self._panel_rect(canvas)
-        x = panel.x + _PAD
-        w = panel.width - _PAD * 2
-        y = panel.y + _PAD + _ROW_H * len(_ROW_KEYS) + 20
-        return pygame.Rect(x, y, w, _HUE_H)
-
-    def _pick_button_rects(self, canvas: pygame.Rect) -> dict[str, pygame.Rect]:
-        hue = self._hue_rect(canvas)
-        gap = 8
-        half = (hue.width - gap) // 2
-        y = hue.bottom + 8
-        return {
-            "solid": pygame.Rect(hue.x, y, half, _BTN_H),
-            "mono": pygame.Rect(hue.x + half + gap, y, hue.width - half - gap, _BTN_H),
-        }
 
     def _close_rect(self, canvas: pygame.Rect) -> pygame.Rect:
         panel = self._panel_rect(canvas)
@@ -122,38 +118,37 @@ class AppearancePanel:
             panel.x + _PAD, panel.bottom - _PAD - _ROW_H, panel.width - _PAD * 2, _ROW_H
         )
 
+    def _sync_widgets(self, canvas: pygame.Rect) -> None:
+        panel = self._panel_rect(canvas)
+        for key, _label, dd_rect in self._row_rects(canvas):
+            self._dd[key].set_rect(dd_rect)
+            self._dd[key].set_bound_right(panel.right - _PAD)
+
     # -- input ----------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event, canvas: pygame.Rect) -> bool:
         if not self.open:
             return False
-        self._hue_bar.set_rect(self._hue_rect(canvas))
-        if self._hue_bar.handle_event(event):
-            return True
+        self._sync_widgets(canvas)
+        for dd in self._dropdowns():
+            if dd.handle_event(event):
+                if dd.open:  # keep only the just-opened dropdown expanded
+                    for other in self._dropdowns():
+                        if other is not dd:
+                            other.open = False
+                return True
         if event.type == pygame.MOUSEMOTION:
-            self._hover_key = next(
-                (k for k, r in self._row_rects(canvas) if r.collidepoint(event.pos)), None
-            )
             self._hover_close = self._close_rect(canvas).collidepoint(event.pos)
             return True
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            return self._handle_click(event.pos, canvas)
-        return False
-
-    def _handle_click(self, pos: tuple[int, int], canvas: pygame.Rect) -> bool:
-        if self._close_rect(canvas).collidepoint(pos):
-            self.open = False
+            if self._close_rect(canvas).collidepoint(event.pos):
+                self.open = False
+                self._close_dropdowns()
+                return True
+            if not self._panel_rect(canvas).collidepoint(event.pos):
+                self.open = False
+                self._close_dropdowns()
             return True
-        for key, rect in self._pick_button_rects(canvas).items():
-            if rect.collidepoint(pos):
-                self._set_color_scheme(key)
-                return True
-        for key, rect in self._row_rects(canvas):
-            if rect.collidepoint(pos):
-                self._actions[key]()
-                return True
-        if not self._panel_rect(canvas).collidepoint(pos):
-            self.open = False  # click outside the panel closes it
-        return True
+        return False
 
     # -- draw -----------------------------------------------------------------
     def draw(
@@ -171,51 +166,25 @@ class AppearancePanel:
 
         panel = self._panel_rect(canvas)
         draw_panel(surface, panel, accent_border=True)
+        self._sync_widgets(canvas)
 
         title = font.render("Appearance", True, STYLE.accent)
         surface.blit(title, (panel.x + _PAD, panel.y - title.get_height() - 4))
 
-        for key, rect in self._row_rects(canvas):
-            self._draw_row(surface, rect, key, font, font_small, hovered=key == self._hover_key)
-
-        hue = self._hue_rect(canvas)
-        caption = font_small.render("Custom color \u2014 pick a hue, then:", True, COLOR_TEXT_DIM)
-        surface.blit(caption, (hue.x, hue.y - caption.get_height() - 3))
-        self._hue_bar.set_rect(hue)
-        self._hue_bar.draw(surface)
-        for key, rect in self._pick_button_rects(canvas).items():
-            self._draw_button(
-                surface, rect, key.capitalize(), font_small, active=self._scheme == key
-            )
+        for key, label_rect, _dd_rect in self._row_rects(canvas):
+            label = font.render(_ROW_LABELS[key], True, COLOR_TEXT)
+            surface.blit(label, label.get_rect(midleft=(label_rect.x, label_rect.centery)))
 
         self._draw_close(surface, canvas, font)
 
-    def _draw_row(
-        self,
-        surface: pygame.Surface,
-        rect: pygame.Rect,
-        key: str,
-        font: pygame.font.Font,
-        font_small: pygame.font.Font,
-        hovered: bool,
-    ) -> None:
-        draw_panel(surface, rect, hovered=hovered)
-        label = font.render(_ROW_LABELS[key], True, COLOR_TEXT)
-        surface.blit(label, label.get_rect(midleft=(rect.x + 12, rect.centery)))
-        value = font_small.render(self._values.get(key, ""), True, STYLE.accent)
-        surface.blit(value, value.get_rect(midright=(rect.right - 12, rect.centery)))
-
-    @staticmethod
-    def _draw_button(
-        surface: pygame.Surface,
-        rect: pygame.Rect,
-        label: str,
-        font: pygame.font.Font,
-        active: bool = False,
-    ) -> None:
-        draw_panel(surface, rect, accent_fill=active)
-        text = font.render(fit_text(font, label, rect.width - TEXT_PAD * 2), True, COLOR_TEXT)
-        surface.blit(text, text.get_rect(center=rect.center))
+        # Dropdowns last (the open one on top) so their lists overlay everything.
+        dds = self._dropdowns()
+        open_dd = next((dd for dd in dds if dd.open), None)
+        for dd in dds:
+            if dd is not open_dd:
+                dd.draw(surface, font_small)
+        if open_dd is not None:
+            open_dd.draw(surface, font_small)
 
     def _draw_close(
         self, surface: pygame.Surface, canvas: pygame.Rect, font: pygame.font.Font

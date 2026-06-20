@@ -46,8 +46,10 @@ from audio_visualizer.config import (
     COLOR_PICK_SCHEMES,
     COLOR_SCHEMES,
     COLOR_TEXT_DIM,
-    CURSOR_MODE_LABELS,
-    CURSOR_MODES,
+    CURSOR_EFFECT_LABELS,
+    CURSOR_EFFECTS,
+    CURSOR_SHAPE_LABELS,
+    CURSOR_SHAPES,
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
     HISTORY_MAX,
@@ -101,6 +103,7 @@ from audio_visualizer.ui.appearance_panel import AppearanceActions, AppearancePa
 from audio_visualizer.ui.background_panel import BackgroundActions, BackgroundPanel
 from audio_visualizer.ui.beat_indicator import draw_beat_indicator
 from audio_visualizer.ui.beat_panel import BeatPanel
+from audio_visualizer.ui.color_picker import ColorPicker, ColorPickerActions
 from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
 from audio_visualizer.ui.cursor import Cursor
 from audio_visualizer.ui.fonts import get_ui_fonts
@@ -257,9 +260,20 @@ class App:
         self._logo = RenkLogo(reduce_motion=self._reduce_motion, theme=self._theme)
         self._apply_logo_settings()
         self._cursor = Cursor(theme=self._theme, reduce_motion=self._reduce_motion)
-        self._cursor.set_mode(self._settings.cursor_mode)
+        self._cursor.set_shape(self._settings.cursor_shape)
+        self._cursor.set_effect(self._settings.cursor_effect)
         self._logo_panel = LogoPanel(self._build_logo_panel_actions())
-        self._appearance = AppearancePanel(self._build_appearance_actions())
+        self._appearance = AppearancePanel(
+            self._build_appearance_actions(),
+            style_options=[(k, UI_STYLE_LABELS.get(k, k)) for k in UI_STYLES],
+            accent_options=[(k, UI_ACCENT_LABELS.get(k, k)) for k in UI_ACCENTS],
+            font_options=[(k, UI_FONT_LABELS.get(k, k)) for k in UI_FONTS],
+            cursor_shape_options=[(k, CURSOR_SHAPE_LABELS.get(k, k)) for k in CURSOR_SHAPES],
+            cursor_effect_options=[(k, CURSOR_EFFECT_LABELS.get(k, k)) for k in CURSOR_EFFECTS],
+        )
+        self._color_picker = ColorPicker(
+            ColorPickerActions(set_hue=self._set_color_hue, set_scheme=self._pick_color_scheme)
+        )
         self._background_panel = BackgroundPanel(
             self._build_background_actions(),
             mode_options=[(key, BG_MODE_LABELS.get(key, key)) for key in BG_MODES],
@@ -456,12 +470,11 @@ class App:
 
     def _build_appearance_actions(self) -> AppearanceActions:
         return AppearanceActions(
-            cycle_style=self._cycle_ui_style,
-            cycle_accent=self._cycle_ui_accent,
-            cycle_font=self._cycle_ui_font,
-            cycle_cursor=self._cycle_cursor,
-            set_hue=self._set_color_hue,
-            set_color_scheme=self._set_color_scheme,
+            set_style=self._set_ui_style,
+            set_accent=self._set_ui_accent,
+            set_font=self._set_ui_font,
+            set_cursor_shape=self._set_cursor_shape,
+            set_cursor_effect=self._set_cursor_effect,
         )
 
     def _build_background_actions(self) -> BackgroundActions:
@@ -1316,27 +1329,33 @@ class App:
         )
         self._theme.color_scheme = COLOR_SCHEMES[(idx + 1) % len(COLOR_SCHEMES)]
         logger.debug("Color scheme = %s", self._theme.color_scheme)
+        if self._theme.color_scheme in COLOR_PICK_SCHEMES:
+            self._open_color_picker()
 
     def _set_color_scheme(self, key: str) -> None:
+        """Apply a color scheme; Solid/Mono also pop the custom-color picker."""
+        if key in COLOR_SCHEMES:
+            self._theme.color_scheme = key
+            logger.debug("Color scheme = %s", self._theme.color_scheme)
+            if key in COLOR_PICK_SCHEMES:
+                self._open_color_picker()
+
+    def _pick_color_scheme(self, key: str) -> None:
+        """Set the scheme from inside the color picker (no re-open)."""
         if key in COLOR_SCHEMES:
             self._theme.color_scheme = key
             logger.debug("Color scheme = %s", self._theme.color_scheme)
 
-    def _set_color_hue(self, hue: float) -> None:
-        """Set the Custom hue (0..1) used by the Solid/Mono color schemes.
+    def _open_color_picker(self) -> None:
+        self._close_modals()
+        self._color_picker.set_state(self._theme.custom_hue, self._theme.color_scheme)
+        self._color_picker.open = True
 
-        Picking a hue while on a non-pick scheme switches to ``solid`` so the
-        chosen color takes effect immediately (the bar would otherwise do nothing).
-        """
+    def _set_color_hue(self, hue: float) -> None:
+        """Set the Custom hue (0..1) used by the Solid/Mono color schemes."""
         self._theme.custom_hue = float(np.clip(hue, 0.0, 1.0))
         if self._theme.color_scheme not in COLOR_PICK_SCHEMES:
             self._theme.color_scheme = "solid"
-
-    def _cycle_cursor(self) -> None:
-        self._cursor.set_mode(self._cycle_next(CURSOR_MODES, self._cursor.mode))
-        if self._cursor.mode == "system":
-            self._cursor.release()
-        logger.debug("Cursor = %s", self._cursor.mode)
 
     def _toggle_reduce_motion(self) -> None:
         self._reduce_motion = not self._reduce_motion
@@ -1400,28 +1419,44 @@ class App:
         }
 
     # -- UI appearance --------------------------------------------------------
-    def _cycle_ui_style(self) -> None:
-        self._ui_style = self._cycle_next(UI_STYLES, self._ui_style)
-        STYLE.set_style(self._ui_style)
-        logger.debug("UI style = %s", self._ui_style)
+    def _set_ui_style(self, key: str) -> None:
+        if key in UI_STYLES:
+            self._ui_style = key
+            STYLE.set_style(self._ui_style)
+            logger.debug("UI style = %s", self._ui_style)
 
-    def _cycle_ui_font(self) -> None:
-        self._ui_font = self._cycle_next(UI_FONTS, self._ui_font)
-        self._font, self._font_small = get_ui_fonts(self._ui_font)
-        logger.debug("UI font = %s", self._ui_font)
+    def _set_ui_font(self, key: str) -> None:
+        if key in UI_FONTS:
+            self._ui_font = key
+            self._font, self._font_small = get_ui_fonts(self._ui_font)
+            logger.debug("UI font = %s", self._ui_font)
 
-    def _cycle_ui_accent(self) -> None:
-        self._ui_accent = self._cycle_next(UI_ACCENTS, self._ui_accent)
-        STYLE.set_accent(self._ui_accent)
-        logger.debug("UI accent = %s", self._ui_accent)
+    def _set_ui_accent(self, key: str) -> None:
+        if key in UI_ACCENTS:
+            self._ui_accent = key
+            STYLE.set_accent(self._ui_accent)
+            logger.debug("UI accent = %s", self._ui_accent)
+
+    def _set_cursor_shape(self, key: str) -> None:
+        self._cursor.set_shape(key)
+        if not self._cursor.is_custom:
+            self._cursor.release()
+        logger.debug("Cursor shape = %s", self._cursor.shape)
+
+    def _set_cursor_effect(self, key: str) -> None:
+        self._cursor.set_effect(key)
+        if not self._cursor.is_custom:
+            self._cursor.release()
+        logger.debug("Cursor effect = %s", self._cursor.effect)
 
     def _appearance_values(self) -> dict[str, str]:
-        """Human-readable current values for the Appearance panel rows."""
+        """Current option *keys* for each Appearance dropdown."""
         return {
-            "style": UI_STYLE_LABELS.get(self._ui_style, self._ui_style),
-            "accent": UI_ACCENT_LABELS.get(self._ui_accent, self._ui_accent),
-            "font": UI_FONT_LABELS.get(self._ui_font, self._ui_font),
-            "cursor": CURSOR_MODE_LABELS.get(self._cursor.mode, self._cursor.mode),
+            "style": self._ui_style,
+            "accent": self._ui_accent,
+            "font": self._ui_font,
+            "cursor_shape": self._cursor.shape,
+            "cursor_effect": self._cursor.effect,
         }
 
     # -- Background layer -----------------------------------------------------
@@ -1480,6 +1515,7 @@ class App:
             self._logo_panel.open
             or self._about.open
             or self._appearance.open
+            or self._color_picker.open
             or self._background_panel.open
             or self._source_panel.open
             or self._looks_panel.open
@@ -1492,6 +1528,7 @@ class App:
         self._logo_panel.open = False
         self._about.open = False
         self._appearance.open = False
+        self._color_picker.open = False
         self._background_panel.open = False
         self._source_panel.open = False
         self._looks_panel.open = False
@@ -1520,6 +1557,7 @@ class App:
                     canvas = self._layout.canvas
                     self._logo_panel.handle_event(event, canvas)
                     self._appearance.handle_event(event, canvas)
+                    self._color_picker.handle_event(event, canvas)
                     self._background_panel.handle_event(event, canvas)
                     self._source_panel.handle_event(event, canvas)
                     self._looks_panel.handle_event(event, canvas)
@@ -1716,10 +1754,10 @@ class App:
         # Modals draw last so they sit above the canvas, controls, and HUD.
         self._logo_panel.set_state(self._logo_panel_values())
         self._logo_panel.draw(screen, canvas, self._font, self._font_small)
-        self._appearance.set_state(
-            self._appearance_values(), self._theme.custom_hue, self._theme.color_scheme
-        )
+        self._appearance.set_state(self._appearance_values())
         self._appearance.draw(screen, canvas, self._font, self._font_small)
+        self._color_picker.set_state(self._theme.custom_hue, self._theme.color_scheme)
+        self._color_picker.draw(screen, canvas, self._font, self._font_small)
         self._background_panel.set_state(self._background_values())
         self._background_panel.draw(screen, canvas, self._font, self._font_small)
         self._source_panel.draw(screen, canvas, self._font, self._font_small)
@@ -1865,7 +1903,8 @@ class App:
             ui_style=self._ui_style,
             ui_font=self._ui_font,
             ui_accent=self._ui_accent,
-            cursor_mode=self._cursor.mode,
+            cursor_shape=self._cursor.shape,
+            cursor_effect=self._cursor.effect,
             bg_mode=self._background.mode,
             bg_height=self._background.height_key,
             bg_sensitivity=self._background.sensitivity,

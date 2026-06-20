@@ -37,8 +37,11 @@ from audio_visualizer.config import (
     COLOR_HUE_DEFAULT,
     COLOR_SCHEME_DEFAULT,
     COLOR_SCHEMES,
-    CURSOR_MODE_DEFAULT,
-    CURSOR_MODES,
+    CURSOR_EFFECT_DEFAULT,
+    CURSOR_EFFECTS,
+    CURSOR_LEGACY_MODE_MAP,
+    CURSOR_SHAPE_DEFAULT,
+    CURSOR_SHAPES,
     DEFAULT_WINDOW_SIZE,
     LOGO_COLOR_DEFAULT,
     LOGO_COLOR_MODES,
@@ -118,8 +121,10 @@ class Settings:
     ui_font: str = UI_FONT_DEFAULT
     # Accent color + global background layer (Phase 10 / schema v4).
     ui_accent: str = UI_ACCENT_DEFAULT
-    # Custom in-app mouse cursor (schema v19). "system" keeps the OS arrow.
-    cursor_mode: str = CURSOR_MODE_DEFAULT
+    # Custom in-app mouse cursor (schema v20): an independent shape + reactive
+    # effect. "system"/"none" keep the plain OS arrow. (Replaces v19 cursor_mode.)
+    cursor_shape: str = CURSOR_SHAPE_DEFAULT
+    cursor_effect: str = CURSOR_EFFECT_DEFAULT
     bg_mode: str = BG_MODE_DEFAULT
     bg_height: str = BG_HEIGHT_DEFAULT
     # Per-backdrop reactivity + opacity (Phase 10.01 / schema v5).
@@ -213,6 +218,13 @@ def _migrate(raw: dict) -> dict:
     version = raw.get("schema_version")
     if version != SETTINGS_SCHEMA_VERSION:
         logger.info("Migrating settings from schema %r to %d", version, SETTINGS_SCHEMA_VERSION)
+    # v19 -> v20: the single "cursor_mode" became a (shape, effect) pair.
+    legacy = raw.get("cursor_mode")
+    if isinstance(legacy, str) and "cursor_shape" not in raw:
+        default = (CURSOR_SHAPE_DEFAULT, CURSOR_EFFECT_DEFAULT)
+        shape, effect = CURSOR_LEGACY_MODE_MAP.get(legacy, default)
+        raw["cursor_shape"] = shape
+        raw["cursor_effect"] = effect
     return raw
 
 
@@ -248,7 +260,8 @@ def _from_dict(raw: dict) -> Settings:
         ui_style=_choice(raw.get("ui_style"), UI_STYLES, defaults.ui_style),
         ui_font=_choice(raw.get("ui_font"), UI_FONTS, defaults.ui_font),
         ui_accent=_choice(raw.get("ui_accent"), UI_ACCENTS, defaults.ui_accent),
-        cursor_mode=_choice(raw.get("cursor_mode"), CURSOR_MODES, defaults.cursor_mode),
+        cursor_shape=_choice(raw.get("cursor_shape"), CURSOR_SHAPES, defaults.cursor_shape),
+        cursor_effect=_choice(raw.get("cursor_effect"), CURSOR_EFFECTS, defaults.cursor_effect),
         bg_mode=_choice(raw.get("bg_mode"), BG_MODES, defaults.bg_mode),
         bg_height=_choice(raw.get("bg_height"), BG_HEIGHTS, defaults.bg_height),
         bg_sensitivity=_snap(

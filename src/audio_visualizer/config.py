@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.17"
+APP_VERSION = "00.0B.18"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -206,27 +206,69 @@ COLOR_PICK_SATURATION = 0.85
 COLOR_CYCLE_RATE = 0.15
 
 # --- Custom mouse cursor ------------------------------------------------------
-# An optional in-app cursor drawn over everything. "system" keeps the normal OS
-# arrow; the others hide it and paint a themed, audio-reactive cursor instead.
-# Picked in the Appearance panel and persisted (schema v19).
-CURSOR_MODES: tuple[str, ...] = ("system", "dot", "ring", "comet", "spark")
-CURSOR_MODE_DEFAULT = "system"
-CURSOR_MODE_LABELS: dict[str, str] = {
-    "system": "System",
-    "dot": "Glow dot",
-    "ring": "Pulse ring",
-    "comet": "Comet trail",
-    "spark": "Sparkles",
+# An optional in-app cursor drawn over everything, split into two independent
+# choices (both picked in the Appearance panel, persisted at schema v20):
+#   shape  -> the pointer drawn (or "system" = keep the normal OS arrow)
+#   effect -> an audio-reactive decoration layered on it (trail/glow/sparkles/…)
+# Effects work even with the "system" shape (e.g. sparkles around the OS arrow).
+CURSOR_SHAPES: tuple[str, ...] = (
+    "system",
+    "arrow",
+    "dot",
+    "ring",
+    "crosshair",
+    "star",
+    "heart",
+    "diamond",
+    "triangle",
+)
+CURSOR_SHAPE_DEFAULT = "system"
+CURSOR_SHAPE_LABELS: dict[str, str] = {
+    "system": "System (OS arrow)",
+    "arrow": "Neon arrow",
+    "dot": "Dot",
+    "ring": "Ring",
+    "crosshair": "Crosshair",
+    "star": "Star",
+    "heart": "Heart",
+    "diamond": "Diamond",
+    "triangle": "Triangle",
 }
-CURSOR_BASE_RADIUS = 7  # resting cursor radius (px) before audio pulse
+CURSOR_EFFECTS: tuple[str, ...] = (
+    "none",
+    "glow",
+    "comet",
+    "sparkles",
+    "pulse",
+    "ripple",
+)
+CURSOR_EFFECT_DEFAULT = "none"
+CURSOR_EFFECT_LABELS: dict[str, str] = {
+    "none": "None",
+    "glow": "Glow halo",
+    "comet": "Comet trail",
+    "sparkles": "Sparkles",
+    "pulse": "Beat pulse",
+    "ripple": "Ripple rings",
+}
+# Legacy single "cursor_mode" values (schema v19) -> (shape, effect) for migration.
+CURSOR_LEGACY_MODE_MAP: dict[str, tuple[str, str]] = {
+    "system": ("system", "none"),
+    "dot": ("dot", "glow"),
+    "ring": ("ring", "pulse"),
+    "comet": ("dot", "comet"),
+    "spark": ("dot", "sparkles"),
+}
+CURSOR_BASE_RADIUS = 8  # resting cursor radius (px) before audio pulse
 CURSOR_PULSE_DECAY = 4.0  # beat-pulse envelope falloff (per second)
-CURSOR_PULSE_GAIN = 0.9  # how much an onset swells the cursor
-CURSOR_ENERGY_GAIN = 0.6  # how much steady loudness swells the cursor
+CURSOR_PULSE_GAIN = 0.9  # how much an onset swells the cursor (Beat pulse effect)
+CURSOR_ENERGY_GAIN = 0.5  # how much steady loudness swells the cursor
 CURSOR_TRAIL_LEN = 18  # comet trail length (recent positions)
 CURSOR_TRAIL_LEN_REDUCED = 6  # shorter trail under reduce-motion
 CURSOR_SPARK_MAX = 90  # cap on live spark particles
 CURSOR_SPARK_MAX_REDUCED = 30
 CURSOR_SPARK_PER_MOVE = 2  # sparks spawned per qualifying mouse move
+CURSOR_RIPPLE_MAX = 6  # cap on simultaneous ripple rings
 
 # --- Global background layer (drawn behind every visual mode) -----------------
 # A process-wide backdrop the user picks in the Background panel. "black" is the
@@ -513,7 +555,7 @@ SETTINGS_FILENAME = "settings.json"
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
 # v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
-SETTINGS_SCHEMA_VERSION = 19
+SETTINGS_SCHEMA_VERSION = 20
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad
