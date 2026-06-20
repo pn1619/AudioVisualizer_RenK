@@ -208,6 +208,9 @@ def _panel() -> tuple[LogoPanel, dict[str, int]]:
         cycle_position=lambda: calls.__setitem__("position", calls["position"] + 1),
         cycle_spin=lambda: calls.__setitem__("spin", calls["spin"] + 1),
         toggle_emit=lambda: calls.__setitem__("emit", calls["emit"] + 1),
+        toggle_shockwave=lambda: calls.__setitem__("shockwave", calls.get("shockwave", 0) + 1),
+        toggle_glow=lambda: calls.__setitem__("glow", calls.get("glow", 0) + 1),
+        toggle_throb=lambda: calls.__setitem__("throb", calls.get("throb", 0) + 1),
     )
     return LogoPanel(actions), calls
 

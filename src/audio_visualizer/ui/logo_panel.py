@@ -15,7 +15,18 @@ import pygame
 from audio_visualizer.config import COLOR_BG, COLOR_TEXT
 from audio_visualizer.ui.style import STYLE, draw_panel
 
-_ROW_KEYS: tuple[str, ...] = ("enabled", "color", "opacity", "size", "position", "spin", "emit")
+_ROW_KEYS: tuple[str, ...] = (
+    "enabled",
+    "color",
+    "opacity",
+    "size",
+    "position",
+    "spin",
+    "emit",
+    "shockwave",
+    "glow",
+    "throb",
+)
 _ROW_LABELS: dict[str, str] = {
     "enabled": "Show logo",
     "color": "Color",
@@ -24,6 +35,9 @@ _ROW_LABELS: dict[str, str] = {
     "position": "Position",
     "spin": "Spin",
     "emit": "Emit particles",
+    "shockwave": "Shockwave ring",
+    "glow": "Beat glow",
+    "throb": "Throb",
 }
 
 _PANEL_W = 360
@@ -42,6 +56,9 @@ class LogoPanelActions:
     cycle_position: Callable[[], None]
     cycle_spin: Callable[[], None]
     toggle_emit: Callable[[], None]
+    toggle_shockwave: Callable[[], None]
+    toggle_glow: Callable[[], None]
+    toggle_throb: Callable[[], None]
 
 
 class LogoPanel:
@@ -56,6 +73,9 @@ class LogoPanel:
             "position": actions.cycle_position,
             "spin": actions.cycle_spin,
             "emit": actions.toggle_emit,
+            "shockwave": actions.toggle_shockwave,
+            "glow": actions.toggle_glow,
+            "throb": actions.toggle_throb,
         }
         self.open = False
         self._values: dict[str, str] = {key: "" for key in _ROW_KEYS}

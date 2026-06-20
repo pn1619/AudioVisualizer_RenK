@@ -20,7 +20,9 @@ import pygame
 from audio_visualizer.config import (
     BEAT_ACTIONS,
     BEAT_BANDS,
+    BEAT_FADE_CHOICES,
     BEAT_INDICATOR_POSITIONS,
+    BEAT_INDICATOR_SHAPES,
     BEAT_SENSITIVITY_LABELS,
     COLOR_BG,
     COLOR_TEXT,
@@ -52,6 +54,8 @@ class _PanelLayout:
     rows: list[_ActionRow]
     indicator: pygame.Rect
     position: pygame.Rect
+    shape: pygame.Rect
+    fade: pygame.Rect
     close: pygame.Rect
 
 
@@ -64,6 +68,8 @@ class BeatPanel:
         set_band: Callable[[str, str], None],
         toggle_indicator: Callable[[], None],
         set_position: Callable[[str], None],
+        set_shape: Callable[[str], None],
+        set_fade: Callable[[str], None],
     ) -> None:
         self._set_level = set_level
         self._set_band = set_band
@@ -86,6 +92,10 @@ class BeatPanel:
             self._level_dd[key] = level
         self._position_dd = Dropdown(set_position)
         self._position_dd.set_options(list(BEAT_INDICATOR_POSITIONS))
+        self._shape_dd = Dropdown(set_shape, title="Shape")
+        self._shape_dd.set_options(list(BEAT_INDICATOR_SHAPES))
+        self._fade_dd = Dropdown(set_fade, title="Fade")
+        self._fade_dd.set_options([(key, label) for key, label, _s in BEAT_FADE_CHOICES])
 
     def _make_band_cb(self, action: str) -> Callable[[str], None]:
         return lambda band: self._set_band(action, band)
@@ -94,7 +104,13 @@ class BeatPanel:
         return lambda index_str: self._set_level(action, int(index_str))
 
     def _dropdowns(self) -> list[Dropdown]:
-        return [*self._band_dd.values(), *self._level_dd.values(), self._position_dd]
+        return [
+            *self._band_dd.values(),
+            *self._level_dd.values(),
+            self._position_dd,
+            self._shape_dd,
+            self._fade_dd,
+        ]
 
     def set_state(
         self,
@@ -102,6 +118,8 @@ class BeatPanel:
         bands: dict[str, str],
         indicator_on: bool,
         position_key: str,
+        shape_key: str = "dot",
+        fade_key: str = "normal",
     ) -> None:
         for key, level in levels.items():
             if key in self._level_dd:
@@ -111,6 +129,8 @@ class BeatPanel:
                 self._band_dd[key].set_selected(band)
         self._indicator_on = indicator_on
         self._position_dd.set_selected(position_key)
+        self._shape_dd.set_selected(shape_key)
+        self._fade_dd.set_selected(fade_key)
 
     def toggle(self) -> None:
         self.open = not self.open
@@ -129,9 +149,9 @@ class BeatPanel:
             + _GAP
             + len(BEAT_ACTIONS) * (_ROW_H + _GAP)
             + _GAP
-            + _ROW_H  # indicator toggle
+            + _ROW_H  # indicator toggle + position
             + _GAP
-            + _ROW_H  # position
+            + _ROW_H  # shape + fade
             + _GAP
             + _LABEL_H  # hint
             + _GAP
@@ -158,8 +178,11 @@ class BeatPanel:
         y += _GAP
         indicator = pygame.Rect(x, y, (w - _GAP) // 2, _ROW_H)
         position = pygame.Rect(indicator.right + _GAP, y, x + w - (indicator.right + _GAP), _ROW_H)
+        y += _ROW_H + _GAP
+        shape = pygame.Rect(x, y, (w - _GAP) // 2, _ROW_H)
+        fade = pygame.Rect(shape.right + _GAP, y, x + w - (shape.right + _GAP), _ROW_H)
         close = pygame.Rect(x, panel.bottom - _PAD - _ROW_H, w, _ROW_H)
-        return _PanelLayout(panel, rows, indicator, position, close)
+        return _PanelLayout(panel, rows, indicator, position, shape, fade, close)
 
     def _sync_widgets(self, lay: _PanelLayout) -> None:
         """Push current rects into the dropdowns and bound their open lists."""
@@ -167,6 +190,8 @@ class BeatPanel:
             self._band_dd[row.action_key].set_rect(row.band_rect)
             self._level_dd[row.action_key].set_rect(row.level_rect)
         self._position_dd.set_rect(lay.position)
+        self._shape_dd.set_rect(lay.shape)
+        self._fade_dd.set_rect(lay.fade)
         right = lay.panel.right - _PAD
         for dd in self._dropdowns():
             dd.set_bound_right(right)

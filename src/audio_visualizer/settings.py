@@ -15,9 +15,13 @@ from pathlib import Path
 from audio_visualizer.config import (
     BEAT_ACTIONS,
     BEAT_BANDS,
+    BEAT_FADE_CHOICES,
+    BEAT_FADE_DEFAULT,
     BEAT_INDICATOR_ENABLED_DEFAULT,
     BEAT_INDICATOR_POSITION_DEFAULT,
     BEAT_INDICATOR_POSITIONS,
+    BEAT_INDICATOR_SHAPE_DEFAULT,
+    BEAT_INDICATOR_SHAPES,
     BEAT_SENSITIVITY_LABELS,
     BG_HEIGHT_DEFAULT,
     BG_HEIGHTS,
@@ -27,6 +31,7 @@ from audio_visualizer.config import (
     BG_OPACITY_DEFAULT,
     BG_SENSITIVITY_CHOICES,
     BG_SENSITIVITY_DEFAULT,
+    COLOR_HUE_DEFAULT,
     COLOR_SCHEME_DEFAULT,
     COLOR_SCHEMES,
     DEFAULT_WINDOW_SIZE,
@@ -34,14 +39,17 @@ from audio_visualizer.config import (
     LOGO_COLOR_MODES,
     LOGO_EMIT_DEFAULT,
     LOGO_ENABLED_DEFAULT,
+    LOGO_GLOW_DEFAULT,
     LOGO_OPACITIES,
     LOGO_OPACITY_DEFAULT,
     LOGO_POSITION_DEFAULT,
     LOGO_POSITIONS,
+    LOGO_SHOCKWAVE_DEFAULT,
     LOGO_SIZE_DEFAULT,
     LOGO_SIZES,
     LOGO_SPIN_DIR_DEFAULT,
     LOGO_SPIN_DIRS,
+    LOGO_THROB_DEFAULT,
     MERGED_MODE_KEYS,
     RANDOM_FADE_DEFAULT,
     RANDOM_FADE_MAX,
@@ -93,6 +101,11 @@ class Settings:
     logo_opacity: float = LOGO_OPACITY_DEFAULT
     logo_color: str = LOGO_COLOR_DEFAULT
     logo_emit: bool = LOGO_EMIT_DEFAULT
+    # Extra logo effects, each independent (schema v16): expanding shockwave ring on a
+    # beat, a brightness glow kick, and a continuous size throb.
+    logo_shockwave: bool = LOGO_SHOCKWAVE_DEFAULT
+    logo_glow: bool = LOGO_GLOW_DEFAULT
+    logo_throb: bool = LOGO_THROB_DEFAULT
     # Logo spin direction (Phase 10.03 / schema v6).
     logo_spin: str = LOGO_SPIN_DIR_DEFAULT
     # UI appearance (Phase 9.03 / schema v3).
@@ -130,6 +143,10 @@ class Settings:
     beat_bands: dict[str, str] = field(default_factory=dict)
     beat_indicator: bool = BEAT_INDICATOR_ENABLED_DEFAULT
     beat_indicator_pos: str = BEAT_INDICATOR_POSITION_DEFAULT
+    # Beat indicator shape + flash fade time, and the Solid/Mono custom hue (schema v16).
+    beat_indicator_shape: str = BEAT_INDICATOR_SHAPE_DEFAULT
+    beat_fade: str = BEAT_FADE_DEFAULT
+    color_hue: float = COLOR_HUE_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -212,6 +229,9 @@ def _from_dict(raw: dict) -> Settings:
         logo_opacity=_opacity(raw.get("logo_opacity"), defaults.logo_opacity),
         logo_color=_choice(raw.get("logo_color"), LOGO_COLOR_MODES, defaults.logo_color),
         logo_emit=_bool(raw.get("logo_emit"), defaults.logo_emit),
+        logo_shockwave=_bool(raw.get("logo_shockwave"), defaults.logo_shockwave),
+        logo_glow=_bool(raw.get("logo_glow"), defaults.logo_glow),
+        logo_throb=_bool(raw.get("logo_throb"), defaults.logo_throb),
         logo_spin=_choice(raw.get("logo_spin"), LOGO_SPIN_DIRS, defaults.logo_spin),
         ui_style=_choice(raw.get("ui_style"), UI_STYLES, defaults.ui_style),
         ui_font=_choice(raw.get("ui_font"), UI_FONTS, defaults.ui_font),
@@ -236,6 +256,17 @@ def _from_dict(raw: dict) -> Settings:
             tuple(key for key, _label in BEAT_INDICATOR_POSITIONS),
             defaults.beat_indicator_pos,
         ),
+        beat_indicator_shape=_choice(
+            raw.get("beat_indicator_shape"),
+            tuple(key for key, _label in BEAT_INDICATOR_SHAPES),
+            defaults.beat_indicator_shape,
+        ),
+        beat_fade=_choice(
+            raw.get("beat_fade"),
+            tuple(key for key, _label, _s in BEAT_FADE_CHOICES),
+            defaults.beat_fade,
+        ),
+        color_hue=max(0.0, min(1.0, _float(raw.get("color_hue"), defaults.color_hue))),
     )
 
 

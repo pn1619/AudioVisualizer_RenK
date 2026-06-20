@@ -12,7 +12,8 @@ from dataclasses import dataclass
 
 import pygame
 
-from audio_visualizer.config import COLOR_BG, COLOR_TEXT
+from audio_visualizer.config import COLOR_BG, COLOR_TEXT, COLOR_TEXT_DIM
+from audio_visualizer.ui.hue_bar import HueBar
 from audio_visualizer.ui.style import STYLE, draw_panel
 
 _ROW_KEYS: tuple[str, ...] = ("style", "accent", "font")
@@ -25,6 +26,7 @@ _ROW_LABELS: dict[str, str] = {
 _PANEL_W = 360
 _ROW_H = 44
 _PAD = 14
+_HUE_H = 26  # height of the custom-color hue bar
 
 
 @dataclass
@@ -34,6 +36,7 @@ class AppearanceActions:
     cycle_style: Callable[[], None]
     cycle_accent: Callable[[], None]
     cycle_font: Callable[[], None]
+    set_hue: Callable[[float], None]
 
 
 class AppearancePanel:
@@ -49,19 +52,29 @@ class AppearancePanel:
         self._values: dict[str, str] = {key: "" for key in _ROW_KEYS}
         self._hover_key: str | None = None
         self._hover_close = False
+        self._hue_bar = HueBar(actions.set_hue)
 
-    def set_state(self, values: dict[str, str]) -> None:
+    def set_state(self, values: dict[str, str], hue: float = 0.0) -> None:
         self._values.update(values)
+        self._hue_bar.set_hue(hue)
 
     def toggle(self) -> None:
         self.open = not self.open
 
     # -- geometry -------------------------------------------------------------
     def _panel_rect(self, canvas: pygame.Rect) -> pygame.Rect:
-        height = _PAD * 3 + _ROW_H * (len(_ROW_KEYS) + 1)  # rows + close button
+        # rows + close button + the custom-color hue section (label + bar).
+        height = _PAD * 3 + _ROW_H * (len(_ROW_KEYS) + 1) + _PAD + _HUE_H + 18
         rect = pygame.Rect(0, 0, _PANEL_W, height)
         rect.center = canvas.center
         return rect
+
+    def _hue_rect(self, canvas: pygame.Rect) -> pygame.Rect:
+        panel = self._panel_rect(canvas)
+        x = panel.x + _PAD
+        w = panel.width - _PAD * 2
+        y = panel.y + _PAD + _ROW_H * len(_ROW_KEYS) + 18  # below rows + the section label
+        return pygame.Rect(x, y, w, _HUE_H)
 
     def _row_rects(self, canvas: pygame.Rect) -> list[tuple[str, pygame.Rect]]:
         panel = self._panel_rect(canvas)
@@ -84,6 +97,9 @@ class AppearancePanel:
     def handle_event(self, event: pygame.event.Event, canvas: pygame.Rect) -> bool:
         if not self.open:
             return False
+        self._hue_bar.set_rect(self._hue_rect(canvas))
+        if self._hue_bar.handle_event(event):
+            return True
         if event.type == pygame.MOUSEMOTION:
             self._hover_key = next(
                 (k for k, r in self._row_rects(canvas) if r.collidepoint(event.pos)), None
@@ -125,6 +141,13 @@ class AppearancePanel:
 
         for key, rect in self._row_rects(canvas):
             self._draw_row(surface, rect, key, font, font_small, hovered=key == self._hover_key)
+
+        hue = self._hue_rect(canvas)
+        caption = font_small.render("Custom color (Solid / Mono)", True, COLOR_TEXT_DIM)
+        surface.blit(caption, (hue.x, hue.y - caption.get_height() - 2))
+        self._hue_bar.set_rect(hue)
+        self._hue_bar.draw(surface)
+
         self._draw_close(surface, canvas, font)
 
     def _draw_row(

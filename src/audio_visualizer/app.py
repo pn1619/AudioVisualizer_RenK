@@ -28,7 +28,10 @@ from audio_visualizer.config import (
     APP_ICON_FILENAME,
     APP_NAME,
     APP_VERSION,
+    BEAT_FADE_CHOICES,
+    BEAT_FADE_DEFAULT,
     BEAT_INDICATOR_POSITIONS,
+    BEAT_INDICATOR_SHAPES,
     BG_HEIGHT_LABELS,
     BG_HEIGHTS,
     BG_MODE_LABELS,
@@ -104,6 +107,7 @@ from audio_visualizer.ui.shuffle_panel import ShuffleActions, ShufflePanel
 from audio_visualizer.ui.source_panel import SourceActions, SourcePanel
 from audio_visualizer.ui.style import STYLE
 from audio_visualizer.visuals import registry
+from audio_visualizer.visuals._helpers import set_custom_hue
 from audio_visualizer.visuals._transition import ModeTransition
 from audio_visualizer.visuals.background import Background
 from audio_visualizer.visuals.base import BaseVisualizer, Theme
@@ -134,6 +138,14 @@ def _nearest(value: object, choices: tuple[float, ...], default: float) -> float
     if isinstance(value, bool) or not isinstance(value, int | float):
         return default
     return min(choices, key=lambda choice: abs(choice - float(value)))
+
+
+def _beat_fade_seconds(fade_key: str) -> float:
+    """Map a beat-fade choice key to its flash-fade time in seconds (default if unknown)."""
+    for key, _label, seconds in BEAT_FADE_CHOICES:
+        if key == fade_key:
+            return seconds
+    return next(s for k, _l, s in BEAT_FADE_CHOICES if k == BEAT_FADE_DEFAULT)
 
 
 def _parse_float(text: str) -> float | None:
@@ -186,6 +198,7 @@ class App:
                 np.clip(self._settings.speed_scale, SPEED_SCALE_MIN, SPEED_SCALE_MAX)
             ),
             color_scheme=self._settings.color_scheme,
+            custom_hue=float(np.clip(self._settings.color_hue, 0.0, 1.0)),
         )
 
         self._fullscreen = self._settings.fullscreen
@@ -234,11 +247,16 @@ class App:
         self._beat = BeatTrigger(self._settings.beat_levels, self._settings.beat_bands)
         self._beat_indicator = bool(self._settings.beat_indicator)
         self._beat_indicator_pos = self._settings.beat_indicator_pos
+        self._beat_indicator_shape = self._settings.beat_indicator_shape
+        self._beat_fade = self._settings.beat_fade
+        self._beat.set_flash_tau(_beat_fade_seconds(self._beat_fade))
         self._beat_panel = BeatPanel(
             set_level=self._set_beat_level,
             set_band=self._set_beat_band,
             toggle_indicator=self._toggle_beat_indicator,
             set_position=self._set_beat_indicator_pos,
+            set_shape=self._set_beat_indicator_shape,
+            set_fade=self._set_beat_fade,
         )
 
         # User looks ("My Looks", Phase 0B-b): a saved-look store + its modal. The
@@ -405,6 +423,7 @@ class App:
             cycle_style=self._cycle_ui_style,
             cycle_accent=self._cycle_ui_accent,
             cycle_font=self._cycle_ui_font,
+            set_hue=self._set_color_hue,
         )
 
     def _build_background_actions(self) -> BackgroundActions:
@@ -424,6 +443,9 @@ class App:
             cycle_position=self._cycle_logo_position,
             cycle_spin=self._cycle_logo_spin,
             toggle_emit=self._toggle_logo_emit,
+            toggle_shockwave=self._toggle_logo_shockwave,
+            toggle_glow=self._toggle_logo_glow,
+            toggle_throb=self._toggle_logo_throb,
         )
 
     def _apply_logo_settings(self) -> None:
@@ -435,6 +457,9 @@ class App:
         self._logo.opacity = s.logo_opacity
         self._logo.color_mode = s.logo_color
         self._logo.emit = s.logo_emit
+        self._logo.fx_shockwave = s.logo_shockwave
+        self._logo.fx_glow = s.logo_glow
+        self._logo.fx_throb = s.logo_throb
         self._logo.spin_dir = s.logo_spin
 
     # -- public entry points --------------------------------------------------
@@ -526,6 +551,7 @@ class App:
                 "size_scale": self._theme.size_scale,
                 "speed_scale": self._theme.speed_scale,
                 "color_scheme": self._theme.color_scheme,
+                "custom_hue": self._theme.custom_hue,
             },
             sensitivity=self._sensitivity,
             smoothing=self._smoothing,
@@ -547,6 +573,9 @@ class App:
                     "logo_opacity": self._logo.opacity,
                     "logo_color": self._logo.color_mode,
                     "logo_emit": self._logo.emit,
+                    "logo_shockwave": self._logo.fx_shockwave,
+                    "logo_glow": self._logo.fx_glow,
+                    "logo_throb": self._logo.fx_throb,
                     "logo_spin": self._logo.spin_dir,
                 },
             },
@@ -587,6 +616,9 @@ class App:
         scheme = theme.get("color_scheme")
         if isinstance(scheme, str) and scheme in COLOR_SCHEMES:
             self._theme.color_scheme = scheme
+        hue = theme.get("custom_hue")
+        if isinstance(hue, int | float) and not isinstance(hue, bool):
+            self._theme.custom_hue = float(np.clip(hue, 0.0, 1.0))
 
     def _apply_bg_value(self, value: object) -> None:
         if not isinstance(value, dict):
@@ -616,6 +648,12 @@ class App:
             self._logo.color_mode = value["logo_color"]
         if isinstance(value.get("logo_emit"), bool):
             self._logo.emit = value["logo_emit"]
+        if isinstance(value.get("logo_shockwave"), bool):
+            self._logo.fx_shockwave = value["logo_shockwave"]
+        if isinstance(value.get("logo_glow"), bool):
+            self._logo.fx_glow = value["logo_glow"]
+        if isinstance(value.get("logo_throb"), bool):
+            self._logo.fx_throb = value["logo_throb"]
         if value.get("logo_spin") in LOGO_SPIN_DIRS:
             self._logo.spin_dir = value["logo_spin"]
 
@@ -924,6 +962,8 @@ class App:
             self._beat.bands_dict(),
             self._beat_indicator,
             self._beat_indicator_pos,
+            self._beat_indicator_shape,
+            self._beat_fade,
         )
 
     def _open_beat_panel(self) -> None:
@@ -950,6 +990,19 @@ class App:
         keys = [key for key, _label in BEAT_INDICATOR_POSITIONS]
         if position in keys:
             self._beat_indicator_pos = position
+            self._refresh_beat_panel()
+
+    def _set_beat_indicator_shape(self, shape: str) -> None:
+        keys = [key for key, _label in BEAT_INDICATOR_SHAPES]
+        if shape in keys:
+            self._beat_indicator_shape = shape
+            self._refresh_beat_panel()
+
+    def _set_beat_fade(self, fade_key: str) -> None:
+        keys = [key for key, _label, _s in BEAT_FADE_CHOICES]
+        if fade_key in keys:
+            self._beat_fade = fade_key
+            self._beat.set_flash_tau(_beat_fade_seconds(fade_key))
             self._refresh_beat_panel()
 
     def _update_beat(self, dt: float) -> None:
@@ -1198,6 +1251,10 @@ class App:
             self._theme.color_scheme = key
             logger.debug("Color scheme = %s", self._theme.color_scheme)
 
+    def _set_color_hue(self, hue: float) -> None:
+        """Set the Custom hue (0..1) used by the Solid/Mono color schemes."""
+        self._theme.custom_hue = float(np.clip(hue, 0.0, 1.0))
+
     def _toggle_reduce_motion(self) -> None:
         self._reduce_motion = not self._reduce_motion
         self._visual.reduce_motion = self._reduce_motion
@@ -1234,6 +1291,15 @@ class App:
     def _toggle_logo_emit(self) -> None:
         self._logo.emit = not self._logo.emit
 
+    def _toggle_logo_shockwave(self) -> None:
+        self._logo.fx_shockwave = not self._logo.fx_shockwave
+
+    def _toggle_logo_glow(self) -> None:
+        self._logo.fx_glow = not self._logo.fx_glow
+
+    def _toggle_logo_throb(self) -> None:
+        self._logo.fx_throb = not self._logo.fx_throb
+
     def _logo_panel_values(self) -> dict[str, str]:
         """Human-readable current values for the logo settings panel rows."""
         return {
@@ -1244,6 +1310,9 @@ class App:
             "position": LOGO_POSITION_LABELS.get(self._logo.position, self._logo.position),
             "spin": LOGO_SPIN_DIR_LABELS.get(self._logo.spin_dir, self._logo.spin_dir),
             "emit": "On" if self._logo.emit else "Off",
+            "shockwave": "On" if self._logo.fx_shockwave else "Off",
+            "glow": "On" if self._logo.fx_glow else "Off",
+            "throb": "On" if self._logo.fx_throb else "Off",
         }
 
     # -- UI appearance --------------------------------------------------------
@@ -1492,8 +1561,10 @@ class App:
         screen = self._screen
         screen.fill(COLOR_BG)
 
-        # Advance the shared hue phase so rainbow_plus cycles colors over time.
+        # Advance the shared hue phase so rainbow_plus cycles colors over time, and
+        # publish the picked Custom hue so the Solid/Mono schemes see it this frame.
         self._theme.color_phase = (self._theme.color_phase + dt * COLOR_CYCLE_RATE) % 1.0
+        set_custom_hue(self._theme.custom_hue)
 
         # Track how long we've been silent so the idle banner only shows after a
         # short delay (brief track gaps shouldn't flash it). Never auto-quits.
@@ -1533,6 +1604,7 @@ class App:
                 self._auto,
                 self._locked_globals,
                 self._sens_band,
+                self._beat.any_enabled(),
             )
             self._controls.set_looks(self._looks_rows(), self._active_look_id)
             self._controls.set_history(self._history_pos + 1, len(self._history))
@@ -1548,6 +1620,7 @@ class App:
                 self._beat.intensity,
                 self._beat.active_band,
                 self._beat.flash,
+                self._beat_indicator_shape,
             )
         if self._notice_visible():
             self._hud.draw_notice(screen, canvas, self._font, self._font_small)
@@ -1555,7 +1628,7 @@ class App:
         # Modals draw last so they sit above the canvas, controls, and HUD.
         self._logo_panel.set_state(self._logo_panel_values())
         self._logo_panel.draw(screen, canvas, self._font, self._font_small)
-        self._appearance.set_state(self._appearance_values())
+        self._appearance.set_state(self._appearance_values(), self._theme.custom_hue)
         self._appearance.draw(screen, canvas, self._font, self._font_small)
         self._background_panel.set_state(self._background_values())
         self._background_panel.draw(screen, canvas, self._font, self._font_small)
@@ -1679,6 +1752,9 @@ class App:
             logo_opacity=self._logo.opacity,
             logo_color=self._logo.color_mode,
             logo_emit=self._logo.emit,
+            logo_shockwave=self._logo.fx_shockwave,
+            logo_glow=self._logo.fx_glow,
+            logo_throb=self._logo.fx_throb,
             logo_spin=self._logo.spin_dir,
             ui_style=self._ui_style,
             ui_font=self._ui_font,
@@ -1697,6 +1773,9 @@ class App:
             beat_bands=self._beat.bands_dict(),
             beat_indicator=self._beat_indicator,
             beat_indicator_pos=self._beat_indicator_pos,
+            beat_indicator_shape=self._beat_indicator_shape,
+            beat_fade=self._beat_fade,
+            color_hue=self._theme.custom_hue,
         )
 
     def _shutdown(self) -> None:

@@ -148,6 +148,8 @@ def test_panel_dropdowns_route_callbacks() -> None:
         set_band=lambda a, b: calls.__setitem__("band", (a, b)),
         toggle_indicator=lambda: calls.__setitem__("indicator", True),
         set_position=lambda p: calls.__setitem__("position", p),
+        set_shape=lambda s: calls.__setitem__("shape", s),
+        set_fade=lambda f: calls.__setitem__("fade", f),
     )
     panel.set_state(
         {"randomize": 0, "next": 0}, {"randomize": "all", "next": "all"}, False, "top-right"
