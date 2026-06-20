@@ -149,6 +149,7 @@ def test_panel_dropdowns_route_callbacks() -> None:
         toggle_indicator=lambda: calls.__setitem__("indicator", True),
         set_position=lambda p: calls.__setitem__("position", p),
         set_shape=lambda s: calls.__setitem__("shape", s),
+        set_opacity=lambda o: calls.__setitem__("opacity", o),
         set_fade=lambda f: calls.__setitem__("fade", f),
     )
     panel.set_state(

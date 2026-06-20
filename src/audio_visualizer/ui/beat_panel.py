@@ -21,6 +21,7 @@ from audio_visualizer.config import (
     BEAT_ACTIONS,
     BEAT_BANDS,
     BEAT_FADE_CHOICES,
+    BEAT_INDICATOR_OPACITY_CHOICES,
     BEAT_INDICATOR_POSITIONS,
     BEAT_INDICATOR_SHAPES,
     BEAT_SENSITIVITY_LABELS,
@@ -55,6 +56,7 @@ class _PanelLayout:
     indicator: pygame.Rect
     position: pygame.Rect
     shape: pygame.Rect
+    opacity: pygame.Rect
     fade: pygame.Rect
     close: pygame.Rect
 
@@ -69,6 +71,7 @@ class BeatPanel:
         toggle_indicator: Callable[[], None],
         set_position: Callable[[str], None],
         set_shape: Callable[[str], None],
+        set_opacity: Callable[[str], None],
         set_fade: Callable[[str], None],
     ) -> None:
         self._set_level = set_level
@@ -94,7 +97,11 @@ class BeatPanel:
         self._position_dd.set_options(list(BEAT_INDICATOR_POSITIONS))
         self._shape_dd = Dropdown(set_shape, title="Shape")
         self._shape_dd.set_options(list(BEAT_INDICATOR_SHAPES))
-        self._fade_dd = Dropdown(set_fade, title="Fade")
+        self._opacity_dd = Dropdown(set_opacity, title="Opacity")
+        self._opacity_dd.set_options(
+            [(key, label) for key, label, _v in BEAT_INDICATOR_OPACITY_CHOICES]
+        )
+        self._fade_dd = Dropdown(set_fade, title="Transition")
         self._fade_dd.set_options([(key, label) for key, label, _s in BEAT_FADE_CHOICES])
 
     def _make_band_cb(self, action: str) -> Callable[[str], None]:
@@ -109,6 +116,7 @@ class BeatPanel:
             *self._level_dd.values(),
             self._position_dd,
             self._shape_dd,
+            self._opacity_dd,
             self._fade_dd,
         ]
 
@@ -119,7 +127,8 @@ class BeatPanel:
         indicator_on: bool,
         position_key: str,
         shape_key: str = "dot",
-        fade_key: str = "normal",
+        opacity_key: str = "100",
+        fade_key: str = "medium",
     ) -> None:
         for key, level in levels.items():
             if key in self._level_dd:
@@ -130,6 +139,7 @@ class BeatPanel:
         self._indicator_on = indicator_on
         self._position_dd.set_selected(position_key)
         self._shape_dd.set_selected(shape_key)
+        self._opacity_dd.set_selected(opacity_key)
         self._fade_dd.set_selected(fade_key)
 
     def toggle(self) -> None:
@@ -151,7 +161,9 @@ class BeatPanel:
             + _GAP
             + _ROW_H  # indicator toggle + position
             + _GAP
-            + _ROW_H  # shape + fade
+            + _ROW_H  # shape + opacity
+            + _GAP
+            + _ROW_H  # transition fade
             + _GAP
             + _LABEL_H  # hint
             + _GAP
@@ -176,13 +188,16 @@ class BeatPanel:
             rows.append(_ActionRow(key, label_rect, band_rect, level_rect))
             y += _ROW_H + _GAP
         y += _GAP
-        indicator = pygame.Rect(x, y, (w - _GAP) // 2, _ROW_H)
+        half = (w - _GAP) // 2
+        indicator = pygame.Rect(x, y, half, _ROW_H)
         position = pygame.Rect(indicator.right + _GAP, y, x + w - (indicator.right + _GAP), _ROW_H)
         y += _ROW_H + _GAP
-        shape = pygame.Rect(x, y, (w - _GAP) // 2, _ROW_H)
-        fade = pygame.Rect(shape.right + _GAP, y, x + w - (shape.right + _GAP), _ROW_H)
+        shape = pygame.Rect(x, y, half, _ROW_H)
+        opacity = pygame.Rect(shape.right + _GAP, y, x + w - (shape.right + _GAP), _ROW_H)
+        y += _ROW_H + _GAP
+        fade = pygame.Rect(x, y, w, _ROW_H)
         close = pygame.Rect(x, panel.bottom - _PAD - _ROW_H, w, _ROW_H)
-        return _PanelLayout(panel, rows, indicator, position, shape, fade, close)
+        return _PanelLayout(panel, rows, indicator, position, shape, opacity, fade, close)
 
     def _sync_widgets(self, lay: _PanelLayout) -> None:
         """Push current rects into the dropdowns and bound their open lists."""
@@ -191,6 +206,7 @@ class BeatPanel:
             self._level_dd[row.action_key].set_rect(row.level_rect)
         self._position_dd.set_rect(lay.position)
         self._shape_dd.set_rect(lay.shape)
+        self._opacity_dd.set_rect(lay.opacity)
         self._fade_dd.set_rect(lay.fade)
         right = lay.panel.right - _PAD
         for dd in self._dropdowns():

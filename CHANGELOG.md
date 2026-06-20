@@ -17,6 +17,25 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.14` — Phase 0B-c (build 18): beat Fade = transition time + indicator transparency
+
+- **`Fade` in Beat Buttons is now a look-transition cross-fade** — the same idea as the
+  **Shuffle** fade. When the music auto-presses `Rnd` or `Next`, the look change cross-fades over
+  the chosen time instead of hard-cutting: **Cut · 0.3 s · 0.6 s · 1.0 s · 1.5 s · 2.5 s** (`Cut`
+  = instant). A beat-fired `Rnd` now dissolves from the previous frame too. (Build 17 had wired
+  `Fade` to the indicator's flash decay — that was wrong; it's reverted to the fixed
+  `BEAT_FLASH_TAU`.)
+- **Indicator `Opacity`** — a new dropdown sets how see-through the on-screen indicator is over the
+  visual behind it (**25% · 50% · 75% · 100%**); it scales the whole indicator's alpha.
+- Beat panel layout: rows are now **Indicator / Position**, **Shape / Opacity**, and a full-width
+  **Transition** (fade) row.
+- Settings **schema v17** adds `beat_indicator_opacity`; `beat_fade` keys changed to the new
+  duration set (old values fall back to the default). Older files migrate cleanly.
+- Tests updated: beat-fade now asserts a duration ladder (`Cut`=0, increasing), indicator opacity
+  mapping + every shape×opacity draw, and a zero-opacity no-op.
+
+---
+
 ## `00.0B.13` — Phase 0B-c (build 17): highlights, beat fx, logo fx, more colors
 
 - **Beat / Motion highlights:** the `Beat…` control-bar button now lights up (accent fill,

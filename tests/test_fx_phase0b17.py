@@ -11,12 +11,13 @@ import numpy as np
 import pygame
 import pytest
 
-from audio_visualizer.app import _beat_fade_seconds
+from audio_visualizer.app import _beat_fade_seconds, _beat_opacity_value
 from audio_visualizer.audio.frame import AnalysisFrame
-from audio_visualizer.beat_trigger import BeatTrigger
 from audio_visualizer.config import (
     BEAT_FADE_CHOICES,
     BEAT_FADE_DEFAULT,
+    BEAT_INDICATOR_OPACITY_CHOICES,
+    BEAT_INDICATOR_OPACITY_DEFAULT,
     BEAT_INDICATOR_SHAPES,
     COLOR_SCHEMES,
     PALETTE,
@@ -61,27 +62,39 @@ def test_mono_scheme_ramps_brightness_with_position() -> None:
     assert sum(bright) > sum(dark)
 
 
-# -- beat fade + shapes -------------------------------------------------------
+# -- beat fade (look-change cross-fade duration) + shapes/opacity -------------
 def test_beat_fade_seconds_maps_each_choice() -> None:
     for key, _label, seconds in BEAT_FADE_CHOICES:
         assert _beat_fade_seconds(key) == seconds
     assert _beat_fade_seconds("nope") == _beat_fade_seconds(BEAT_FADE_DEFAULT)
 
 
-def test_set_flash_tau_changes_decay_rate() -> None:
-    bt = BeatTrigger()
-    bt.set_flash_tau(1.0)
-    bt.flash = 1.0
-    bt.update(np.zeros(48, dtype=np.float32), is_silent=True, dt=0.5)
-    assert bt.flash == pytest.approx(0.5, abs=0.02)  # tau=1s -> halves over 0.5s
+def test_beat_fade_cut_is_zero_and_durations_increase() -> None:
+    assert _beat_fade_seconds("cut") == 0.0
+    secs = [s for _k, _l, s in BEAT_FADE_CHOICES]
+    assert secs == sorted(secs)  # ladder goes from a hard cut up to the longest fade
 
 
-def test_indicator_all_shapes_draw_without_error() -> None:
+def test_beat_opacity_value_maps_each_choice() -> None:
+    for key, _label, value in BEAT_INDICATOR_OPACITY_CHOICES:
+        assert _beat_opacity_value(key) == value
+    assert _beat_opacity_value("nope") == _beat_opacity_value(BEAT_INDICATOR_OPACITY_DEFAULT)
+
+
+def test_indicator_all_shapes_and_opacities_draw_without_error() -> None:
     surface = pygame.Surface((240, 180))
     canvas = surface.get_rect()
     for key, _label in BEAT_INDICATOR_SHAPES:
         for flash in (0.0, 0.8):
-            draw_beat_indicator(surface, canvas, "center", 0.7, "bass", flash, key)
+            for _k, _l, opacity in BEAT_INDICATOR_OPACITY_CHOICES:
+                draw_beat_indicator(surface, canvas, "center", 0.7, "bass", flash, key, opacity)
+
+
+def test_indicator_zero_opacity_is_noop() -> None:
+    surface = pygame.Surface((240, 180))
+    before = pygame.image.tostring(surface, "RGB")
+    draw_beat_indicator(surface, surface.get_rect(), "center", 1.0, "bass", 1.0, "dot", 0.0)
+    assert pygame.image.tostring(surface, "RGB") == before
 
 
 # -- logo effects -------------------------------------------------------------
@@ -135,7 +148,8 @@ def test_new_settings_roundtrip(tmp_path) -> None:
     save_settings(
         Settings(
             beat_indicator_shape="star",
-            beat_fade="slow",
+            beat_indicator_opacity="50",
+            beat_fade="long",
             color_hue=0.42,
             logo_shockwave=True,
             logo_glow=True,
@@ -146,7 +160,8 @@ def test_new_settings_roundtrip(tmp_path) -> None:
     loaded = load_settings(path)
     assert loaded.schema_version >= 16
     assert loaded.beat_indicator_shape == "star"
-    assert loaded.beat_fade == "slow"
+    assert loaded.beat_indicator_opacity == "50"
+    assert loaded.beat_fade == "long"
     assert loaded.color_hue == pytest.approx(0.42)
     assert loaded.logo_shockwave is True
     assert loaded.logo_glow is True
