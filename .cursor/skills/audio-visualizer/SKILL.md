@@ -177,6 +177,18 @@ keys; numeric keys via `app._bg_num_key`/`:g`) instead of click-to-cycle. (4) Fo
 (synthwave perspective floor, scrolls + beat pulse) — added to `BG_MODES`/`BG_MODE_LABELS` + `BG_*`
 tuning consts. Tests: `test_fx_phase0b19.py`.
 
+**Build 21 (v00.0B.17):** Easy Solid/Mono color + custom mouse cursor. (1) The Appearance panel's
+*Custom color* section pairs the `HueBar` with **Solid/Mono** buttons (`AppearanceActions` gains
+`set_color_scheme`; `set_state(values, hue, scheme)` highlights the active one). `app._set_color_hue`
+auto-switches a non-pick scheme to `solid` on drag so the bar always takes effect. (2) New custom
+cursor overlay `ui/cursor.py` `Cursor` (owned by App, drawn **last** over everything in `_draw` via
+`_draw_cursor`): modes `system/dot/ring/comet/spark` (`CURSOR_MODES`), themed + reactive (energy =
+`frame.rms`, onset = `frame.onset`), additive glow sprite, comet trail (deque) + spark particles.
+`apply_os_visibility(focused)` hides the OS arrow only for a custom mode while focused; `release()`
+restores it (called on shutdown + when set back to System). Appearance gains a `Mouse cursor`
+cycle row (`cycle_cursor`). Persisted `cursor_mode` (schema **v19**, default `system`). Honors
+reduce-motion; fail-soft. Tests: `test_cursor_color_phase0b17.py`.
+
 ### UI control idiom (toggle vs dropdown vs stepper)
 
 Pick the control by the shape of its choices — keep this consistent across the bar and the modals:

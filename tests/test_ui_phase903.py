@@ -95,7 +95,9 @@ def test_appearance_panel_rows_cycle() -> None:
             cycle_style=lambda: calls.append("style"),
             cycle_accent=lambda: calls.append("accent"),
             cycle_font=lambda: calls.append("font"),
+            cycle_cursor=lambda: calls.append("cursor"),
             set_hue=lambda h: calls.append("hue"),
+            set_color_scheme=lambda s: calls.append("scheme"),
         )
     )
     panel.open = True

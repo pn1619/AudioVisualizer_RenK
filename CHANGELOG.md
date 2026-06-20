@@ -17,6 +17,30 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.17` — Phase 0B-c (build 21): easy Solid/Mono color + custom mouse cursor
+
+- **One-stop custom color** — the **Appearance** panel's *Custom color* section now pairs the
+  hue bar with **`Solid`** / **`Mono`** buttons, so you pick a hue and apply it as a single flat
+  color or a light→dark ramp from one place (the active one is highlighted). Dragging the hue bar
+  while on any non-pick scheme now **auto-switches to Solid**, so the color takes effect immediately
+  instead of silently doing nothing. The control-bar Color dropdown still works as before.
+- **Custom mouse cursor** — a new **`Mouse cursor`** row in Appearance lets you swap the plain OS
+  arrow for a themed, audio-reactive pointer (the OS arrow is restored on exit / when set back to
+  System):
+  - **System** — the normal Windows cursor (default, unchanged).
+  - **Glow dot** — a themed dot with an additive glow that swells on beats.
+  - **Pulse ring** — a hollow ring that breathes with loudness and pops on onsets.
+  - **Comet trail** — the glow dot plus a fading, color-graded trail of recent positions.
+  - **Sparkles** — emits little themed sparks as you move (more on beats), with gravity.
+  - All use the active color scheme/hue, honor **reduce-motion** (shorter trail, fewer sparks,
+    calmer pulse), only paint while the window is focused, and are fail-soft (never crash the app).
+- Settings **schema v19** adds `cursor_mode`; older files migrate cleanly (defaults to System).
+- Tests: `test_cursor_color_phase0b17.py` (Solid/Mono buttons route the scheme, hue-bar drag routes
+  the hue, every cursor mode draws without error, System/unfocused are no-ops, settings round-trip
+  and bad-value fallback).
+
+---
+
 ## `00.0B.16` — Phase 0B-c (build 20): beat master switch, laser shapes, richer backgrounds
 
 - **Beat Buttons master On/Off** — the Beat panel gains a top **`Beat Buttons: On/Off`** toggle
