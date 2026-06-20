@@ -37,6 +37,8 @@ from audio_visualizer.config import (
     COLOR_HUE_DEFAULT,
     COLOR_SCHEME_DEFAULT,
     COLOR_SCHEMES,
+    CURSOR_MODE_DEFAULT,
+    CURSOR_MODES,
     DEFAULT_WINDOW_SIZE,
     LOGO_COLOR_DEFAULT,
     LOGO_COLOR_MODES,
@@ -116,6 +118,8 @@ class Settings:
     ui_font: str = UI_FONT_DEFAULT
     # Accent color + global background layer (Phase 10 / schema v4).
     ui_accent: str = UI_ACCENT_DEFAULT
+    # Custom in-app mouse cursor (schema v19). "system" keeps the OS arrow.
+    cursor_mode: str = CURSOR_MODE_DEFAULT
     bg_mode: str = BG_MODE_DEFAULT
     bg_height: str = BG_HEIGHT_DEFAULT
     # Per-backdrop reactivity + opacity (Phase 10.01 / schema v5).
@@ -244,6 +248,7 @@ def _from_dict(raw: dict) -> Settings:
         ui_style=_choice(raw.get("ui_style"), UI_STYLES, defaults.ui_style),
         ui_font=_choice(raw.get("ui_font"), UI_FONTS, defaults.ui_font),
         ui_accent=_choice(raw.get("ui_accent"), UI_ACCENTS, defaults.ui_accent),
+        cursor_mode=_choice(raw.get("cursor_mode"), CURSOR_MODES, defaults.cursor_mode),
         bg_mode=_choice(raw.get("bg_mode"), BG_MODES, defaults.bg_mode),
         bg_height=_choice(raw.get("bg_height"), BG_HEIGHTS, defaults.bg_height),
         bg_sensitivity=_snap(

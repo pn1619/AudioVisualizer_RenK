@@ -43,8 +43,11 @@ from audio_visualizer.config import (
     COLOR_BAR,
     COLOR_BG,
     COLOR_CYCLE_RATE,
+    COLOR_PICK_SCHEMES,
     COLOR_SCHEMES,
     COLOR_TEXT_DIM,
+    CURSOR_MODE_LABELS,
+    CURSOR_MODES,
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
     HISTORY_MAX,
@@ -99,6 +102,7 @@ from audio_visualizer.ui.background_panel import BackgroundActions, BackgroundPa
 from audio_visualizer.ui.beat_indicator import draw_beat_indicator
 from audio_visualizer.ui.beat_panel import BeatPanel
 from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
+from audio_visualizer.ui.cursor import Cursor
 from audio_visualizer.ui.fonts import get_ui_fonts
 from audio_visualizer.ui.hotkeys import HotkeysDialog
 from audio_visualizer.ui.hud import Hud, HudState
@@ -252,6 +256,8 @@ class App:
 
         self._logo = RenkLogo(reduce_motion=self._reduce_motion, theme=self._theme)
         self._apply_logo_settings()
+        self._cursor = Cursor(theme=self._theme, reduce_motion=self._reduce_motion)
+        self._cursor.set_mode(self._settings.cursor_mode)
         self._logo_panel = LogoPanel(self._build_logo_panel_actions())
         self._appearance = AppearancePanel(self._build_appearance_actions())
         self._background_panel = BackgroundPanel(
@@ -453,7 +459,9 @@ class App:
             cycle_style=self._cycle_ui_style,
             cycle_accent=self._cycle_ui_accent,
             cycle_font=self._cycle_ui_font,
+            cycle_cursor=self._cycle_cursor,
             set_hue=self._set_color_hue,
+            set_color_scheme=self._set_color_scheme,
         )
 
     def _build_background_actions(self) -> BackgroundActions:
@@ -1315,14 +1323,27 @@ class App:
             logger.debug("Color scheme = %s", self._theme.color_scheme)
 
     def _set_color_hue(self, hue: float) -> None:
-        """Set the Custom hue (0..1) used by the Solid/Mono color schemes."""
+        """Set the Custom hue (0..1) used by the Solid/Mono color schemes.
+
+        Picking a hue while on a non-pick scheme switches to ``solid`` so the
+        chosen color takes effect immediately (the bar would otherwise do nothing).
+        """
         self._theme.custom_hue = float(np.clip(hue, 0.0, 1.0))
+        if self._theme.color_scheme not in COLOR_PICK_SCHEMES:
+            self._theme.color_scheme = "solid"
+
+    def _cycle_cursor(self) -> None:
+        self._cursor.set_mode(self._cycle_next(CURSOR_MODES, self._cursor.mode))
+        if self._cursor.mode == "system":
+            self._cursor.release()
+        logger.debug("Cursor = %s", self._cursor.mode)
 
     def _toggle_reduce_motion(self) -> None:
         self._reduce_motion = not self._reduce_motion
         self._visual.reduce_motion = self._reduce_motion
         self._logo.reduce_motion = self._reduce_motion
         self._background.reduce_motion = self._reduce_motion
+        self._cursor.reduce_motion = self._reduce_motion
         logger.debug("Reduce motion = %s", self._reduce_motion)
 
     # -- RenK logo overlay ----------------------------------------------------
@@ -1400,6 +1421,7 @@ class App:
             "style": UI_STYLE_LABELS.get(self._ui_style, self._ui_style),
             "accent": UI_ACCENT_LABELS.get(self._ui_accent, self._ui_accent),
             "font": UI_FONT_LABELS.get(self._ui_font, self._ui_font),
+            "cursor": CURSOR_MODE_LABELS.get(self._cursor.mode, self._cursor.mode),
         }
 
     # -- Background layer -----------------------------------------------------
@@ -1694,7 +1716,9 @@ class App:
         # Modals draw last so they sit above the canvas, controls, and HUD.
         self._logo_panel.set_state(self._logo_panel_values())
         self._logo_panel.draw(screen, canvas, self._font, self._font_small)
-        self._appearance.set_state(self._appearance_values(), self._theme.custom_hue)
+        self._appearance.set_state(
+            self._appearance_values(), self._theme.custom_hue, self._theme.color_scheme
+        )
         self._appearance.draw(screen, canvas, self._font, self._font_small)
         self._background_panel.set_state(self._background_values())
         self._background_panel.draw(screen, canvas, self._font, self._font_small)
@@ -1712,6 +1736,22 @@ class App:
         self._about.draw(screen, canvas, self._font, self._font_small)
         self._hotkeys.draw(screen, canvas, self._font, self._font_small)
         self._beat_panel.draw(screen, canvas, self._font, self._font_small)
+
+        # The custom cursor sits above everything so it behaves like a pointer.
+        self._draw_cursor(screen, dt)
+
+    def _draw_cursor(self, screen: pygame.Surface, dt: float) -> None:
+        """Composite the custom mouse cursor and manage OS-cursor visibility."""
+        try:
+            focused = bool(pygame.mouse.get_focused())
+            self._cursor.apply_os_visibility(focused)
+            frame = self._frame
+            active = frame is not None and not frame.is_silent
+            energy = float(frame.rms) if active and frame is not None else 0.0
+            onset = float(frame.onset) if active and frame is not None else 0.0
+            self._cursor.draw(screen, pygame.mouse.get_pos(), focused, energy, onset, dt)
+        except Exception:  # fail-soft: the cursor must never crash the app
+            logger.exception("Cursor draw failed")
 
     def _draw_transition(
         self, sub: pygame.Surface, dt: float, bg_copy: pygame.Surface | None
@@ -1825,6 +1865,7 @@ class App:
             ui_style=self._ui_style,
             ui_font=self._ui_font,
             ui_accent=self._ui_accent,
+            cursor_mode=self._cursor.mode,
             bg_mode=self._background.mode,
             bg_height=self._background.height_key,
             bg_sensitivity=self._background.sensitivity,
@@ -1848,6 +1889,7 @@ class App:
 
     def _shutdown(self) -> None:
         try:
+            self._cursor.release()  # restore the OS arrow before quitting
             self._source.stop()
             if self._persist:
                 settings_mod.save(self._current_settings())
