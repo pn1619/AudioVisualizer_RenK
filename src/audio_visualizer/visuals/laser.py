@@ -1,11 +1,11 @@
 """Laser: rotating beams + a selectable parametric figure that can emit particles.
 
 Beams sweep around the center while a central figure (Lissajous, rose, spiro,
-web, or bloom) traces the spectrum. With ``Particles = Off`` it's clean beams +
+star, or butterfly) traces the spectrum. With ``Particles = Off`` it's clean beams +
 figure (the classic Laser); turning particles on makes the beams shoot small sparks
 outward on onsets (which can leave a fading trail). All shapes are driven by band
-energy. The spiro/web/bloom curves are audio-reactive roulette and harmonograph
-figures for a modern, kinetic neon look.
+energy — spiro is a roulette web, the star's spikes ride the highs, and the
+butterfly's wings flutter with the beat for a modern, kinetic neon look.
 """
 
 from __future__ import annotations
@@ -53,14 +53,19 @@ _LISSA_FREQ_GAIN = 3.0
 # drawn over several loops so the strands weave a dense neon web.
 _SPIRO_LOOPS = 5
 _SPIRO_FIT = 0.72
-# Web: a harmonograph (decaying Lissajous) that spirals inward like a laser net.
-_WEB_CYCLES = 6
-_WEB_DAMP = 0.32
-# Bloom: an epicycloid flower whose petal count rides the highs.
-_BLOOM_CUSPS_BASE = 4
-_BLOOM_CUSPS_GAIN = 5
+# Star: a sharp N-point star; the spike count rides the highs and the spikes get
+# pointier (smaller inner radius) with more bass.
+_STAR_SPIKES_BASE = 5
+_STAR_SPIKES_GAIN = 4
+_STAR_INNER_BASE = 0.62  # inner radius as a fraction of the outer (blunt resting)
+_STAR_INNER_GAIN = 0.42  # bass sharpens the spikes (pulls the inner radius in)
+# Butterfly: the Temple Fay curve; its wings flutter with the beat phase.
+_BFLY_FREQ_BASE = 3.0
+_BFLY_FREQ_GAIN = 3.0
+_BFLY_SPAN = 24.0  # radians traced (the curve closes near 24π ~= 12 lobes)
+_BFLY_FIT = 0.17  # normalize the curve's ~5.7 peak radius into the figure box
 
-_SHAPE_LISSAJOUS, _SHAPE_ROSE, _SHAPE_SPIRO, _SHAPE_WEB, _SHAPE_BLOOM = 0, 1, 2, 3, 4
+_SHAPE_LISSAJOUS, _SHAPE_ROSE, _SHAPE_SPIRO, _SHAPE_STAR, _SHAPE_BUTTERFLY = 0, 1, 2, 3, 4
 
 _PRESET = ModeOption(
     "preset",
@@ -80,8 +85,8 @@ _SHAPE = ModeOption(
         OptionChoice("Lissajous", _SHAPE_LISSAJOUS),
         OptionChoice("Rose", _SHAPE_ROSE),
         OptionChoice("Spiro", _SHAPE_SPIRO),
-        OptionChoice("Web", _SHAPE_WEB),
-        OptionChoice("Bloom", _SHAPE_BLOOM),
+        OptionChoice("Star", _SHAPE_STAR),
+        OptionChoice("Butterfly", _SHAPE_BUTTERFLY),
     ),
     default_index=0,
 )
@@ -214,10 +219,10 @@ class Laser(BaseVisualizer):
             return self._rose(cx, cy, ax, ay, low)
         if shape == _SHAPE_SPIRO:
             return self._spiro(cx, cy, ax, ay, low, high)
-        if shape == _SHAPE_WEB:
-            return self._web(cx, cy, ax, ay, low, high)
-        if shape == _SHAPE_BLOOM:
-            return self._bloom(cx, cy, ax, ay, low, high)
+        if shape == _SHAPE_STAR:
+            return self._star(cx, cy, ax, ay, low, high)
+        if shape == _SHAPE_BUTTERFLY:
+            return self._butterfly(cx, cy, ax, ay, low, high)
         return self._lissajous(cx, cy, ax, ay, low, high)
 
     def _lissajous(
@@ -260,36 +265,35 @@ class Laser(BaseVisualizer):
             pts.append((cx + x * ax * _SPIRO_FIT, cy + y * ay * _SPIRO_FIT))
         return pts
 
-    def _web(
+    def _star(
         self, cx: float, cy: float, ax: float, ay: float, low: float, high: float
     ) -> list[tuple[float, float]]:
-        """A harmonograph: a decaying Lissajous that spirals inward like a laser net."""
-        a = _LISSA_FREQ_X_BASE + low * _LISSA_FREQ_GAIN
-        b = _LISSA_FREQ_Y_BASE + high * _LISSA_FREQ_GAIN
+        """A sharp N-point star; highs add spikes, bass sharpens (pulls the inner radius in)."""
+        spikes = _STAR_SPIKES_BASE + int(high * _STAR_SPIKES_GAIN)
+        inner = _STAR_INNER_BASE - low * _STAR_INNER_GAIN
         pts = []
-        steps = _CURVE_POINTS * 2
+        steps = spikes * 2
         for k in range(steps + 1):
-            t = 2.0 * math.pi * _WEB_CYCLES * k / steps
-            damp = math.exp(-_WEB_DAMP * t / (2.0 * math.pi))
-            pts.append(
-                (
-                    cx + math.sin(a * t + self._phase) * ax * damp,
-                    cy + math.sin(b * t) * ay * damp,
-                )
-            )
+            t = math.pi * k / spikes + self._phase  # alternate outer/inner every half-step
+            r = 1.0 if k % 2 == 0 else inner
+            pts.append((cx + math.cos(t) * ax * r, cy + math.sin(t) * ay * r))
         return pts
 
-    def _bloom(
+    def _butterfly(
         self, cx: float, cy: float, ax: float, ay: float, low: float, high: float
     ) -> list[tuple[float, float]]:
-        """An epicycloid flower whose petal count rides the highs and breathes with bass."""
-        cusps = _BLOOM_CUSPS_BASE + int(high * _BLOOM_CUSPS_GAIN)
-        rr = 1.0 / (cusps + 1)
-        scale = 0.85 + low * 0.25
+        """Temple Fay butterfly curve; bass swells it and the beat flutters its wings."""
+        wings = _BFLY_FREQ_BASE + high * _BFLY_FREQ_GAIN
+        scale = _BFLY_FIT * (0.85 + low * 0.4)
         pts = []
-        for k in range(_CURVE_POINTS + 1):
-            t = 2.0 * math.pi * k / _CURVE_POINTS
-            x = (1.0 - rr) * math.cos(t) + rr * math.cos((1.0 - rr) / rr * t + self._phase)
-            y = (1.0 - rr) * math.sin(t) - rr * math.sin((1.0 - rr) / rr * t + self._phase)
-            pts.append((cx + x * ax * scale, cy + y * ay * scale))
+        steps = _CURVE_POINTS * 3
+        for k in range(steps + 1):
+            t = _BFLY_SPAN * k / steps
+            r = (
+                math.exp(math.cos(t))
+                - 2.0 * math.cos(wings * t + self._phase)
+                + math.sin(t / 12.0) ** 5
+            )
+            rr = r * scale
+            pts.append((cx + math.sin(t) * ax * rr, cy + math.cos(t) * ay * rr))
         return pts

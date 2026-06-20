@@ -17,6 +17,29 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.16` — Phase 0B-c (build 20): beat master switch, laser shapes, richer backgrounds
+
+- **Beat Buttons master On/Off** — the Beat panel gains a top **`Beat Buttons: On/Off`** toggle
+  that disables the whole feature at once **without losing each action's band/sensitivity**.
+  When off, the music presses nothing, the `Beat…` control-bar button is no longer highlighted,
+  and the on-screen indicator is hidden — flip it back on and your per-action settings return.
+  `BeatTrigger` gains `set_enabled`/`is_enabled`/`active()`; persisted as `beat_enabled` (default On).
+- **Laser shapes refreshed** — dropped **Web** and **Bloom** (replaced) in favor of **Star**
+  (a sharp N-point star whose spike count rides the highs and sharpens with bass) and **Butterfly**
+  (the Temple Fay curve whose wings flutter with the beat). Lissajous / Rose / Spiro are unchanged.
+- **Background panel → dropdowns** — the Background modal now uses **dropdown menus** for
+  **Background / Sensitivity / Opacity / Spectrum height** (was click-to-cycle), matching the Beat
+  panel; the layout grows cleanly as future rows are added.
+- **More backdrops** — four new global backgrounds: **Ocean waves** (flowing translucent sine
+  bands), **Plasma haze** (a soft animated color field), **Neon rain** (falling streaks that speed
+  up with loudness and brighten on beats), and **Retro grid** (a synthwave perspective floor that
+  scrolls toward you and pulses on beats). All honor the shared Sensitivity/Opacity knobs.
+- Settings **schema v18** adds `beat_enabled`; older files migrate cleanly (defaults to On).
+- Tests: `test_fx_phase0b19.py` (master-switch gating + settings round-trip, Star/Butterfly point
+  generation, background dropdown key round-trip); the all-modes/all-backdrops suites cover the rest.
+
+---
+
 ## `00.0B.15` — Phase 0B-c (build 19): new visual mode — Liquid Orb
 
 - **New mode `Liquid Orb`** (`orb`, order 82): a smooth, *filled* blob centered on screen

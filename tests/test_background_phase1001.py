@@ -35,24 +35,41 @@ def _frame(level: float = 0.8, onset: float = 1.0) -> AnalysisFrame:
     )
 
 
-def test_background_panel_rows_cycle() -> None:
-    calls: list[str] = []
-    panel = BackgroundPanel(
+def _make_bg_panel(calls: dict[str, str]) -> BackgroundPanel:
+    return BackgroundPanel(
         BackgroundActions(
-            cycle_mode=lambda: calls.append("mode"),
-            cycle_sensitivity=lambda: calls.append("sensitivity"),
-            cycle_opacity=lambda: calls.append("opacity"),
-            cycle_height=lambda: calls.append("height"),
-        )
+            set_mode=lambda v: calls.__setitem__("mode", v),
+            set_sensitivity=lambda v: calls.__setitem__("sensitivity", v),
+            set_opacity=lambda v: calls.__setitem__("opacity", v),
+            set_height=lambda v: calls.__setitem__("height", v),
+        ),
+        mode_options=[("black", "Black"), ("spectrum", "Spectrum line")],
+        sensitivity_options=[("1", "x1.00"), ("2", "x2.00")],
+        opacity_options=[("0.5", "50%"), ("1", "100%")],
+        height_options=[("low", "Low"), ("tall", "Tall")],
     )
+
+
+def test_background_panel_dropdowns_route_callbacks() -> None:
+    calls: dict[str, str] = {}
+    panel = _make_bg_panel(calls)
     panel.open = True
     canvas = pygame.Rect(0, 0, 1280, 720)
-    rows = panel._row_rects(canvas)
-    keys = [key for key, _rect in rows]
-    for _key, rect in rows:
-        ev = pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center)
-        assert panel.handle_event(ev, canvas) is True
-    assert calls == keys
+
+    def _click(pos: tuple[int, int]) -> None:
+        panel.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos), canvas)
+
+    rows = {key: dd for key, _label, dd in panel._row_rects(canvas)}
+    panel._sync_widgets(canvas)
+    # Open the Background (mode) dropdown and pick the second option.
+    _click(rows["mode"].center)
+    _click(panel._dd["mode"]._option_rects()[1].center)
+    # Open the Sensitivity dropdown and pick the second option.
+    _click(rows["sensitivity"].center)
+    _click(panel._dd["sensitivity"]._option_rects()[1].center)
+
+    assert calls["mode"] == "spectrum"
+    assert calls["sensitivity"] == "2"
 
 
 def test_opacity_scales_spectrum_alpha() -> None:
@@ -73,7 +90,17 @@ def test_opacity_scales_spectrum_alpha() -> None:
 def test_new_modes_render_without_error() -> None:
     surface = pygame.Surface((200, 140))
     bg = Background(theme=Theme())
-    for mode in ("filaments", "mirror", "ribbon", "starfield", "vignette"):
+    for mode in (
+        "filaments",
+        "mirror",
+        "ribbon",
+        "waves",
+        "plasma",
+        "starfield",
+        "rain",
+        "grid",
+        "vignette",
+    ):
         bg.mode = mode
         surface.fill((8, 8, 14))
         for _ in range(5):
