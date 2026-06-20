@@ -13,6 +13,7 @@ cycles over time, so the same glass-tube shape glows through the spectrum.
 from __future__ import annotations
 
 import logging
+import math
 
 import numpy as np
 import pygame
@@ -26,15 +27,25 @@ from audio_visualizer.config import (
     LOGO_EMIT_SPEED,
     LOGO_ENABLED_DEFAULT,
     LOGO_FILENAME,
+    LOGO_GLOW_DECAY,
+    LOGO_GLOW_DEFAULT,
+    LOGO_GLOW_GAIN,
     LOGO_OPACITY_DEFAULT,
     LOGO_POSITION_DEFAULT,
     LOGO_PULSE_AMOUNT,
     LOGO_RAINBOW_SWIRL,
+    LOGO_SHOCKWAVE_DEFAULT,
+    LOGO_SHOCKWAVE_MAX,
+    LOGO_SHOCKWAVE_ONSET_MIN,
+    LOGO_SHOCKWAVE_SPEED,
     LOGO_SIZE_DEFAULT,
     LOGO_SIZE_FRACTIONS,
     LOGO_SPIN_DEG_PER_SEC,
     LOGO_SPIN_DIR_DEFAULT,
     LOGO_SPIN_ENERGY_GAIN,
+    LOGO_THROB_AMOUNT,
+    LOGO_THROB_DEFAULT,
+    LOGO_THROB_RATE,
     SPARK_MAX,
 )
 from audio_visualizer.resources import asset_path
@@ -120,7 +131,18 @@ class RenkLogo:
         self.opacity = LOGO_OPACITY_DEFAULT
         self.color_mode = LOGO_COLOR_DEFAULT
         self.emit = LOGO_EMIT_DEFAULT
+        # Extra effects, each independent (any/all may run at once alongside Emit).
+        self.fx_shockwave = LOGO_SHOCKWAVE_DEFAULT
+        self.fx_glow = LOGO_GLOW_DEFAULT
+        self.fx_throb = LOGO_THROB_DEFAULT
         self.spin_dir = LOGO_SPIN_DIR_DEFAULT
+
+        # Effect state: live shockwave ring radii (as fraction of min side), a decaying
+        # glow envelope (0..1), a throb clock, and the last onset (for beat edges).
+        self._shockwaves: list[float] = []
+        self._glow = 0.0
+        self._throb_t = 0.0
+        self._prev_onset = 0.0
 
         # ``surface`` lets tests inject a tiny image; otherwise load the asset.
         self._base = surface if surface is not None else _load_logo_surface()
@@ -210,13 +232,63 @@ class RenkLogo:
 
         energy = clamp(frame.rms) if frame is not None else 0.0
         bass = 0.0 if self.reduce_motion else self._bass(frame)
+        onset = 0.0 if (frame is None or self.reduce_motion) else clamp(frame.onset)
+        beat = onset > LOGO_SHOCKWAVE_ONSET_MIN and self._prev_onset <= LOGO_SHOCKWAVE_ONSET_MIN
+        self._prev_onset = onset
+        self._advance_effects(dt, beat)
 
         self._angle = (self._angle + self._spin_step(bass, dt)) % 360.0
-        pulse = 1.0 if self.reduce_motion else 1.0 + LOGO_PULSE_AMOUNT * energy
+        pulse = self._pulse(energy)
 
         center = self._anchor_center(canvas)
+        if self.fx_shockwave:
+            self._draw_shockwaves(surface, center, canvas)
         self._blit_logo(surface, center, pulse)
         self._update_sparks(surface, frame, center, canvas, dt)
+
+    def _advance_effects(self, dt: float, beat: bool) -> None:
+        """Tick the glow/throb/shockwave state; spawn ring + glow kick on a beat."""
+        self._throb_t += dt
+        self._glow = max(0.0, self._glow - LOGO_GLOW_DECAY * dt)
+        # Expand live shockwaves and drop any that have grown past the canvas.
+        self._shockwaves = [r + LOGO_SHOCKWAVE_SPEED * dt for r in self._shockwaves if r < 1.4]
+        if not beat:
+            return
+        if self.fx_glow:
+            self._glow = min(1.0, self._glow + LOGO_GLOW_GAIN)
+        if self.fx_shockwave and len(self._shockwaves) < LOGO_SHOCKWAVE_MAX:
+            self._shockwaves.append(0.0)
+
+    def _pulse(self, energy: float) -> float:
+        """Base breathing pulse plus the optional continuous throb (reduce-motion safe)."""
+        if self.reduce_motion:
+            return 1.0
+        pulse = 1.0 + LOGO_PULSE_AMOUNT * energy
+        if self.fx_throb:
+            pulse += LOGO_THROB_AMOUNT * 0.5 * (1.0 + math.sin(self._throb_t * LOGO_THROB_RATE))
+        return pulse
+
+    def _draw_shockwaves(
+        self, surface: pygame.Surface, center: tuple[float, float], canvas: tuple[int, int]
+    ) -> None:
+        """Draw each live shockwave as a fading, expanding translucent ring."""
+        unit = min(canvas)
+        base = self._scaled_size[1] * 0.5 or unit * 0.1
+        for r in self._shockwaves:
+            radius = int(base + r * unit * 0.5)
+            fade = max(0.0, 1.0 - r / 1.4)
+            if radius < 2 or fade <= 0.0:
+                continue
+            layer = pygame.Surface((radius * 2 + 4, radius * 2 + 4), pygame.SRCALPHA)
+            alpha = int(150 * fade)
+            width = max(1, int(unit * 0.006))
+            ring = (180, 220, 255, alpha)
+            pygame.draw.circle(layer, ring, layer.get_rect().center, radius, width)
+            surface.blit(
+                layer,
+                (int(center[0] - radius - 2), int(center[1] - radius - 2)),
+                special_flags=pygame.BLEND_RGB_ADD,
+            )
 
     def _spin_step(self, bass: float, dt: float) -> float:
         speed = self.theme.speed_scale
@@ -239,6 +311,12 @@ class RenkLogo:
         rotated = pygame.transform.rotozoom(art, self._angle, pulse)
         rect = rotated.get_rect(center=(int(center[0]), int(center[1])))
         surface.blit(rotated, rect, special_flags=pygame.BLEND_RGB_ADD)
+        # Glow: an extra additive pass on a beat makes the wordmark flare brighter.
+        if self.fx_glow and self._glow > 0.0:
+            glow = rotated.copy()
+            value = int(min(1.0, self._glow) * 255)
+            glow.fill((value, value, value, 255), special_flags=pygame.BLEND_RGB_MULT)
+            surface.blit(glow, rect, special_flags=pygame.BLEND_RGB_ADD)
 
     def _update_sparks(
         self,

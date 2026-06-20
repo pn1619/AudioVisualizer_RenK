@@ -8,6 +8,7 @@ import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import (
+    COLOR_HUE_DEFAULT,
     COLOR_SCHEME_DEFAULT,
     SIZE_SCALE_DEFAULT,
     SPEED_SCALE_DEFAULT,
@@ -24,8 +25,9 @@ class Theme:
 
     size_scale: float = SIZE_SCALE_DEFAULT  # multiplier on particle/flake sizes
     speed_scale: float = SPEED_SCALE_DEFAULT  # multiplier on animation speed
-    color_scheme: str = COLOR_SCHEME_DEFAULT  # "classic" | "rainbow" | "rainbow_plus"
+    color_scheme: str = COLOR_SCHEME_DEFAULT  # see config.COLOR_SCHEMES
     color_phase: float = 0.0  # 0..1 time offset advanced by the App for rainbow_plus
+    custom_hue: float = COLOR_HUE_DEFAULT  # 0..1 hue for the Solid/Mono schemes
 
 
 @dataclass(frozen=True)

@@ -17,6 +17,32 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.13` — Phase 0B-c (build 17): highlights, beat fx, logo fx, more colors
+
+- **Beat / Motion highlights:** the `Beat…` control-bar button now lights up (accent fill,
+  like `Sens`/`Smooth`/`Size`) whenever **any** beat action (`Rnd` or `Next`) is enabled, and
+  the `Motion+` button is highlighted only in the **`+`** (full-motion) state — never when
+  reduced (`Motion-`).
+- **Beat indicator — fade + shapes:** the Beat panel adds a **Fade** dropdown (Snap · Fast ·
+  Normal · Slow · Long — how long the trigger flash lingers) and a **Shape** dropdown
+  (**Dot · Ring · Pulse · Diamond · Star · Burst**). The indicator now draws fully translucent
+  with an alpha envelope and a soft expanding halo on each fire.
+- **RenK logo — more effects (all stackable):** beyond `Emit particles`, the logo panel adds
+  **Shockwave ring** (an expanding translucent ring on a beat), **Beat glow** (the wordmark
+  flares brighter on a beat, then decays) and **Throb** (a continuous size breathing). Any/all
+  can run at once; all are captured by saved looks and persist.
+- **More color:** the color scheme dropdown gains curated **theme palettes** — Sunset, Ocean,
+  Forest, Fire, Ice, Candy, Grayscale — plus **Solid (pick)** (one flat user color) and
+  **Mono (pick)** (a light→dark ramp of one hue). A **hue bar** in the Appearance panel
+  (under "Custom color") picks the hue for Solid/Mono; the choice persists.
+- Settings bumped to **schema v16** (`beat_indicator_shape`, `beat_fade`, `color_hue`,
+  `logo_shockwave`, `logo_glow`, `logo_throb`); older files migrate/default cleanly.
+- Tests: `test_fx_phase0b17.py` covers the new color schemes (theme palettes + Solid/Mono hue),
+  beat fade mapping + flash decay, every indicator shape drawing, the logo effects (spawn on a
+  beat / nothing when off) and settings round-trip + clamping.
+
+---
+
 ## `00.0B.12` — Phase 0B-c (build 16): look history (Prev/Next) + Plasma trim
 
 - **New `Prev` button** (control bar, beside `Auto`/`Next`) walks a **session look history** —

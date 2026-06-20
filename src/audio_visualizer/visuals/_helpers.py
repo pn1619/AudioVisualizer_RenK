@@ -13,14 +13,35 @@ from numpy.typing import NDArray
 
 from audio_visualizer.config import (
     COLOR_ACCENT,
+    COLOR_HUE_DEFAULT,
+    COLOR_PICK_SATURATION,
     PALETTE,
     PARTICLE_BRIGHTNESS_FLOOR,
     SPARK_LIFETIME,
     SPARK_TRAIL_LEN,
+    THEME_PALETTES,
 )
 from audio_visualizer.visuals.base import ModeOption, OptionChoice
 
 Color = tuple[int, int, int]
+
+# The user's live "Custom" hue for the Solid/Mono schemes. The App pushes the active
+# Theme's value here once per frame (via :func:`set_custom_hue`) so the many
+# ``themed_color`` call sites need not thread an extra argument through every mode.
+_custom_hue: float = COLOR_HUE_DEFAULT
+
+
+def set_custom_hue(hue: float) -> None:
+    """Set the live Custom hue (0..1, wrapped) used by the Solid/Mono color schemes."""
+    global _custom_hue
+    _custom_hue = float(hue) % 1.0
+
+
+def _hue_rgb(hue: float, value: float = 1.0) -> Color:
+    """RGB for a fixed-saturation hue at brightness ``value`` (0..1)."""
+    r, g, b = colorsys.hsv_to_rgb(hue % 1.0, COLOR_PICK_SATURATION, max(0.0, min(1.0, value)))
+    return (int(r * 255), int(g * 255), int(b * 255))
+
 
 # RingPops tuning: initial outward speed = base + energy * gain (radius-fraction/sec).
 _POP_SPEED_BASE = 0.08
@@ -222,6 +243,13 @@ def themed_color(scheme: str, t: float, palette: tuple[Color, ...], phase: float
         return rainbow_color(t)
     if scheme == "rainbow_plus":
         return rainbow_color(t + phase)
+    if scheme == "solid":
+        return _hue_rgb(_custom_hue, 1.0)  # one flat user-picked color
+    if scheme == "mono":
+        return _hue_rgb(_custom_hue, 0.3 + 0.7 * clamp(t))  # light->dark ramp of that hue
+    themed = THEME_PALETTES.get(scheme)
+    if themed is not None:
+        return palette_color(themed, t)
     return palette_color(palette, t)
 
 

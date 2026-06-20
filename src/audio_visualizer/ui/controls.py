@@ -261,6 +261,7 @@ class ControlBar:
         auto_on: bool = False,
         locked_globals: set[str] | None = None,
         sens_band: str = "all",
+        beat_active: bool = False,
     ) -> None:
         self._menu.set_options(
             [
@@ -273,7 +274,10 @@ class ControlBar:
         )
         self._dropdown.set_selected(mode_key)
         self._auto.active = auto_on
+        self._beat_btn.active = beat_active
         self._reduce.label = "Motion-" if reduce_motion else "Motion+"
+        # Highlight Motion only in the "+" (full-motion) state, never when reduced.
+        self._reduce.active = not reduce_motion
         self._color.set_selected(color_scheme)
         self._sens_chip.text = f"Sens {sensitivity:.2f}"
         self._sens_band.set_selected(sens_band)

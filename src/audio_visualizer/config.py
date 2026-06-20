@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.12"
+APP_VERSION = "00.0B.13"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -150,17 +150,58 @@ SPEED_SCALE_MAX = 3.0
 SPEED_SCALE_STEP = 0.25
 
 # Color schemes selectable at runtime:
-#   classic       -> PALETTE
+#   classic       -> PALETTE (each mode's own palette)
 #   rainbow       -> hue by position (static)
 #   rainbow_plus  -> hue by position + a time offset, so colors cycle over time
-COLOR_SCHEMES: tuple[str, ...] = ("classic", "rainbow", "rainbow_plus")
+#   <theme>       -> a fixed curated palette (sunset/ocean/... in THEME_PALETTES)
+#   solid         -> one flat user-picked color (the Custom hue)
+#   mono          -> a light->dark ramp of the user-picked hue
+COLOR_SCHEMES: tuple[str, ...] = (
+    "classic",
+    "rainbow",
+    "rainbow_plus",
+    "sunset",
+    "ocean",
+    "forest",
+    "fire",
+    "ice",
+    "candy",
+    "grayscale",
+    "solid",
+    "mono",
+)
 COLOR_SCHEME_DEFAULT = "classic"
 # Human-friendly labels for the color dropdown.
 COLOR_SCHEME_LABELS: dict[str, str] = {
     "classic": "Classic",
     "rainbow": "Rainbow",
     "rainbow_plus": "Rainbow+",
+    "sunset": "Sunset",
+    "ocean": "Ocean",
+    "forest": "Forest",
+    "fire": "Fire",
+    "ice": "Ice",
+    "candy": "Candy",
+    "grayscale": "Grayscale",
+    "solid": "Solid (pick)",
+    "mono": "Mono (pick)",
 }
+# Curated fixed palettes (low->high position) for the preset "theme" color schemes.
+THEME_PALETTES: dict[str, tuple[tuple[int, int, int], ...]] = {
+    "sunset": ((60, 20, 90), (200, 60, 120), (255, 110, 90), (255, 170, 70), (255, 230, 130)),
+    "ocean": ((8, 30, 80), (20, 90, 170), (30, 160, 210), (90, 220, 220), (200, 250, 245)),
+    "forest": ((15, 50, 30), (40, 110, 50), (110, 170, 60), (190, 215, 90), (240, 245, 170)),
+    "fire": ((30, 0, 0), (120, 15, 10), (220, 60, 20), (255, 140, 30), (255, 230, 120)),
+    "ice": ((10, 35, 80), (40, 110, 180), (110, 185, 230), (190, 230, 250), (245, 250, 255)),
+    "candy": ((255, 120, 200), (200, 120, 255), (130, 170, 255), (120, 245, 215), (255, 245, 160)),
+    "grayscale": ((30, 30, 34), (90, 92, 100), (150, 152, 160), (205, 207, 214), (255, 255, 255)),
+}
+# Color schemes that use the user-picked Custom hue (vs a fixed palette or rainbow).
+COLOR_PICK_SCHEMES: frozenset[str] = frozenset({"solid", "mono"})
+# The user's picked hue (0..1 around the wheel) for the Solid/Mono schemes. Saturation
+# is held high so the picked color stays vivid; Mono ramps brightness across position.
+COLOR_HUE_DEFAULT = 0.55
+COLOR_PICK_SATURATION = 0.85
 # How fast rainbow_plus sweeps the hue wheel (cycles per second).
 COLOR_CYCLE_RATE = 0.15
 
@@ -391,6 +432,25 @@ LOGO_EMIT_DEFAULT = False
 LOGO_EMIT_PER_ONSET = 10  # sparks released on a detected beat
 LOGO_EMIT_SPEED = 0.18  # outward spark speed in normalized units/sec
 
+# Extra logo effects, each an independent on/off (all can run at once alongside Emit):
+#   shockwave -> an expanding translucent ring fires outward on a beat
+#   glow      -> the logo brightness swells on a beat and decays back
+#   throb     -> a continuous size "breathing" beyond the subtle baseline pulse
+LOGO_SHOCKWAVE_DEFAULT = False
+LOGO_GLOW_DEFAULT = False
+LOGO_THROB_DEFAULT = False
+# Shockwave ring: expansion speed (fraction of min-side per second), how many can be
+# alive at once, and the onset strength needed to spawn one.
+LOGO_SHOCKWAVE_SPEED = 0.9
+LOGO_SHOCKWAVE_MAX = 4
+LOGO_SHOCKWAVE_ONSET_MIN = 0.25
+# Glow: extra brightness multiplier added at a full beat, decaying per second.
+LOGO_GLOW_GAIN = 0.8
+LOGO_GLOW_DECAY = 3.0
+# Throb: continuous breathing amplitude (added on top of LOGO_PULSE_AMOUNT) and rate.
+LOGO_THROB_AMOUNT = 0.10
+LOGO_THROB_RATE = 2.2
+
 # --- Settings persistence -----------------------------------------------------
 SETTINGS_FILENAME = "settings.json"
 # v2 added the RenK logo overlay preferences (logo_*). v3 added UI appearance
@@ -403,7 +463,7 @@ SETTINGS_FILENAME = "settings.json"
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
 # v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
-SETTINGS_SCHEMA_VERSION = 15
+SETTINGS_SCHEMA_VERSION = 16
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad
@@ -508,8 +568,29 @@ BEAT_ACTIONS: tuple[tuple[str, str], ...] = (
 # Time constant (seconds) the per-band baseline tracks toward live energy. Short
 # enough that beats stand out, long enough not to chase every transient.
 BEAT_BASELINE_TAU = 0.5
-# How fast the indicator's trigger "flash" fades (seconds).
+# How fast the indicator's trigger "flash" fades (seconds). This is the default;
+# the user can pick a fade time from BEAT_FADE_CHOICES (scales this base value).
 BEAT_FLASH_TAU = 0.28
+# User-selectable indicator fade time: (key, label, seconds the flash takes to fade).
+BEAT_FADE_CHOICES: tuple[tuple[str, str, float], ...] = (
+    ("snap", "Snap", 0.12),
+    ("fast", "Fast", 0.22),
+    ("normal", "Normal", 0.35),
+    ("slow", "Slow", 0.7),
+    ("long", "Long", 1.3),
+)
+BEAT_FADE_DEFAULT = "normal"
+# On-screen indicator shapes. All draw with transparency and a soft expanding halo
+# on a fire; "burst" / "star" add extra spokes. (key, label).
+BEAT_INDICATOR_SHAPES: tuple[tuple[str, str], ...] = (
+    ("dot", "Dot"),
+    ("ring", "Ring"),
+    ("pulse", "Pulse"),
+    ("diamond", "Diamond"),
+    ("star", "Star"),
+    ("burst", "Burst"),
+)
+BEAT_INDICATOR_SHAPE_DEFAULT = "dot"
 # On-screen beat indicator: a small pulsing dot whose hue tracks the listened band
 # and whose brightness tracks how close the beat is to firing. (key, label).
 BEAT_INDICATOR_POSITIONS: tuple[tuple[str, str], ...] = (

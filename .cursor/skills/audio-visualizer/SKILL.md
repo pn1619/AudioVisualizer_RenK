@@ -132,6 +132,20 @@ chip** between Prev/Next (`ControlBar.set_history`, `App._history_goto`) shows t
 click-to-edit to jump (1-based, clamps past-the-end to latest, ignores non-numeric). **Plasma** drops the
 `Soft` intensity (perf cost; `Normal` is the new default). Tests: `test_history_phase0b16.py`.
 
+**Build 17 (v00.0B.13):** UI highlights + new effects + more colors. (1) `ControlBar.set_state` takes
+`beat_active` → the `Beat…` button gets accent fill when any beat action is enabled, and `Motion+` is
+highlighted only in the `+`/full-motion state (`_reduce.active = not reduce_motion`). (2) Beat panel adds
+**Fade** (`BEAT_FADE_CHOICES` → `BeatTrigger.set_flash_tau`, scales the indicator flash decay) and
+**Shape** (`BEAT_INDICATOR_SHAPES`: dot/ring/pulse/diamond/star/burst); `ui/beat_indicator.py` now draws on
+an `SRCALPHA` layer with an alpha envelope + expanding halo. (3) `RenkLogo` gains stackable effects
+`fx_shockwave` (expanding ring on a beat, additive), `fx_glow` (extra additive brightness pass that decays)
+and `fx_throb` (continuous size breathing) — new logo-panel rows, captured by looks. (4) New color schemes:
+curated `THEME_PALETTES` (sunset/ocean/forest/fire/ice/candy/grayscale) handled in `themed_color`, plus
+`solid`/`mono` which read a user **Custom hue** — `Theme.custom_hue`, published each frame via
+`_helpers.set_custom_hue`, picked with a `ui/hue_bar.py` `HueBar` in the Appearance panel. Schema **v16**
+(`beat_indicator_shape`, `beat_fade`, `color_hue`, `logo_shockwave`/`logo_glow`/`logo_throb`). Tests:
+`test_fx_phase0b17.py`.
+
 ### UI control idiom (toggle vs dropdown vs stepper)
 
 Pick the control by the shape of its choices — keep this consistent across the bar and the modals:
