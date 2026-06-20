@@ -22,14 +22,6 @@ from audio_visualizer.visuals.base import Theme
 _MERGED_KEYS = ("waveform", "waveform_circle", "lightshow", "laser", "particles")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    registry.discover()
-    yield
-    pygame.quit()
-
-
 def _loud_frame() -> AnalysisFrame:
     wave = (0.6 * np.sin(np.linspace(0, 30, 2048))).astype(np.float32)
     return AnalysisFrame(

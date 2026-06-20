@@ -3,16 +3,8 @@
 from __future__ import annotations
 
 import pygame
-import pytest
 
 from audio_visualizer.ui.dropdown import Dropdown
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    yield
-    pygame.quit()
 
 
 def _click(pos: tuple[int, int]) -> pygame.event.Event:

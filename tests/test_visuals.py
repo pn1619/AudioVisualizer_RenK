@@ -4,19 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 import pygame
-import pytest
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.visuals import registry
 
 _SIZES = [(640, 360), (1280, 720), (50, 40)]
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    yield
-    pygame.quit()
 
 
 def _frame(bands: int = 48, rms: float = 0.4) -> AnalysisFrame:

@@ -34,6 +34,7 @@ from audio_visualizer.config import (
     BG_OPACITY_DEFAULT,
     BG_SENSITIVITY_CHOICES,
     BG_SENSITIVITY_DEFAULT,
+    COLOR_HUE2_DEFAULT,
     COLOR_HUE_DEFAULT,
     COLOR_SCHEME_DEFAULT,
     COLOR_SCHEMES,
@@ -164,6 +165,8 @@ class Settings:
     beat_indicator_opacity: str = BEAT_INDICATOR_OPACITY_DEFAULT
     beat_fade: str = BEAT_FADE_DEFAULT
     color_hue: float = COLOR_HUE_DEFAULT
+    # Second Stereo-scheme hue (schema v21).
+    color_hue2: float = COLOR_HUE2_DEFAULT
 
     def to_json(self) -> dict:
         """Serializable dict (tuples become JSON lists)."""
@@ -299,6 +302,7 @@ def _from_dict(raw: dict) -> Settings:
             defaults.beat_fade,
         ),
         color_hue=max(0.0, min(1.0, _float(raw.get("color_hue"), defaults.color_hue))),
+        color_hue2=max(0.0, min(1.0, _float(raw.get("color_hue2"), defaults.color_hue2))),
     )
 
 

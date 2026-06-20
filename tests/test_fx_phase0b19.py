@@ -9,22 +9,12 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import pygame
-import pytest
 
 from audio_visualizer import settings as settings_mod
 from audio_visualizer.app import _bg_num_key, _nearest
 from audio_visualizer.beat_trigger import BeatTrigger
 from audio_visualizer.config import BG_OPACITY_CHOICES, BG_SENSITIVITY_CHOICES
 from audio_visualizer.settings import Settings
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    yield
-    pygame.quit()
 
 
 # -- beat master switch -------------------------------------------------------

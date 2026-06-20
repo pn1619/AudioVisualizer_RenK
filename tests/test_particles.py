@@ -4,18 +4,10 @@ from __future__ import annotations
 
 import numpy as np
 import pygame
-import pytest
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PARTICLE_MAX_REDUCED
 from audio_visualizer.visuals.particles import Particles
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    yield
-    pygame.quit()
 
 
 def _onset_frame() -> AnalysisFrame:

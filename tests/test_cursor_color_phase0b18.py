@@ -6,7 +6,6 @@ import json
 
 import numpy as np
 import pygame
-import pytest
 
 from audio_visualizer import settings as settings_mod
 from audio_visualizer.config import CURSOR_EFFECTS, CURSOR_SHAPES
@@ -14,14 +13,6 @@ from audio_visualizer.settings import Settings
 from audio_visualizer.ui.color_picker import ColorPicker, ColorPickerActions
 from audio_visualizer.ui.cursor import Cursor
 from audio_visualizer.visuals.base import Theme
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    yield
-    pygame.quit()
 
 
 # -- cursor: shape + effect ----------------------------------------------------
@@ -74,40 +65,54 @@ def test_unfocused_window_skips_custom_cursor() -> None:
 
 
 # -- color picker --------------------------------------------------------------
-def test_color_picker_hue_drag_and_scheme_buttons() -> None:
-    calls: dict[str, object] = {}
-    picker = ColorPicker(
+def _make_picker(calls: dict[str, object]) -> ColorPicker:
+    return ColorPicker(
         ColorPickerActions(
             set_hue=lambda h: calls.__setitem__("hue", h),
+            set_hue2=lambda h: calls.__setitem__("hue2", h),
             set_scheme=lambda s: calls.__setitem__("scheme", s),
         )
     )
+
+
+def _click(picker: ColorPicker, canvas: pygame.Rect, rect: pygame.Rect) -> None:
+    picker.handle_event(
+        pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center), canvas
+    )
+
+
+def test_color_picker_hue_drag_and_scheme_buttons() -> None:
+    calls: dict[str, object] = {}
+    picker = _make_picker(calls)
     picker.open = True
     picker.set_state(0.3, "solid")
     canvas = pygame.Rect(0, 0, 1280, 720)
 
-    hue = picker._hue_rect(canvas)
-    picker.handle_event(
-        pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(hue.centerx, hue.centery)), canvas
-    )
+    _click(picker, canvas, picker._layout(canvas)["hue"])
     assert "hue" in calls
 
-    for key in ("solid", "mono"):
-        rect = picker._button_rects(canvas)[key]
-        picker.handle_event(
-            pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center), canvas
-        )
+    for key in ("solid", "mono", "stereo"):
+        _click(picker, canvas, picker._layout(canvas)[key])
         assert calls["scheme"] == key
 
 
+def test_color_picker_stereo_shows_second_bar() -> None:
+    calls: dict[str, object] = {}
+    picker = _make_picker(calls)
+    picker.open = True
+    picker.set_state(0.3, "stereo", hue2=0.8)
+    canvas = pygame.Rect(0, 0, 1280, 720)
+    layout = picker._layout(canvas)
+    assert "hue2" in layout  # the right-channel bar only exists in stereo
+    _click(picker, canvas, layout["hue2"])
+    assert "hue2" in calls
+
+
 def test_color_picker_close_button() -> None:
-    picker = ColorPicker(ColorPickerActions(set_hue=lambda h: None, set_scheme=lambda s: None))
+    picker = _make_picker({})
     picker.open = True
     canvas = pygame.Rect(0, 0, 1280, 720)
-    rect = picker._close_rect(canvas)
-    picker.handle_event(
-        pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center), canvas
-    )
+    _click(picker, canvas, picker._layout(canvas)["close"])
     assert picker.open is False
 
 

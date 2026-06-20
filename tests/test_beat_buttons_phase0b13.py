@@ -19,14 +19,6 @@ _BANDS = 48
 _MAX = len(BEAT_SENSITIVITY_LABELS) - 1
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    yield
-    pygame.quit()
-
-
 def _bands(level: float, band: str = "all") -> np.ndarray:
     """A band-energy vector with energy concentrated in one third (or all)."""
     arr = np.zeros(_BANDS, dtype=np.float32)

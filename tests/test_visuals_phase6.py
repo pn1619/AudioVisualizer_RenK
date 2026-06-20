@@ -13,13 +13,6 @@ from audio_visualizer.visuals.particles import Particles
 from audio_visualizer.visuals.waveform_circle import WaveformCircle
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    yield
-    pygame.quit()
-
-
 def _loud_frame() -> AnalysisFrame:
     wave = (0.6 * np.sin(np.linspace(0, 30, 2048))).astype(np.float32)
     return AnalysisFrame(

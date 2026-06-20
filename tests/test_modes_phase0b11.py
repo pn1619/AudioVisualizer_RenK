@@ -12,15 +12,6 @@ from audio_visualizer.visuals._helpers import smooth_wave
 from audio_visualizer.visuals.base import Theme
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    registry.discover()
-    yield
-    pygame.quit()
-
-
 def _noisy_wave(n: int = 512) -> np.ndarray:
     rng = np.random.default_rng(7)
     base = np.sin(np.linspace(0, 6.28, n))

@@ -20,14 +20,6 @@ from audio_visualizer.visuals.spectrum import Spectrum
 _LH, _HL, _CO, _OC = 0, 1, 2, 3
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    yield
-    pygame.quit()
-
-
 def _gradient_frame(n: int = 32) -> AnalysisFrame:
     """Band energies that ramp 0->1 so any reorder visibly changes the image."""
     return AnalysisFrame(

@@ -3,18 +3,10 @@
 from __future__ import annotations
 
 import pygame
-import pytest
 
 from audio_visualizer.config import CONTROL_BAR_HEIGHT, MIN_WINDOW_SIZE
 from audio_visualizer.ui.button import Button
 from audio_visualizer.ui.layout import Layout
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    yield
-    pygame.quit()
 
 
 def test_button_click_inside_triggers_callback() -> None:

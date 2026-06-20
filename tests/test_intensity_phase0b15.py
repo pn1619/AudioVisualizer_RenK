@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import numpy as np
 import pygame
-import pytest
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import (
@@ -20,14 +19,6 @@ from audio_visualizer.config import (
 from audio_visualizer.ui.controls import ControlActions, ControlBar
 from audio_visualizer.visuals.meters import Meters
 from audio_visualizer.visuals.plasma import Plasma
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    yield
-    pygame.quit()
 
 
 def _frame(n: int = 48, level: float = 0.8) -> AnalysisFrame:

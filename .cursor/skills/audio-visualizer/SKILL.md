@@ -204,6 +204,26 @@ Registered in `_modal_open`/`_close_modals`/`_handle_events`, drawn after Appear
 **schema v20**: `cursor_mode` → `cursor_shape`+`cursor_effect`, with `_migrate` mapping the legacy
 value via `CURSOR_LEGACY_MODE_MAP`. Tests: `test_cursor_color_phase0b18.py`.
 
+**Build 23 (v00.0B.19):** Stereo color, smoother comet, test cleanup. (1) New **`stereo`** color
+scheme: `themed_color("stereo", t, …)` lerps two picked hues (`_custom_hue` → `_custom_hue2`) across
+position. Second hue lives on `Theme.custom_hue2`, published each frame via `set_custom_hue2`,
+persisted as `color_hue2` (schema **v21**), and captured in look snapshots. `ColorPicker` gained a
+**Stereo** button + a second hue bar (Left/Right channel) and a gradient preview; its layout is now
+`_layout(canvas)` returning a rect dict (height grows when stereo adds the 2nd bar);
+`ColorPickerActions` gains `set_hue2`; App `_set_color_hue2` switches the scheme to stereo on drag.
+(2) **Comet cursor trail** rewritten to be time-based: `self._trail` holds `{x,y,age}` dicts; each
+frame ages points, drops past `CURSOR_TRAIL_TTL` (so it fades when the mouse stops), bounded by
+`CURSOR_TRAIL_MAX`. Rendering uses a **Catmull-Rom** spline (`_catmull_rom`, `CURSOR_TRAIL_SUBDIV`)
+with tapering width + age alpha. (3) **Tests:** the duplicated per-module pygame init/quit fixture is
+now one module-scoped autouse `_pygame_ready` in `tests/conftest.py` (also runs `registry.discover()`);
+added a `make_frame` `AnalysisFrame` factory fixture; ~25 local fixtures removed. Tests:
+`test_stereo_comet_phase0b19.py`.
+
+### Test conventions (Phase 0B.19+)
+- `tests/conftest.py` owns the **headless SDL env** + a **module-scoped autouse `_pygame_ready`**
+  fixture (pygame init + dummy display + `registry.discover()`); test modules must **not** redefine
+  it. Use the **`make_frame`** fixture for `AnalysisFrame` instances instead of a local factory.
+
 ### UI control idiom (toggle vs dropdown vs stepper)
 
 Pick the control by the shape of its choices — keep this consistent across the bar and the modals:

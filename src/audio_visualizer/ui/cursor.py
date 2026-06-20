@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import math
 import random
-from collections import deque
 
 import pygame
 
@@ -35,11 +34,13 @@ from audio_visualizer.config import (
     CURSOR_SPARK_MAX,
     CURSOR_SPARK_MAX_REDUCED,
     CURSOR_SPARK_PER_MOVE,
-    CURSOR_TRAIL_LEN,
-    CURSOR_TRAIL_LEN_REDUCED,
+    CURSOR_TRAIL_MAX,
+    CURSOR_TRAIL_SUBDIV,
+    CURSOR_TRAIL_TTL,
+    CURSOR_TRAIL_TTL_REDUCED,
     PALETTE,
 )
-from audio_visualizer.visuals._helpers import clamp, scale_color, themed_color
+from audio_visualizer.visuals._helpers import clamp, lerp, scale_color, themed_color
 from audio_visualizer.visuals.base import Theme
 
 _GLOW_DIAMETER = 64  # radial glow sprite size (scaled per-frame)
@@ -66,8 +67,10 @@ class Cursor:
         self.theme = theme
         self.reduce_motion = reduce_motion
         self._t = 0.0
+        self._dt = 1.0 / 60.0
         self._pulse = 0.0
-        self._trail: deque[tuple[float, float]] = deque(maxlen=CURSOR_TRAIL_LEN)
+        # Comet trail: recent samples with an age (s); points fade + drop past TTL.
+        self._trail: list[dict[str, float]] = []
         self._sparks: list[dict[str, float]] = []
         self._ripples: list[dict[str, float]] = []
         self._rng = random.Random(99)
@@ -122,6 +125,7 @@ class Cursor:
     ) -> None:
         """Paint the cursor at ``pos`` (no-op when unfocused or fully default)."""
         self._t += dt
+        self._dt = max(1e-4, dt)
         self._pulse = max(0.0, self._pulse - dt * CURSOR_PULSE_DECAY)
         if onset > 0.0 and not self.reduce_motion:
             self._pulse = max(self._pulse, clamp(onset))
@@ -145,14 +149,10 @@ class Cursor:
         return CURSOR_BASE_RADIUS * swell
 
     def _advance_motion(self, pos: tuple[int, int]) -> bool:
-        """Update the trail/spawn cadence; return True when the mouse just moved."""
+        """Return True when the mouse just moved (drives spark/trail cadence)."""
         fpos = (float(pos[0]), float(pos[1]))
         moved = self._last_pos is None or math.dist(fpos, self._last_pos) >= _MIN_MOVE
-        cap = CURSOR_TRAIL_LEN_REDUCED if self.reduce_motion else CURSOR_TRAIL_LEN
-        if self._trail.maxlen != cap:
-            self._trail = deque(self._trail, maxlen=cap)
         if moved:
-            self._trail.append(fpos)
             self._last_pos = fpos
         return moved
 
@@ -277,18 +277,51 @@ class Cursor:
         moved: bool,
         onset: float,
     ) -> None:
-        pts = list(self._trail)
-        n = len(pts)
+        ttl = CURSOR_TRAIL_TTL_REDUCED if self.reduce_motion else CURSOR_TRAIL_TTL
+        self._age_trail(pos, moved, ttl)
+        n = len(self._trail)
         if n < 2:
             return
+        pts = [(p["x"], p["y"]) for p in self._trail]  # oldest -> newest
+        alphas = [clamp(1.0 - p["age"] / ttl) for p in self._trail]
         layer = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        for i in range(1, n):
-            frac = i / n  # older = dimmer + thinner
-            color = self._color(frac)
-            alpha = int(190 * frac)
-            width = max(1, int(radius * 0.8 * frac))
-            pygame.draw.line(layer, (*color, alpha), pts[i - 1], pts[i], width)
+        pad = [pts[0], *pts, pts[-1]]  # clamp ends for Catmull-Rom
+        for i in range(1, len(pad) - 2):
+            self._draw_comet_segment(layer, pad[i - 1 : i + 3], i - 1, n, alphas, radius)
         surface.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+    def _age_trail(self, pos: tuple[int, int], moved: bool, ttl: float) -> None:
+        """Age existing trail points, drop expired ones, and sample the new pos."""
+        for p in self._trail:
+            p["age"] += self._dt
+        if moved or not self._trail:
+            self._trail.append({"x": float(pos[0]), "y": float(pos[1]), "age": 0.0})
+        self._trail = [p for p in self._trail if p["age"] < ttl][-CURSOR_TRAIL_MAX:]
+
+    def _draw_comet_segment(
+        self,
+        layer: pygame.Surface,
+        cps: list[tuple[float, float]],
+        idx: int,
+        n: int,
+        alphas: list[float],
+        radius: float,
+    ) -> None:
+        """Draw one Catmull-Rom span (between cps[1] and cps[2]) with taper + fade."""
+        p0, p1, p2, p3 = cps
+        a0, a1 = alphas[idx], alphas[min(idx + 1, n - 1)]
+        w0 = radius * 0.85 * (idx / max(1, n - 1))
+        w1 = radius * 0.85 * ((idx + 1) / max(1, n - 1))
+        color = self._color(idx / n)
+        prev = p1
+        for j in range(1, CURSOR_TRAIL_SUBDIV + 1):
+            t = j / CURSOR_TRAIL_SUBDIV
+            cur = _catmull_rom(p0, p1, p2, p3, t)
+            alpha = int(200 * lerp(a0, a1, t))
+            width = max(1, int(lerp(w0, w1, t)))
+            if alpha > 0:
+                pygame.draw.line(layer, (*color, alpha), prev, cur, width)
+            prev = cur
 
     def _fx_sparkles(
         self,
@@ -376,6 +409,30 @@ class Cursor:
                     "hue": self._rng.random(),
                 }
             )
+
+
+def _catmull_rom(
+    p0: tuple[float, float],
+    p1: tuple[float, float],
+    p2: tuple[float, float],
+    p3: tuple[float, float],
+    t: float,
+) -> tuple[float, float]:
+    """Centripetal-ish Catmull-Rom point at ``t`` in 0..1 between ``p1`` and ``p2``."""
+    t2 = t * t
+    t3 = t2 * t
+    out: list[float] = []
+    for a, b, c, d in zip(p0, p1, p2, p3, strict=True):
+        out.append(
+            0.5
+            * (
+                (2 * b)
+                + (-a + c) * t
+                + (2 * a - 5 * b + 4 * c - d) * t2
+                + (-a + 3 * b - 3 * c + d) * t3
+            )
+        )
+    return (out[0], out[1])
 
 
 def _build_glow_sprite(diameter: int) -> pygame.Surface:

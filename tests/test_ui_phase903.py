@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 
 import pygame
-import pytest
 
 from audio_visualizer import settings as settings_mod
 from audio_visualizer.config import MIN_WINDOW_SIZE
@@ -16,14 +15,6 @@ from audio_visualizer.ui.controls import ControlActions, ControlBar
 from audio_visualizer.ui.dropdown import Dropdown
 from audio_visualizer.ui.layout import Layout
 from audio_visualizer.ui.style import fit_text
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    yield
-    pygame.quit()
 
 
 def _font() -> pygame.font.Font:

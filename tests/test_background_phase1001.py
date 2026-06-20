@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pygame
-import pytest
 
 from audio_visualizer import settings as settings_mod
 from audio_visualizer.audio.frame import AnalysisFrame
@@ -13,14 +12,6 @@ from audio_visualizer.ui.background_panel import BackgroundActions, BackgroundPa
 from audio_visualizer.ui.style import _GLASS_MAX_RADIUS, STYLE, _radius
 from audio_visualizer.visuals.background import Background
 from audio_visualizer.visuals.base import Theme
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    yield
-    pygame.quit()
 
 
 def _frame(level: float = 0.8, onset: float = 1.0) -> AnalysisFrame:
