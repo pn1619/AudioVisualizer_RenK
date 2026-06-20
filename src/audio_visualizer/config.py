@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.13"
+APP_VERSION = "00.0B.14"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -463,7 +463,7 @@ SETTINGS_FILENAME = "settings.json"
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
 # v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
-SETTINGS_SCHEMA_VERSION = 16
+SETTINGS_SCHEMA_VERSION = 17
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad
@@ -568,18 +568,20 @@ BEAT_ACTIONS: tuple[tuple[str, str], ...] = (
 # Time constant (seconds) the per-band baseline tracks toward live energy. Short
 # enough that beats stand out, long enough not to chase every transient.
 BEAT_BASELINE_TAU = 0.5
-# How fast the indicator's trigger "flash" fades (seconds). This is the default;
-# the user can pick a fade time from BEAT_FADE_CHOICES (scales this base value).
+# How fast the indicator's trigger "flash" fades (seconds).
 BEAT_FLASH_TAU = 0.28
-# User-selectable indicator fade time: (key, label, seconds the flash takes to fade).
+# Beat "Fade": the cross-fade transition duration (seconds) used when a beat fires a
+# look change (Rnd / Next) — same idea as the Shuffle fade, picked from a dropdown.
+# (key, label, seconds). "cut" = 0 = an instant hard cut, no fade.
 BEAT_FADE_CHOICES: tuple[tuple[str, str, float], ...] = (
-    ("snap", "Snap", 0.12),
-    ("fast", "Fast", 0.22),
-    ("normal", "Normal", 0.35),
-    ("slow", "Slow", 0.7),
-    ("long", "Long", 1.3),
+    ("cut", "Cut", 0.0),
+    ("short", "0.3 s", 0.3),
+    ("medium", "0.6 s", 0.6),
+    ("long", "1.0 s", 1.0),
+    ("xlong", "1.5 s", 1.5),
+    ("vlong", "2.5 s", 2.5),
 )
-BEAT_FADE_DEFAULT = "normal"
+BEAT_FADE_DEFAULT = "medium"
 # On-screen indicator shapes. All draw with transparency and a soft expanding halo
 # on a fire; "burst" / "star" add extra spokes. (key, label).
 BEAT_INDICATOR_SHAPES: tuple[tuple[str, str], ...] = (
@@ -591,6 +593,15 @@ BEAT_INDICATOR_SHAPES: tuple[tuple[str, str], ...] = (
     ("burst", "Burst"),
 )
 BEAT_INDICATOR_SHAPE_DEFAULT = "dot"
+# How see-through the indicator is over the visual behind it: (key, label, 0..1 alpha
+# multiplier applied to the whole indicator). 100% = fully drawn (current look).
+BEAT_INDICATOR_OPACITY_CHOICES: tuple[tuple[str, str, float], ...] = (
+    ("25", "25%", 0.25),
+    ("50", "50%", 0.5),
+    ("75", "75%", 0.75),
+    ("100", "100%", 1.0),
+)
+BEAT_INDICATOR_OPACITY_DEFAULT = "100"
 # On-screen beat indicator: a small pulsing dot whose hue tracks the listened band
 # and whose brightness tracks how close the beat is to firing. (key, label).
 BEAT_INDICATOR_POSITIONS: tuple[tuple[str, str], ...] = (

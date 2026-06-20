@@ -74,13 +74,6 @@ class BeatTrigger:
         self.intensity = 0.0
         self.active_band = BEAT_BAND_DEFAULT
         self.flash = 0.0
-        # How long the indicator's trigger flash takes to fade (user-selectable).
-        self._flash_tau = BEAT_FLASH_TAU
-
-    def set_flash_tau(self, seconds: float) -> None:
-        """Set the indicator flash fade time (seconds); ignores non-positive values."""
-        if seconds and seconds > 0:
-            self._flash_tau = float(seconds)
 
     @staticmethod
     def _clamp(value: int) -> int:
@@ -131,7 +124,7 @@ class BeatTrigger:
         """Advance state by ``dt`` and return the action keys that should fire now."""
         for key in self._since:
             self._since[key] += dt
-        self.flash = max(0.0, self.flash - (dt / self._flash_tau if self._flash_tau else 1.0))
+        self.flash = max(0.0, self.flash - (dt / BEAT_FLASH_TAU if BEAT_FLASH_TAU else 1.0))
         alpha = 1.0 if dt >= BEAT_BASELINE_TAU else dt / BEAT_BASELINE_TAU
         signals = {band: _band_signal(band_energies, band) for band in _BAND_KEYS}
         for band, sig in signals.items():

@@ -117,9 +117,13 @@ def draw_beat_indicator(
     band: str,
     flash: float,
     shape: str = "dot",
+    opacity: float = 1.0,
 ) -> None:
-    """Draw the indicator within ``canvas`` at ``position`` (no-op for empty canvas)."""
-    if canvas.width < 8 or canvas.height < 8:
+    """Draw the indicator within ``canvas`` at ``position`` (no-op for empty canvas).
+
+    ``opacity`` (0..1) scales how see-through the whole indicator is over the visual.
+    """
+    if canvas.width < 8 or canvas.height < 8 or opacity <= 0.0:
         return
     unit = min(canvas.width, canvas.height)
     max_r = max(8, int(unit * 0.030))
@@ -157,4 +161,7 @@ def draw_beat_indicator(
         halo_a = int(180 * flash)
         pygame.draw.circle(layer, (*_blend(base, _WHITE, flash), halo_a), lc, halo_r, 2)
 
+    # Scale the whole layer's per-pixel alpha for the user's transparency choice.
+    if opacity < 1.0:
+        layer.fill((255, 255, 255, int(opacity * 255)), special_flags=pygame.BLEND_RGBA_MULT)
     surface.blit(layer, (cx - pad, cy - pad))

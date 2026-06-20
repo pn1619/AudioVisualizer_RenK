@@ -146,6 +146,15 @@ curated `THEME_PALETTES` (sunset/ocean/forest/fire/ice/candy/grayscale) handled 
 (`beat_indicator_shape`, `beat_fade`, `color_hue`, `logo_shockwave`/`logo_glow`/`logo_throb`). Tests:
 `test_fx_phase0b17.py`.
 
+**Build 18 (v00.0B.14):** beat `Fade` semantics fix + indicator transparency. `Fade` in the Beat panel is
+now the **look-change cross-fade duration** (like the Shuffle fade) used when the music fires `Rnd`/`Next`
+— `BEAT_FADE_CHOICES` are durations (Cut/0.3/0.6/1.0/1.5/2.5 s); `_auto_advance(fade)` / `_shuffle_next(fade)`
+take an override and `_beat_randomize(fade)` snapshot-dissolves a beat `Rnd`. (Build 17 wrongly mapped it to
+the indicator flash decay; reverted to the fixed `BEAT_FLASH_TAU`.) New **`Opacity`** dropdown
+(`BEAT_INDICATOR_OPACITY_CHOICES`, 25–100%) scales the whole indicator's alpha via a `BLEND_RGBA_MULT`
+pass in `draw_beat_indicator(..., opacity)`. Schema **v17** adds `beat_indicator_opacity`. Tests extend
+`test_fx_phase0b17.py`.
+
 ### UI control idiom (toggle vs dropdown vs stepper)
 
 Pick the control by the shape of its choices — keep this consistent across the bar and the modals:

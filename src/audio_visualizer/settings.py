@@ -18,6 +18,8 @@ from audio_visualizer.config import (
     BEAT_FADE_CHOICES,
     BEAT_FADE_DEFAULT,
     BEAT_INDICATOR_ENABLED_DEFAULT,
+    BEAT_INDICATOR_OPACITY_CHOICES,
+    BEAT_INDICATOR_OPACITY_DEFAULT,
     BEAT_INDICATOR_POSITION_DEFAULT,
     BEAT_INDICATOR_POSITIONS,
     BEAT_INDICATOR_SHAPE_DEFAULT,
@@ -143,8 +145,10 @@ class Settings:
     beat_bands: dict[str, str] = field(default_factory=dict)
     beat_indicator: bool = BEAT_INDICATOR_ENABLED_DEFAULT
     beat_indicator_pos: str = BEAT_INDICATOR_POSITION_DEFAULT
-    # Beat indicator shape + flash fade time, and the Solid/Mono custom hue (schema v16).
+    # Beat indicator shape + transparency, the beat look-change cross-fade time, and the
+    # Solid/Mono custom hue (schema v16).
     beat_indicator_shape: str = BEAT_INDICATOR_SHAPE_DEFAULT
+    beat_indicator_opacity: str = BEAT_INDICATOR_OPACITY_DEFAULT
     beat_fade: str = BEAT_FADE_DEFAULT
     color_hue: float = COLOR_HUE_DEFAULT
 
@@ -260,6 +264,11 @@ def _from_dict(raw: dict) -> Settings:
             raw.get("beat_indicator_shape"),
             tuple(key for key, _label in BEAT_INDICATOR_SHAPES),
             defaults.beat_indicator_shape,
+        ),
+        beat_indicator_opacity=_choice(
+            raw.get("beat_indicator_opacity"),
+            tuple(key for key, _label, _v in BEAT_INDICATOR_OPACITY_CHOICES),
+            defaults.beat_indicator_opacity,
         ),
         beat_fade=_choice(
             raw.get("beat_fade"),

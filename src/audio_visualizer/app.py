@@ -30,6 +30,8 @@ from audio_visualizer.config import (
     APP_VERSION,
     BEAT_FADE_CHOICES,
     BEAT_FADE_DEFAULT,
+    BEAT_INDICATOR_OPACITY_CHOICES,
+    BEAT_INDICATOR_OPACITY_DEFAULT,
     BEAT_INDICATOR_POSITIONS,
     BEAT_INDICATOR_SHAPES,
     BG_HEIGHT_LABELS,
@@ -141,11 +143,20 @@ def _nearest(value: object, choices: tuple[float, ...], default: float) -> float
 
 
 def _beat_fade_seconds(fade_key: str) -> float:
-    """Map a beat-fade choice key to its flash-fade time in seconds (default if unknown)."""
+    """Map a beat-fade choice key to its cross-fade duration in seconds (default if unknown)."""
     for key, _label, seconds in BEAT_FADE_CHOICES:
         if key == fade_key:
             return seconds
     return next(s for k, _l, s in BEAT_FADE_CHOICES if k == BEAT_FADE_DEFAULT)
+
+
+def _beat_opacity_value(opacity_key: str) -> float:
+    """Map an indicator-opacity choice key to its 0..1 alpha (default if unknown)."""
+    for key, _label, value in BEAT_INDICATOR_OPACITY_CHOICES:
+        if key == opacity_key:
+            return value
+    default = BEAT_INDICATOR_OPACITY_DEFAULT
+    return next(v for k, _l, v in BEAT_INDICATOR_OPACITY_CHOICES if k == default)
 
 
 def _parse_float(text: str) -> float | None:
@@ -248,14 +259,17 @@ class App:
         self._beat_indicator = bool(self._settings.beat_indicator)
         self._beat_indicator_pos = self._settings.beat_indicator_pos
         self._beat_indicator_shape = self._settings.beat_indicator_shape
+        self._beat_indicator_opacity = self._settings.beat_indicator_opacity
+        # "Beat fade" is the look-change cross-fade duration (like the Shuffle fade)
+        # applied when a beat fires Rnd / Next.
         self._beat_fade = self._settings.beat_fade
-        self._beat.set_flash_tau(_beat_fade_seconds(self._beat_fade))
         self._beat_panel = BeatPanel(
             set_level=self._set_beat_level,
             set_band=self._set_beat_band,
             toggle_indicator=self._toggle_beat_indicator,
             set_position=self._set_beat_indicator_pos,
             set_shape=self._set_beat_indicator_shape,
+            set_opacity=self._set_beat_indicator_opacity,
             set_fade=self._set_beat_fade,
         )
 
@@ -878,13 +892,17 @@ class App:
         """Pooled items that still exist, in stable order."""
         return self._ordered_pool_tags()
 
-    def _shuffle_next(self) -> None:
-        """Advance to the next rotation item now (works whether or not Auto is on)."""
+    def _shuffle_next(self, fade: float | None = None) -> None:
+        """Advance to the next rotation item now (works whether or not Auto is on).
+
+        ``fade`` overrides the cross-fade duration (e.g. a beat-triggered Next uses
+        the Beat panel's fade); ``None`` uses the Shuffle/Auto fade.
+        """
         if not self._auto_pool:
             self._auto_pool = self._all_pool_tags()
         self._transition = None  # snap any in-flight fade to its end, then advance
         self._auto_elapsed = 0.0
-        self._auto_advance()
+        self._auto_advance(fade)
 
     # -- Look history (Prev/Next back-forward queue) -------------------------
     def _commit_history(self) -> None:
@@ -963,6 +981,7 @@ class App:
             self._beat_indicator,
             self._beat_indicator_pos,
             self._beat_indicator_shape,
+            self._beat_indicator_opacity,
             self._beat_fade,
         )
 
@@ -998,11 +1017,16 @@ class App:
             self._beat_indicator_shape = shape
             self._refresh_beat_panel()
 
+    def _set_beat_indicator_opacity(self, opacity_key: str) -> None:
+        keys = [key for key, _label, _v in BEAT_INDICATOR_OPACITY_CHOICES]
+        if opacity_key in keys:
+            self._beat_indicator_opacity = opacity_key
+            self._refresh_beat_panel()
+
     def _set_beat_fade(self, fade_key: str) -> None:
         keys = [key for key, _label, _s in BEAT_FADE_CHOICES]
         if fade_key in keys:
             self._beat_fade = fade_key
-            self._beat.set_flash_tau(_beat_fade_seconds(fade_key))
             self._refresh_beat_panel()
 
     def _update_beat(self, dt: float) -> None:
@@ -1013,11 +1037,25 @@ class App:
         if self._modal_open() or self._notice_visible():
             self._beat.update(bands, is_silent=True, dt=dt)  # keep baseline/cooldowns ticking
             return
+        fade = _beat_fade_seconds(self._beat_fade)
         for action in self._beat.update(bands, idle, dt):
             if action == "randomize":
-                self._randomize_current_mode()
+                self._beat_randomize(fade)
             elif action == "next":
-                self._shuffle_next()
+                self._shuffle_next(fade)
+
+    def _beat_randomize(self, fade: float) -> None:
+        """Rnd fired by a beat: roll fresh options/feel and cross-fade from the old frame."""
+        snapshot = (
+            None
+            if (self._reduce_motion or fade <= 0.0)
+            else self._screen.subsurface(self._layout.canvas).copy()
+        )
+        self._randomize_current_mode()
+        self._auto_elapsed = 0.0
+        self._transition = (
+            None if snapshot is None else ModeTransition(duration=fade, snapshot=snapshot)
+        )
 
     def _pick_next(self) -> str | None:
         """Choose the next pooled item at random, never repeating the current one."""
@@ -1025,29 +1063,31 @@ class App:
         choices = [tag for tag in pool if tag != self._auto_current]
         return random.choice(choices) if choices else None
 
-    def _auto_advance(self) -> None:
+    def _auto_advance(self, fade: float | None = None) -> None:
         """Apply the next rotation item live and start a fade from the old scene.
 
         A **mode -> mode** switch keeps the outgoing visual alive and cross-fades
         both **live** (they keep animating); any switch involving a saved look
         uses a frozen-snapshot dissolve. Reduce-motion or a 0s fade hard-cuts.
+        ``fade`` overrides the cross-fade duration (``None`` = the Shuffle/Auto fade).
         """
         nxt = self._pick_next()
         if nxt is None:
             return
+        fade = self._auto_fade if fade is None else fade
         live = self._can_live_crossfade(nxt)
         prev_visual = self._visual if live else None
         snapshot = None if live else self._screen.subsurface(self._layout.canvas).copy()
         self._apply_pool_tag(nxt)
         self._auto_current = nxt
         self._commit_history()  # a produced item is a new look; record it
-        if self._reduce_motion or self._auto_fade <= 0.0:  # hard cut, no double-render
+        if self._reduce_motion or fade <= 0.0:  # hard cut, no double-render
             self._transition = None
             return
         if live:
-            self._transition = ModeTransition(duration=self._auto_fade, prev_visual=prev_visual)
+            self._transition = ModeTransition(duration=fade, prev_visual=prev_visual)
         else:
-            self._transition = ModeTransition(duration=self._auto_fade, snapshot=snapshot)
+            self._transition = ModeTransition(duration=fade, snapshot=snapshot)
 
     def _can_live_crossfade(self, nxt: str) -> bool:
         """True when both outgoing and incoming items are plain built-in modes.
@@ -1621,6 +1661,7 @@ class App:
                 self._beat.active_band,
                 self._beat.flash,
                 self._beat_indicator_shape,
+                _beat_opacity_value(self._beat_indicator_opacity),
             )
         if self._notice_visible():
             self._hud.draw_notice(screen, canvas, self._font, self._font_small)
@@ -1774,6 +1815,7 @@ class App:
             beat_indicator=self._beat_indicator,
             beat_indicator_pos=self._beat_indicator_pos,
             beat_indicator_shape=self._beat_indicator_shape,
+            beat_indicator_opacity=self._beat_indicator_opacity,
             beat_fade=self._beat_fade,
             color_hue=self._theme.custom_hue,
         )
