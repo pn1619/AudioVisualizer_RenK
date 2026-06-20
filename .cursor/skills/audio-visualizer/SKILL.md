@@ -155,6 +155,14 @@ the indicator flash decay; reverted to the fixed `BEAT_FLASH_TAU`.) New **`Opaci
 pass in `draw_beat_indicator(..., opacity)`. Schema **v17** adds `beat_indicator_opacity`. Tests extend
 `test_fx_phase0b17.py`.
 
+**Build 19 (v00.0B.15):** New mode **`Liquid Orb`** (`visuals/orb.py`, `@register key="orb" order=82`).
+A *filled*, morphing blob: per-vertex radius = a **mirrored** (seamless), circularly `smooth_wave`-d
+spectrum rim + a beat-pulse/RMS/breath swell, slowly rotating. Renders a layered radial-gradient body
+(nested polygons scaled toward the centroid), a crisp rim, and an additive glow halo. Options `Size`,
+`React`, `Surface` (smoothing), `Fill` (Gradient/Solid/Outline), `Glow`; idle = a breathing circle.
+Pure single-file add (honors Theme + reduce-motion), **no schema change** — exercised by the existing
+all-modes draw/registry suites. **20 modes total.**
+
 ### UI control idiom (toggle vs dropdown vs stepper)
 
 Pick the control by the shape of its choices — keep this consistent across the bar and the modals:

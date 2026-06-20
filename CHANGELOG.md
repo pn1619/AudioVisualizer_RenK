@@ -17,6 +17,25 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.15` — Phase 0B-c (build 19): new visual mode — Liquid Orb
+
+- **New mode `Liquid Orb`** (`orb`, order 82): a smooth, *filled* blob centered on screen
+  whose per-angle radius is driven by the frequency spectrum (mirrored so the shape stays
+  seamless), low-passed into a liquid wobble, slowly rotating, and pulsing on the beat. It
+  fills a layered radial gradient with an additive glow halo — distinct from **Waveform Rings**
+  (a thin oscilloscope line) and **Audio Sun** (discrete radial bars).
+- **Options:** `Size` (Small · Normal · Large), `React` (Calm · Normal · Wild), `Surface`
+  (Spiky · Liquid · Blobby — circular smoothing), `Fill` (Gradient · Solid · Outline), and
+  `Glow` (Off · Soft · Bright). When silent it shows a gentle breathing circle (idle), not a
+  dead screen.
+- Pure single-file addition: subclasses `BaseVisualizer`, auto-registers via `@register`, honors
+  the shared Theme (all color schemes, phase, size, speed) and reduce-motion (no spin, no beat
+  kick). No settings/schema change — the mode key persists via the existing `mode` field.
+- Tests: the new mode is exercised by the existing all-modes draw/registry suites
+  (`test_visuals.py`, `test_registry.py`); self-test (60 frames) passes.
+
+---
+
 ## `00.0B.14` — Phase 0B-c (build 18): beat Fade = transition time + indicator transparency
 
 - **`Fade` in Beat Buttons is now a look-transition cross-fade** — the same idea as the
