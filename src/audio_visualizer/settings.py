@@ -15,6 +15,7 @@ from pathlib import Path
 from audio_visualizer.config import (
     BEAT_ACTIONS,
     BEAT_BANDS,
+    BEAT_ENABLED_DEFAULT,
     BEAT_FADE_CHOICES,
     BEAT_FADE_DEFAULT,
     BEAT_INDICATOR_ENABLED_DEFAULT,
@@ -137,6 +138,9 @@ class Settings:
     random_options: bool = False
     # User-adjustable cross-fade length (seconds) for auto-cycle switches. (schema v12)
     random_fade: float = RANDOM_FADE_DEFAULT
+    # Beat Buttons master switch (schema v18): when off the feature fires nothing,
+    # regardless of each action's level (per-action settings below are preserved).
+    beat_enabled: bool = BEAT_ENABLED_DEFAULT
     # Beat Buttons (schema v13): per-action music-trigger sensitivity index
     # (0 = Off ... Max), keyed by action ("randomize"/"next"). Default all Off.
     beat_levels: dict[str, int] = field(default_factory=dict)
@@ -252,6 +256,7 @@ def _from_dict(raw: dict) -> Settings:
         random_interval=_interval(raw.get("random_interval"), defaults.random_interval),
         random_options=_bool(raw.get("random_options"), defaults.random_options),
         random_fade=_fade(raw.get("random_fade"), defaults.random_fade),
+        beat_enabled=_bool(raw.get("beat_enabled"), defaults.beat_enabled),
         beat_levels=_beat_levels(raw.get("beat_levels"), defaults.beat_levels),
         beat_bands=_beat_bands(raw.get("beat_bands"), defaults.beat_bands),
         beat_indicator=_bool(raw.get("beat_indicator"), defaults.beat_indicator),

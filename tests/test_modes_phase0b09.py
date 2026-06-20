@@ -105,7 +105,7 @@ def test_laser_shapes_are_modern_set() -> None:
     laser = Laser()
     shape = next(o for o in laser.OPTIONS if o.key == "shape")
     labels = [c.label for c in shape.choices]
-    assert labels == ["Lissajous", "Rose", "Spiro", "Web", "Bloom"]
+    assert labels == ["Lissajous", "Rose", "Spiro", "Star", "Butterfly"]
 
 
 # -- editable value chip ------------------------------------------------------

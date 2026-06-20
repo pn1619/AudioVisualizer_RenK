@@ -163,6 +163,20 @@ spectrum rim + a beat-pulse/RMS/breath swell, slowly rotating. Renders a layered
 Pure single-file add (honors Theme + reduce-motion), **no schema change** — exercised by the existing
 all-modes draw/registry suites. **20 modes total.**
 
+**Build 20 (v00.0B.16):** Beat master switch + laser shapes + richer backgrounds. (1) `BeatTrigger`
+gains a master `enabled` flag (`set_enabled`/`is_enabled`/`active()` = enabled ∧ `any_enabled`); the
+Beat panel adds a top `Beat Buttons: On/Off` toggle (`toggle_enabled` cb) that disables the feature
+without clearing per-action band/sensitivity. App uses `_beat.active()` for the `Beat…` highlight +
+indicator gate; persisted `beat_enabled` (schema **v18**, default On). (2) **Laser** drops `Web`/`Bloom`
+for **Star** (`_star`, spikes ride highs, bass sharpens the inner radius) and **Butterfly**
+(`_butterfly`, Temple Fay curve, wings flutter on the beat phase). (3) **Background panel** is now
+**dropdowns** (`BackgroundActions` = `set_mode/set_sensitivity/set_opacity/set_height` taking option
+keys; numeric keys via `app._bg_num_key`/`:g`) instead of click-to-cycle. (4) Four new backdrops in
+`visuals/background.py` (auto-dispatched by `_draw_<mode>`): `waves` (flowing sine bands), `plasma`
+(low-res animated field upscaled), `rain` (falling neon streaks, stateful like `starfield`), `grid`
+(synthwave perspective floor, scrolls + beat pulse) — added to `BG_MODES`/`BG_MODE_LABELS` + `BG_*`
+tuning consts. Tests: `test_fx_phase0b19.py`.
+
 ### UI control idiom (toggle vs dropdown vs stepper)
 
 Pick the control by the shape of its choices — keep this consistent across the bar and the modals:

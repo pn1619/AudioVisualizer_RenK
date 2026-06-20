@@ -142,6 +142,11 @@ def _nearest(value: object, choices: tuple[float, ...], default: float) -> float
     return min(choices, key=lambda choice: abs(choice - float(value)))
 
 
+def _bg_num_key(value: float) -> str:
+    """Stable dropdown key for a numeric background choice (e.g. 0.75 -> ``\"0.75\"``)."""
+    return f"{value:g}"
+
+
 def _beat_fade_seconds(fade_key: str) -> float:
     """Map a beat-fade choice key to its cross-fade duration in seconds (default if unknown)."""
     for key, _label, seconds in BEAT_FADE_CHOICES:
@@ -249,13 +254,23 @@ class App:
         self._apply_logo_settings()
         self._logo_panel = LogoPanel(self._build_logo_panel_actions())
         self._appearance = AppearancePanel(self._build_appearance_actions())
-        self._background_panel = BackgroundPanel(self._build_background_actions())
+        self._background_panel = BackgroundPanel(
+            self._build_background_actions(),
+            mode_options=[(key, BG_MODE_LABELS.get(key, key)) for key in BG_MODES],
+            sensitivity_options=[(_bg_num_key(v), f"x{v:.2f}") for v in BG_SENSITIVITY_CHOICES],
+            opacity_options=[(_bg_num_key(v), f"{int(v * 100)}%") for v in BG_OPACITY_CHOICES],
+            height_options=[(key, BG_HEIGHT_LABELS.get(key, key)) for key in BG_HEIGHTS],
+        )
         self._source_panel = SourcePanel(SourceActions(select=self._select_source))
         self._about = AboutDialog()
         self._hotkeys = HotkeysDialog()
         # Beat Buttons: music onsets auto-press actions (Rnd / Next). Levels/bands +
         # the on-screen indicator persist.
-        self._beat = BeatTrigger(self._settings.beat_levels, self._settings.beat_bands)
+        self._beat = BeatTrigger(
+            self._settings.beat_levels,
+            self._settings.beat_bands,
+            enabled=self._settings.beat_enabled,
+        )
         self._beat_indicator = bool(self._settings.beat_indicator)
         self._beat_indicator_pos = self._settings.beat_indicator_pos
         self._beat_indicator_shape = self._settings.beat_indicator_shape
@@ -271,6 +286,7 @@ class App:
             set_shape=self._set_beat_indicator_shape,
             set_opacity=self._set_beat_indicator_opacity,
             set_fade=self._set_beat_fade,
+            toggle_enabled=self._toggle_beat_enabled,
         )
 
         # User looks ("My Looks", Phase 0B-b): a saved-look store + its modal. The
@@ -442,10 +458,10 @@ class App:
 
     def _build_background_actions(self) -> BackgroundActions:
         return BackgroundActions(
-            cycle_mode=self._cycle_background,
-            cycle_sensitivity=self._cycle_bg_sensitivity,
-            cycle_opacity=self._cycle_bg_opacity,
-            cycle_height=self._cycle_bg_height,
+            set_mode=self._set_background,
+            set_sensitivity=self._set_bg_sensitivity,
+            set_opacity=self._set_bg_opacity,
+            set_height=self._set_bg_height,
         )
 
     def _build_logo_panel_actions(self) -> LogoPanelActions:
@@ -983,11 +999,18 @@ class App:
             self._beat_indicator_shape,
             self._beat_indicator_opacity,
             self._beat_fade,
+            self._beat.is_enabled(),
         )
 
     def _open_beat_panel(self) -> None:
         self._refresh_beat_panel()
         self._beat_panel.toggle()
+
+    def _toggle_beat_enabled(self) -> None:
+        """Master switch: turn the whole Beat feature on/off (keeps per-action settings)."""
+        self._beat.set_enabled(not self._beat.is_enabled())
+        self._refresh_beat_panel()
+        logger.debug("Beat feature %s", "on" if self._beat.is_enabled() else "off")
 
     def _set_beat_level(self, action: str, index: int) -> None:
         """Set an action's beat sensitivity level directly (from the dropdown)."""
@@ -1380,33 +1403,35 @@ class App:
         }
 
     # -- Background layer -----------------------------------------------------
-    def _cycle_background(self) -> None:
-        self._background.mode = self._cycle_next(BG_MODES, self._background.mode)
-        logger.debug("Background = %s", self._background.mode)
+    def _set_background(self, mode: str) -> None:
+        if mode in BG_MODES:
+            self._background.mode = mode
+            logger.debug("Background = %s", self._background.mode)
 
-    def _cycle_bg_height(self) -> None:
-        self._background.height_key = self._cycle_next(BG_HEIGHTS, self._background.height_key)
-        logger.debug("Background height = %s", self._background.height_key)
+    def _set_bg_height(self, key: str) -> None:
+        if key in BG_HEIGHTS:
+            self._background.height_key = key
+            logger.debug("Background height = %s", self._background.height_key)
 
-    def _cycle_bg_sensitivity(self) -> None:
-        self._background.sensitivity = self._cycle_next(
-            BG_SENSITIVITY_CHOICES, self._background.sensitivity
+    def _set_bg_sensitivity(self, key: str) -> None:
+        self._background.sensitivity = _nearest(
+            float(key), BG_SENSITIVITY_CHOICES, self._background.sensitivity
         )
         logger.debug("Background sensitivity = %s", self._background.sensitivity)
 
-    def _cycle_bg_opacity(self) -> None:
-        self._background.opacity = self._cycle_next(BG_OPACITY_CHOICES, self._background.opacity)
+    def _set_bg_opacity(self, key: str) -> None:
+        self._background.opacity = _nearest(
+            float(key), BG_OPACITY_CHOICES, self._background.opacity
+        )
         logger.debug("Background opacity = %s", self._background.opacity)
 
     def _background_values(self) -> dict[str, str]:
-        """Human-readable current values for the Background panel rows."""
+        """Current selected dropdown keys for each Background panel row."""
         return {
-            "mode": BG_MODE_LABELS.get(self._background.mode, self._background.mode),
-            "sensitivity": f"x{self._background.sensitivity:.2f}",
-            "opacity": f"{int(self._background.opacity * 100)}%",
-            "height": BG_HEIGHT_LABELS.get(
-                self._background.height_key, self._background.height_key
-            ),
+            "mode": self._background.mode,
+            "sensitivity": _bg_num_key(self._background.sensitivity),
+            "opacity": _bg_num_key(self._background.opacity),
+            "height": self._background.height_key,
         }
 
     def _notice_visible(self) -> bool:
@@ -1644,7 +1669,7 @@ class App:
                 self._auto,
                 self._locked_globals,
                 self._sens_band,
-                self._beat.any_enabled(),
+                self._beat.active(),
             )
             self._controls.set_looks(self._looks_rows(), self._active_look_id)
             self._controls.set_history(self._history_pos + 1, len(self._history))
@@ -1652,7 +1677,7 @@ class App:
 
         self._hud.draw(screen, canvas, self._hud_state(), self._font_small)
         self._draw_auto_status(screen, canvas)
-        if self._beat_indicator and self._beat.any_enabled():
+        if self._beat_indicator and self._beat.active():
             draw_beat_indicator(
                 screen,
                 canvas,
@@ -1810,6 +1835,7 @@ class App:
             random_interval=self._auto_interval,
             random_options=self._auto_random_options,
             random_fade=self._auto_fade,
+            beat_enabled=self._beat.is_enabled(),
             beat_levels=self._beat.levels_dict(),
             beat_bands=self._beat.bands_dict(),
             beat_indicator=self._beat_indicator,

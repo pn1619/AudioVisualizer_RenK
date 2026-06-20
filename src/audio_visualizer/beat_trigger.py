@@ -56,8 +56,12 @@ class BeatTrigger:
     """Decides which actions the music should auto-fire this frame."""
 
     def __init__(
-        self, levels: dict[str, int] | None = None, bands: dict[str, str] | None = None
+        self,
+        levels: dict[str, int] | None = None,
+        bands: dict[str, str] | None = None,
+        enabled: bool = True,
     ) -> None:
+        self._enabled = bool(enabled)
         self._levels: dict[str, int] = {key: 0 for key in _ACTION_KEYS}
         self._bands: dict[str, str] = {key: BEAT_BAND_DEFAULT for key in _ACTION_KEYS}
         if levels:
@@ -104,8 +108,19 @@ class BeatTrigger:
         if action in self._bands and band in _BAND_KEYS:
             self._bands[action] = band
 
+    def set_enabled(self, value: bool) -> None:
+        """Master switch: when off the engine fires nothing (settings are kept)."""
+        self._enabled = bool(value)
+
+    def is_enabled(self) -> bool:
+        return self._enabled
+
     def any_enabled(self) -> bool:
         return any(level > 0 for level in self._levels.values())
+
+    def active(self) -> bool:
+        """True when the feature is on AND at least one action has a level set."""
+        return self._enabled and self.any_enabled()
 
     def levels_dict(self) -> dict[str, int]:
         return dict(self._levels)
@@ -130,7 +145,7 @@ class BeatTrigger:
         for band, sig in signals.items():
             self._baseline[band] += (sig - self._baseline[band]) * alpha
 
-        if is_silent:
+        if is_silent or not self._enabled:
             self.intensity = 0.0
             return []
         fired: list[str] = []

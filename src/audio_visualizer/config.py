@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.15"
+APP_VERSION = "00.0B.16"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -215,9 +215,13 @@ BG_MODES: tuple[str, ...] = (
     "filaments",
     "mirror",
     "ribbon",
+    "waves",
     "gradient",
     "aurora",
+    "plasma",
     "starfield",
+    "rain",
+    "grid",
     "vignette",
 )
 BG_MODE_DEFAULT = "black"
@@ -227,9 +231,13 @@ BG_MODE_LABELS: dict[str, str] = {
     "filaments": "Filaments (hair)",
     "mirror": "Spectrum mirror",
     "ribbon": "Waveform ribbon",
+    "waves": "Ocean waves",
     "gradient": "Gradient",
     "aurora": "Aurora",
+    "plasma": "Plasma haze",
     "starfield": "Starfield",
+    "rain": "Neon rain",
+    "grid": "Retro grid",
     "vignette": "Beat vignette",
 }
 # Spectrum-family height presets -> max bar/band height as a fraction of canvas height.
@@ -292,6 +300,25 @@ BG_STARFIELD_BASE_ALPHA = 120
 # Beat vignette: resting edge glow + how much a beat brightens the edges.
 BG_VIGNETTE_BASE_ALPHA = 40
 BG_VIGNETTE_PULSE_ALPHA = 170
+# Ocean waves: flowing translucent horizontal sine bands; louder = taller swell.
+BG_WAVES_LAYERS = 4
+BG_WAVES_ALPHA = 60
+BG_WAVES_AMP_GAIN = 0.06  # extra band amplitude (fraction of height) at full level
+# Plasma haze: a low-res animated color field smoothscaled up (cheap), low opacity.
+BG_PLASMA_RES = 96  # computed grid size before upscaling
+BG_PLASMA_ALPHA = 150
+BG_PLASMA_SPEED = 0.5  # base animation speed (× drift), + level
+# Neon rain: vertical falling streaks; level speeds them up, onsets brighten them.
+BG_RAIN_AREA_PER_DROP = 14000  # one streak per this many px^2
+BG_RAIN_BASE_ALPHA = 90
+BG_RAIN_SPEED = 320.0  # px/s base fall speed
+BG_RAIN_SPEED_GAIN = 900.0  # extra px/s at full level
+# Retro grid: synthwave perspective floor that scrolls toward the viewer + beat pulse.
+BG_GRID_ALPHA = 120
+BG_GRID_ROWS = 12
+BG_GRID_COLS = 12
+BG_GRID_HORIZON = 0.5  # horizon line as a fraction of canvas height
+BG_GRID_SCROLL = 0.25  # rows scrolled per second (× speed)
 
 # Onset (beat) detection: spectral flux is normalized to 0..1 via this gain;
 # a frame is treated as an onset when its strength clears the threshold.
@@ -463,7 +490,7 @@ SETTINGS_FILENAME = "settings.json"
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
 # v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
-SETTINGS_SCHEMA_VERSION = 17
+SETTINGS_SCHEMA_VERSION = 18
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad
@@ -613,6 +640,11 @@ BEAT_INDICATOR_POSITIONS: tuple[tuple[str, str], ...] = (
 )
 BEAT_INDICATOR_POSITION_DEFAULT = "top-right"
 BEAT_INDICATOR_ENABLED_DEFAULT = False
+# Master switch for the whole Beat Buttons feature. When off, the music presses
+# nothing regardless of each action's level; per-action settings are preserved so
+# flipping it back on restores them. On by default (each action is still Off by
+# default, so nothing fires until the user opts in).
+BEAT_ENABLED_DEFAULT = True
 
 # --- Sensitivity frequency focus ----------------------------------------------
 # The global Sensitivity gain can target one frequency band instead of the whole

@@ -9,9 +9,13 @@ wherever the mode doesn't paint. Backdrops:
 * ``filaments`` - hair-thin (1px) rainbow lines at a tight pitch.
 * ``mirror``    - a spectrum mirrored across the vertical center (top + bottom).
 * ``ribbon``    - a scrolling oscilloscope waveform band along the bottom.
+* ``waves``     - flowing translucent horizontal sine bands; louder = taller swell.
 * ``gradient``  - a calm vertical magenta-tinted gradient.
 * ``aurora``    - drifting soft color blobs; beats shove + swell them.
+* ``plasma``    - a slow animated color haze (low-res field upscaled).
 * ``starfield`` - slow drifting dots that twinkle on treble/onsets.
+* ``rain``      - vertical neon streaks; louder falls faster, beats brighten them.
+* ``grid``      - a retro synthwave perspective floor that scrolls + pulses on beats.
 * ``vignette``  - edge glow that pulses on each beat.
 
 Two global knobs apply to every reactive backdrop: ``sensitivity`` (reactivity
@@ -38,12 +42,24 @@ from audio_visualizer.config import (
     BG_FILAMENT_HUE_SPREAD,
     BG_FILAMENT_PITCH,
     BG_GRADIENT_BOTTOM,
+    BG_GRID_ALPHA,
+    BG_GRID_COLS,
+    BG_GRID_HORIZON,
+    BG_GRID_ROWS,
+    BG_GRID_SCROLL,
     BG_HEIGHT_DEFAULT,
     BG_HEIGHT_FRACTIONS,
     BG_MODE_DEFAULT,
     BG_OPACITY_DEFAULT,
     BG_PALETTE,
+    BG_PLASMA_ALPHA,
+    BG_PLASMA_RES,
+    BG_PLASMA_SPEED,
     BG_PULSE_DECAY,
+    BG_RAIN_AREA_PER_DROP,
+    BG_RAIN_BASE_ALPHA,
+    BG_RAIN_SPEED,
+    BG_RAIN_SPEED_GAIN,
     BG_RIBBON_ALPHA,
     BG_RIBBON_SCROLL_PX,
     BG_SENSITIVITY_DEFAULT,
@@ -57,6 +73,9 @@ from audio_visualizer.config import (
     BG_STARFIELD_DRIFT,
     BG_VIGNETTE_BASE_ALPHA,
     BG_VIGNETTE_PULSE_ALPHA,
+    BG_WAVES_ALPHA,
+    BG_WAVES_AMP_GAIN,
+    BG_WAVES_LAYERS,
     COLOR_BG,
 )
 from audio_visualizer.visuals._helpers import (
@@ -93,6 +112,10 @@ class Background:
         self._vignette_cache: tuple[tuple[int, int], pygame.Surface] | None = None
         self._stars: dict[str, np.ndarray] | None = None
         self._stars_size: tuple[int, int] | None = None
+        self._rain: dict[str, np.ndarray] | None = None
+        self._rain_size: tuple[int, int] | None = None
+        self._rain_rng = np.random.default_rng(4321)
+        self._grid_scroll = 0.0
 
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
         """Composite the current backdrop onto ``surface`` (no-op for ``black``)."""
@@ -218,6 +241,29 @@ class Background:
             pygame.draw.line(layer, (*color, alpha), (x, lo), (x, hi))
         surface.blit(layer, (0, 0))
 
+    # -- waves ----------------------------------------------------------------
+    def _draw_waves(self, surface: pygame.Surface, frame: AnalysisFrame | None) -> None:
+        """Flowing translucent horizontal sine bands stacked up the lower screen."""
+        w, h = surface.get_size()
+        level = self._level(frame)
+        layers = max(2, BG_WAVES_LAYERS - (1 if self.reduce_motion else 0))
+        layer = pygame.Surface((w, h), pygame.SRCALPHA)
+        alpha = self._alpha(BG_WAVES_ALPHA)
+        step = max(4, w // 160)
+        for li in range(layers):
+            frac = li / max(1, layers - 1)
+            base_y = h * (0.5 + 0.12 * li)
+            amp = h * (0.03 + BG_WAVES_AMP_GAIN * level) * (1.0 + 0.3 * li)
+            speed = 0.6 + 0.5 * li
+            color = palette_color(BG_PALETTE, frac)
+            pts: list[tuple[float, float]] = [(0.0, float(h))]
+            for x in range(0, w + step, step):
+                phase = self._t * speed + (x / max(1, w)) * math.tau * (1.5 + li)
+                pts.append((float(x), base_y + math.sin(phase) * amp))
+            pts.append((float(w), float(h)))
+            pygame.draw.polygon(layer, (*color, alpha), pts)
+        surface.blit(layer, (0, 0))
+
     # -- gradient -------------------------------------------------------------
     def _draw_gradient(self, surface: pygame.Surface, frame: AnalysisFrame | None) -> None:
         size = surface.get_size()
@@ -255,6 +301,28 @@ class Background:
                 (int(cx - radius / 2), int(cy - radius / 2)),
                 special_flags=pygame.BLEND_RGB_ADD,
             )
+
+    # -- plasma ---------------------------------------------------------------
+    def _draw_plasma(self, surface: pygame.Surface, frame: AnalysisFrame | None) -> None:
+        """A cheap animated plasma: compute a small field of sines, upscale + tint."""
+        w, h = surface.get_size()
+        res = BG_PLASMA_RES
+        t = self._t * (BG_PLASMA_SPEED + self._level(frame))
+        xs = np.linspace(0.0, math.tau, res, dtype=np.float32)
+        ys = np.linspace(0.0, math.tau, res, dtype=np.float32)
+        gx, gy = np.meshgrid(xs, ys)
+        field = (
+            np.sin(gx * 1.5 + t) + np.sin(gy * 2.0 - t * 0.8) + np.sin((gx + gy) * 1.2 + t * 0.5)
+        )
+        norm = (field - field.min()) / max(1e-6, float(field.max() - field.min()))
+        c0 = np.array(BG_PALETTE[0], dtype=np.float32)
+        c1 = np.array(BG_PALETTE[-1], dtype=np.float32)
+        rgb = c0[None, None, :] * (1.0 - norm[:, :, None]) + c1[None, None, :] * norm[:, :, None]
+        small = pygame.Surface((res, res))
+        pygame.surfarray.blit_array(small, np.transpose(rgb, (1, 0, 2)).astype(np.uint8))
+        scaled = pygame.transform.smoothscale(small, (w, h))
+        scaled.set_alpha(self._alpha(BG_PLASMA_ALPHA))
+        surface.blit(scaled, (0, 0))
 
     # -- starfield ------------------------------------------------------------
     def _draw_starfield(self, surface: pygame.Surface, frame: AnalysisFrame | None) -> None:
@@ -294,6 +362,77 @@ class Background:
             "phase": rng.uniform(0, math.tau, count).astype(np.float32),
         }
         self._stars_size = size
+
+    # -- rain -----------------------------------------------------------------
+    def _draw_rain(self, surface: pygame.Surface, frame: AnalysisFrame | None) -> None:
+        """Vertical neon streaks falling; louder = faster, onsets brighten the field."""
+        w, h = surface.get_size()
+        self._ensure_rain((w, h))
+        rain = self._rain
+        assert rain is not None
+        level = self._level(frame)
+        speed = BG_RAIN_SPEED + BG_RAIN_SPEED_GAIN * level
+        rain["y"] = rain["y"] + speed * self._dt * rain["depth"]
+        wrapped = rain["y"] > h
+        if np.any(wrapped):  # respawn fallen streaks at the top with a fresh column
+            n = int(np.count_nonzero(wrapped))
+            rain["y"][wrapped] = -rain["length"][wrapped]
+            rain["x"][wrapped] = self._rain_rng.uniform(0, w, n).astype(np.float32)
+        layer = pygame.Surface((w, h), pygame.SRCALPHA)
+        bright = 1.0 + self._pulse * 1.4
+        for i in range(rain["x"].shape[0]):
+            a = self._alpha(int(min(255.0, BG_RAIN_BASE_ALPHA * rain["depth"][i] * bright)))
+            if a <= 2:
+                continue
+            x = int(rain["x"][i])
+            y = float(rain["y"][i])
+            length = float(rain["length"][i])
+            color = palette_color(BG_PALETTE, float(rain["hue"][i]))
+            pygame.draw.line(layer, (*color, a), (x, int(y)), (x, int(y + length)))
+        surface.blit(layer, (0, 0))
+
+    def _ensure_rain(self, size: tuple[int, int]) -> None:
+        if self._rain is not None and self._rain_size == size:
+            return
+        w, h = size
+        count = max(20, (w * h) // BG_RAIN_AREA_PER_DROP)
+        rng = np.random.default_rng(4321)
+        self._rain = {
+            "x": rng.uniform(0, w, count).astype(np.float32),
+            "y": rng.uniform(0, h, count).astype(np.float32),
+            "length": rng.uniform(h * 0.04, h * 0.12, count).astype(np.float32),
+            "depth": rng.uniform(0.4, 1.0, count).astype(np.float32),
+            "hue": rng.uniform(0.0, 1.0, count).astype(np.float32),
+        }
+        self._rain_size = size
+
+    # -- grid -----------------------------------------------------------------
+    def _draw_grid(self, surface: pygame.Surface, frame: AnalysisFrame | None) -> None:
+        """A retro synthwave perspective floor: lines converge to a horizon + scroll."""
+        w, h = surface.get_size()
+        horizon = h * BG_GRID_HORIZON
+        floor = h - horizon
+        if floor <= 1:
+            return
+        speed = BG_GRID_SCROLL * (0.4 if self.reduce_motion else 1.0) * self.theme.speed_scale
+        self._grid_scroll = (self._grid_scroll + self._dt * speed) % 1.0
+        layer = pygame.Surface((w, h), pygame.SRCALPHA)
+        bright = 1.0 + self._pulse * 1.5
+        alpha = self._alpha(int(min(255, BG_GRID_ALPHA * bright)))
+        if alpha <= 2:
+            return
+        color = palette_color(BG_PALETTE, 0.4)
+        vx = w / 2.0
+        for i in range(-BG_GRID_COLS, BG_GRID_COLS + 1):  # vertical lines -> vanishing point
+            x_bottom = vx + i * (w / BG_GRID_COLS)
+            pygame.draw.line(layer, (*color, alpha), (vx, horizon), (x_bottom, h))
+        for j in range(BG_GRID_ROWS + 1):  # horizontal lines receding to the horizon
+            f = (j + self._grid_scroll) / BG_GRID_ROWS
+            y = horizon + floor * (f * f)  # perspective spacing (denser near horizon)
+            if y > h:
+                continue
+            pygame.draw.line(layer, (*color, alpha), (0, int(y)), (w, int(y)))
+        surface.blit(layer, (0, 0))
 
     # -- vignette -------------------------------------------------------------
     def _draw_vignette(self, surface: pygame.Surface, frame: AnalysisFrame | None) -> None:

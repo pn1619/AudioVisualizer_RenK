@@ -151,6 +151,7 @@ def test_panel_dropdowns_route_callbacks() -> None:
         set_shape=lambda s: calls.__setitem__("shape", s),
         set_opacity=lambda o: calls.__setitem__("opacity", o),
         set_fade=lambda f: calls.__setitem__("fade", f),
+        toggle_enabled=lambda: calls.__setitem__("enabled_toggled", True),
     )
     panel.set_state(
         {"randomize": 0, "next": 0}, {"randomize": "all", "next": "all"}, False, "top-right"
@@ -176,10 +177,14 @@ def test_panel_dropdowns_route_callbacks() -> None:
     _click(lay.position.center)
     _click(panel._position_dd._option_rects()[1].center)
 
+    # The master On/Off toggle routes to toggle_enabled.
+    _click(lay.master.center)
+
     assert calls["band"] == (action, "bass")
     assert calls["level"] == (action, 5)
     assert calls["indicator"] is True
     assert calls["position"] == BEAT_INDICATOR_POSITIONS[1][0]
+    assert calls["enabled_toggled"] is True
 
 
 def test_indicator_draws_without_error() -> None:

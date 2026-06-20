@@ -1,6 +1,8 @@
 """Modal "Beat Buttons" table: let the music auto-press actions (Phase 0B-c).
 
-Opened from the ``Beat\u2026`` control-bar button (next to Shuffle). Each row is an
+Opened from the ``Beat\u2026`` control-bar button (next to Shuffle). A master
+**On/Off** toggle at the top turns the whole feature off without losing any
+per-action settings. Each row is an
 action (Rnd, Next) with two **dropdowns**: the **band** it listens to
 (All/Bass/Mid/High) and its **sensitivity** (Off..Insane). Below the table, an
 On/Off **toggle** for a small on-screen **indicator** plus a **dropdown** for its
@@ -52,6 +54,7 @@ class _ActionRow:
 @dataclass(frozen=True)
 class _PanelLayout:
     panel: pygame.Rect
+    master: pygame.Rect
     rows: list[_ActionRow]
     indicator: pygame.Rect
     position: pygame.Rect
@@ -73,12 +76,15 @@ class BeatPanel:
         set_shape: Callable[[str], None],
         set_opacity: Callable[[str], None],
         set_fade: Callable[[str], None],
+        toggle_enabled: Callable[[], None],
     ) -> None:
         self._set_level = set_level
         self._set_band = set_band
         self._toggle_indicator = toggle_indicator
         self._set_position = set_position
+        self._toggle_enabled = toggle_enabled
         self.open = False
+        self._enabled = True
         self._indicator_on = False
         self._hover_close = False
 
@@ -129,7 +135,9 @@ class BeatPanel:
         shape_key: str = "dot",
         opacity_key: str = "100",
         fade_key: str = "medium",
+        enabled: bool = True,
     ) -> None:
+        self._enabled = enabled
         for key, level in levels.items():
             if key in self._level_dd:
                 self._level_dd[key].set_selected(str(level))
@@ -155,6 +163,8 @@ class BeatPanel:
     def _panel_rect(self, canvas: pygame.Rect) -> pygame.Rect:
         body = (
             _PAD
+            + _ROW_H  # master On/Off toggle
+            + _GAP
             + _LABEL_H  # intro line
             + _GAP
             + len(BEAT_ACTIONS) * (_ROW_H + _GAP)
@@ -179,7 +189,8 @@ class BeatPanel:
         panel = self._panel_rect(canvas)
         x = panel.x + _PAD
         w = panel.width - _PAD * 2
-        y = panel.y + _PAD + _LABEL_H + _GAP
+        master = pygame.Rect(x, panel.y + _PAD, w, _ROW_H)
+        y = master.bottom + _GAP + _LABEL_H + _GAP
         rows: list[_ActionRow] = []
         for key, _label in BEAT_ACTIONS:
             level_rect = pygame.Rect(x + w - _LEVEL_W, y, _LEVEL_W, _ROW_H)
@@ -197,7 +208,7 @@ class BeatPanel:
         y += _ROW_H + _GAP
         fade = pygame.Rect(x, y, w, _ROW_H)
         close = pygame.Rect(x, panel.bottom - _PAD - _ROW_H, w, _ROW_H)
-        return _PanelLayout(panel, rows, indicator, position, shape, opacity, fade, close)
+        return _PanelLayout(panel, master, rows, indicator, position, shape, opacity, fade, close)
 
     def _sync_widgets(self, lay: _PanelLayout) -> None:
         """Push current rects into the dropdowns and bound their open lists."""
@@ -237,6 +248,9 @@ class BeatPanel:
             self.open = False
             self._close_dropdowns()
             return True
+        if lay.master.collidepoint(pos):
+            self._toggle_enabled()
+            return True
         if lay.indicator.collidepoint(pos):
             self._toggle_indicator()
             return True
@@ -266,12 +280,20 @@ class BeatPanel:
         title = font.render("Beat Buttons", True, STYLE.accent)
         surface.blit(title, (panel.x + _PAD, panel.y - title.get_height() - 4))
 
+        self._draw_button(
+            surface,
+            lay.master,
+            f"Beat Buttons: {'On' if self._enabled else 'Off'}",
+            font,
+            active=self._enabled,
+        )
+
         intro = font_small.render(
             "Let the music press a button for you (band \u2192 sensitivity):",
             True,
             COLOR_TEXT_DIM,
         )
-        surface.blit(intro, (panel.x + _PAD, panel.y + _PAD))
+        surface.blit(intro, (panel.x + _PAD, lay.master.bottom + _GAP))
 
         labels = {key: label for key, label in BEAT_ACTIONS}
         for row in lay.rows:
@@ -309,7 +331,9 @@ class BeatPanel:
         label: str,
         font: pygame.font.Font,
     ) -> None:
-        on = self._level_dd[row.action_key].current_label != BEAT_SENSITIVITY_LABELS[0]
+        on = self._enabled and (
+            self._level_dd[row.action_key].current_label != BEAT_SENSITIVITY_LABELS[0]
+        )
         color = COLOR_TEXT if on else COLOR_TEXT_DIM
         name = fit_text(font, label, row.label_rect.width - TEXT_PAD)
         text = font.render(name, True, color)
