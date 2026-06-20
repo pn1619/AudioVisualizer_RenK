@@ -189,6 +189,21 @@ restores it (called on shutdown + when set back to System). Appearance gains a `
 cycle row (`cycle_cursor`). Persisted `cursor_mode` (schema **v19**, default `system`). Honors
 reduce-motion; fail-soft. Tests: `test_cursor_color_phase0b17.py`.
 
+**Build 22 (v00.0B.18):** Cursor split into shape+effect, dropdown Appearance, color picker popup.
+(1) `ui/cursor.py` `Cursor` now has independent **`shape`** (`CURSOR_SHAPES`: system/arrow/dot/ring/
+crosshair/star/heart/diamond/triangle, drawn by `_shape_<name>`) + **`effect`** (`CURSOR_EFFECTS`:
+none/glow/comet/sparkles/pulse/ripple, drawn by `_fx_<name>`); `set_shape`/`set_effect`, `is_custom`
+= shape≠system ∨ effect≠none (gates drawing + OS-arrow hide). Effects layer under the shape and run
+even on the system shape. (2) **Appearance panel** rewritten as **dropdowns** (`AppearanceActions` =
+`set_style/set_accent/set_font/set_cursor_shape/set_cursor_effect`; built with option lists; mirrors
+`BackgroundPanel`). The hue bar + Solid/Mono buttons were **removed** from it. (3) New
+`ui/color_picker.py` `ColorPicker` modal (hue bar + preview swatch + Solid/Mono buttons); App opens
+it from `_set_color_scheme`/`_cycle_color_scheme` when the scheme is a pick scheme (`_open_color_picker`
+closes other modals first; the picker's own scheme buttons call `_pick_color_scheme`, no re-open).
+Registered in `_modal_open`/`_close_modals`/`_handle_events`, drawn after Appearance. (4) Settings
+**schema v20**: `cursor_mode` → `cursor_shape`+`cursor_effect`, with `_migrate` mapping the legacy
+value via `CURSOR_LEGACY_MODE_MAP`. Tests: `test_cursor_color_phase0b18.py`.
+
 ### UI control idiom (toggle vs dropdown vs stepper)
 
 Pick the control by the shape of its choices — keep this consistent across the bar and the modals:

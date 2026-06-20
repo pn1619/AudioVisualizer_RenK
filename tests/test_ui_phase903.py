@@ -88,26 +88,41 @@ def test_dropdown_open_list_stays_within_right_bound() -> None:
         assert rect.right <= 640
 
 
-def test_appearance_panel_rows_cycle() -> None:
-    calls: list[str] = []
+def test_appearance_panel_dropdowns_route_callbacks() -> None:
+    calls: dict[str, str] = {}
     panel = AppearancePanel(
         AppearanceActions(
-            cycle_style=lambda: calls.append("style"),
-            cycle_accent=lambda: calls.append("accent"),
-            cycle_font=lambda: calls.append("font"),
-            cycle_cursor=lambda: calls.append("cursor"),
-            set_hue=lambda h: calls.append("hue"),
-            set_color_scheme=lambda s: calls.append("scheme"),
-        )
+            set_style=lambda v: calls.__setitem__("style", v),
+            set_accent=lambda v: calls.__setitem__("accent", v),
+            set_font=lambda v: calls.__setitem__("font", v),
+            set_cursor_shape=lambda v: calls.__setitem__("cursor_shape", v),
+            set_cursor_effect=lambda v: calls.__setitem__("cursor_effect", v),
+        ),
+        style_options=[("glass", "Glass"), ("flat", "Flat")],
+        accent_options=[("aqua", "Aqua"), ("magenta", "Magenta")],
+        font_options=[("mono", "Mono"), ("sans", "Sans")],
+        cursor_shape_options=[("system", "System"), ("star", "Star")],
+        cursor_effect_options=[("none", "None"), ("comet", "Comet")],
     )
     panel.open = True
     canvas = pygame.Rect(0, 0, 1280, 720)
-    rows = panel._row_rects(canvas)
-    keys = [key for key, _rect in rows]
-    for _key, rect in rows:
-        ev = pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center)
-        assert panel.handle_event(ev, canvas) is True
-    assert calls == keys  # each row routed to its own action, in order
+
+    def _click(pos: tuple[int, int]) -> None:
+        panel.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos), canvas)
+
+    for key, _label, dd_rect in panel._row_rects(canvas):
+        panel._sync_widgets(canvas)
+        _click(dd_rect.center)  # open the dropdown
+        option_rect = panel._dd[key]._option_rects()[1]  # pick the 2nd option
+        _click(option_rect.center)
+
+    assert calls == {
+        "style": "flat",
+        "accent": "magenta",
+        "font": "sans",
+        "cursor_shape": "star",
+        "cursor_effect": "comet",
+    }
 
 
 def test_layout_accepts_dynamic_control_bar_height() -> None:
