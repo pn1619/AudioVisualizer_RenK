@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.18"
+APP_VERSION = "00.0B.19"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -169,6 +169,7 @@ COLOR_SCHEMES: tuple[str, ...] = (
     "grayscale",
     "solid",
     "mono",
+    "stereo",
 )
 COLOR_SCHEME_DEFAULT = "classic"
 # Human-friendly labels for the color dropdown.
@@ -185,6 +186,7 @@ COLOR_SCHEME_LABELS: dict[str, str] = {
     "grayscale": "Grayscale",
     "solid": "Solid (pick)",
     "mono": "Mono (pick)",
+    "stereo": "Stereo (2-color)",
 }
 # Curated fixed palettes (low->high position) for the preset "theme" color schemes.
 THEME_PALETTES: dict[str, tuple[tuple[int, int, int], ...]] = {
@@ -196,11 +198,14 @@ THEME_PALETTES: dict[str, tuple[tuple[int, int, int], ...]] = {
     "candy": ((255, 120, 200), (200, 120, 255), (130, 170, 255), (120, 245, 215), (255, 245, 160)),
     "grayscale": ((30, 30, 34), (90, 92, 100), (150, 152, 160), (205, 207, 214), (255, 255, 255)),
 }
-# Color schemes that use the user-picked Custom hue (vs a fixed palette or rainbow).
-COLOR_PICK_SCHEMES: frozenset[str] = frozenset({"solid", "mono"})
+# Color schemes that use user-picked Custom hue(s) (vs a fixed palette or rainbow).
+COLOR_PICK_SCHEMES: frozenset[str] = frozenset({"solid", "mono", "stereo"})
 # The user's picked hue (0..1 around the wheel) for the Solid/Mono schemes. Saturation
 # is held high so the picked color stays vivid; Mono ramps brightness across position.
 COLOR_HUE_DEFAULT = 0.55
+# Stereo uses a *second* hue: position t lerps from the first (left) to the second
+# (right) color, so a left->right visual reads as two channels. (schema v21)
+COLOR_HUE2_DEFAULT = 0.02
 COLOR_PICK_SATURATION = 0.85
 # How fast rainbow_plus sweeps the hue wheel (cycles per second).
 COLOR_CYCLE_RATE = 0.15
@@ -263,8 +268,10 @@ CURSOR_BASE_RADIUS = 8  # resting cursor radius (px) before audio pulse
 CURSOR_PULSE_DECAY = 4.0  # beat-pulse envelope falloff (per second)
 CURSOR_PULSE_GAIN = 0.9  # how much an onset swells the cursor (Beat pulse effect)
 CURSOR_ENERGY_GAIN = 0.5  # how much steady loudness swells the cursor
-CURSOR_TRAIL_LEN = 18  # comet trail length (recent positions)
-CURSOR_TRAIL_LEN_REDUCED = 6  # shorter trail under reduce-motion
+CURSOR_TRAIL_TTL = 0.45  # comet trail: seconds a point lives before fading out
+CURSOR_TRAIL_TTL_REDUCED = 0.28  # shorter-lived trail under reduce-motion
+CURSOR_TRAIL_MAX = 48  # cap on stored trail points (bounds memory)
+CURSOR_TRAIL_SUBDIV = 8  # Catmull-Rom subdivisions per segment (smoothness)
 CURSOR_SPARK_MAX = 90  # cap on live spark particles
 CURSOR_SPARK_MAX_REDUCED = 30
 CURSOR_SPARK_PER_MOVE = 2  # sparks spawned per qualifying mouse move
@@ -555,7 +562,7 @@ SETTINGS_FILENAME = "settings.json"
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
 # v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
-SETTINGS_SCHEMA_VERSION = 20
+SETTINGS_SCHEMA_VERSION = 21
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad

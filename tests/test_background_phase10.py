@@ -6,7 +6,6 @@ import json
 
 import numpy as np
 import pygame
-import pytest
 
 from audio_visualizer import settings as settings_mod
 from audio_visualizer.audio.frame import AnalysisFrame
@@ -15,14 +14,6 @@ from audio_visualizer.settings import Settings
 from audio_visualizer.ui.style import STYLE, draw_panel
 from audio_visualizer.visuals.background import Background
 from audio_visualizer.visuals.base import Theme
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    yield
-    pygame.quit()
 
 
 def _frame(level: float = 0.6) -> AnalysisFrame:

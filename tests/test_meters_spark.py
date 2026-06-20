@@ -15,14 +15,6 @@ import pytest
 from audio_visualizer.visuals.meters import Meters
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    yield
-    pygame.quit()
-
-
 @pytest.mark.parametrize("angle_deg", [40.0, 90.0, 140.0])
 def test_needle_spark_follows_needle_angle_on_wide_window(angle_deg: float) -> None:
     w, h = 960, 200  # extreme widescreen exaggerates any aspect skew

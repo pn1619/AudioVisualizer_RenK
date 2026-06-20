@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pygame
-import pytest
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import (
@@ -22,13 +21,6 @@ def _spiral(**kwargs) -> Particles:
     v.on_enter()
     v.set_option_index("emitter", 1)  # Spiral
     return v
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    yield
-    pygame.quit()
 
 
 def _loud_frame() -> AnalysisFrame:

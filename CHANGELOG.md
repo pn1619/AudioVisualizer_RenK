@@ -17,6 +17,29 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.19` — Phase 0B-c (build 23): Stereo color, smoother comet, test cleanup
+
+- **New `Stereo (2-color)` color scheme** — picks **two** hues and blends them across a visual's
+  position (left→right), so a spread-out mode reads as two channels. The custom-color popup gains a
+  **Stereo** button that reveals a second hue bar (**Left channel** / **Right channel**) and previews
+  the gradient between them. Implemented as `themed_color("stereo", …)` lerping the two picked hues;
+  the second hue is published live via `set_custom_hue2` and persisted as `color_hue2` (schema v21).
+- **Comet cursor trail — smoother + actually fades** — the trail now:
+  - **Fades out over time**: each point carries an age and is dropped past a short TTL, so when the
+    mouse stops the trail melts away (previously it froze and lingered).
+  - **Curves smoothly**: points are interpolated with a **Catmull-Rom spline** and drawn with a
+    tapering width + age-based alpha, giving a fluid, curly tail instead of straight segments.
+  - Honors reduce-motion (shorter TTL) and is bounded (`CURSOR_TRAIL_MAX`).
+- **Test suite cleanup / uniforming** — the per-module `pygame.init()/quit()` fixture (duplicated in
+  ~25 files) is now a single module-scoped autouse fixture in `tests/conftest.py`, which also runs
+  `registry.discover()` once. Added a shared `make_frame` `AnalysisFrame` factory fixture. Net: ~15
+  redundant fixtures/imports removed, less boilerplate, consistent headless setup everywhere.
+- Settings **schema v21** adds `color_hue2`; older files migrate cleanly (defaults mid-range).
+- Tests: `test_stereo_comet_phase0b19.py` (stereo blend/endpoints + hue2 round-trip; comet
+  fade-to-empty, bounded length, reset-on-change); color-picker tests cover the Stereo second bar.
+
+---
+
 ## `00.0B.18` — Phase 0B-c (build 22): cursor shape + effect, color picker popup
 
 - **Cursor split into Shape + Effect (dropdowns)** — the single click-to-cycle cursor row

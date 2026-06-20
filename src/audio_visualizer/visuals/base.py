@@ -8,6 +8,7 @@ import pygame
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import (
+    COLOR_HUE2_DEFAULT,
     COLOR_HUE_DEFAULT,
     COLOR_SCHEME_DEFAULT,
     SIZE_SCALE_DEFAULT,
@@ -28,6 +29,7 @@ class Theme:
     color_scheme: str = COLOR_SCHEME_DEFAULT  # see config.COLOR_SCHEMES
     color_phase: float = 0.0  # 0..1 time offset advanced by the App for rainbow_plus
     custom_hue: float = COLOR_HUE_DEFAULT  # 0..1 hue for the Solid/Mono schemes
+    custom_hue2: float = COLOR_HUE2_DEFAULT  # 0..1 second hue for the Stereo scheme
 
 
 @dataclass(frozen=True)

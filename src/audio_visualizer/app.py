@@ -116,7 +116,7 @@ from audio_visualizer.ui.shuffle_panel import ShuffleActions, ShufflePanel
 from audio_visualizer.ui.source_panel import SourceActions, SourcePanel
 from audio_visualizer.ui.style import STYLE
 from audio_visualizer.visuals import registry
-from audio_visualizer.visuals._helpers import set_custom_hue
+from audio_visualizer.visuals._helpers import set_custom_hue, set_custom_hue2
 from audio_visualizer.visuals._transition import ModeTransition
 from audio_visualizer.visuals.background import Background
 from audio_visualizer.visuals.base import BaseVisualizer, Theme
@@ -222,6 +222,7 @@ class App:
             ),
             color_scheme=self._settings.color_scheme,
             custom_hue=float(np.clip(self._settings.color_hue, 0.0, 1.0)),
+            custom_hue2=float(np.clip(self._settings.color_hue2, 0.0, 1.0)),
         )
 
         self._fullscreen = self._settings.fullscreen
@@ -272,7 +273,11 @@ class App:
             cursor_effect_options=[(k, CURSOR_EFFECT_LABELS.get(k, k)) for k in CURSOR_EFFECTS],
         )
         self._color_picker = ColorPicker(
-            ColorPickerActions(set_hue=self._set_color_hue, set_scheme=self._pick_color_scheme)
+            ColorPickerActions(
+                set_hue=self._set_color_hue,
+                set_hue2=self._set_color_hue2,
+                set_scheme=self._pick_color_scheme,
+            )
         )
         self._background_panel = BackgroundPanel(
             self._build_background_actions(),
@@ -603,6 +608,7 @@ class App:
                 "speed_scale": self._theme.speed_scale,
                 "color_scheme": self._theme.color_scheme,
                 "custom_hue": self._theme.custom_hue,
+                "custom_hue2": self._theme.custom_hue2,
             },
             sensitivity=self._sensitivity,
             smoothing=self._smoothing,
@@ -670,6 +676,9 @@ class App:
         hue = theme.get("custom_hue")
         if isinstance(hue, int | float) and not isinstance(hue, bool):
             self._theme.custom_hue = float(np.clip(hue, 0.0, 1.0))
+        hue2 = theme.get("custom_hue2")
+        if isinstance(hue2, int | float) and not isinstance(hue2, bool):
+            self._theme.custom_hue2 = float(np.clip(hue2, 0.0, 1.0))
 
     def _apply_bg_value(self, value: object) -> None:
         if not isinstance(value, dict):
@@ -1348,14 +1357,22 @@ class App:
 
     def _open_color_picker(self) -> None:
         self._close_modals()
-        self._color_picker.set_state(self._theme.custom_hue, self._theme.color_scheme)
+        self._color_picker.set_state(
+            self._theme.custom_hue, self._theme.color_scheme, self._theme.custom_hue2
+        )
         self._color_picker.open = True
 
     def _set_color_hue(self, hue: float) -> None:
-        """Set the Custom hue (0..1) used by the Solid/Mono color schemes."""
+        """Set the Custom hue (0..1) used by the Solid/Mono/Stereo color schemes."""
         self._theme.custom_hue = float(np.clip(hue, 0.0, 1.0))
         if self._theme.color_scheme not in COLOR_PICK_SCHEMES:
             self._theme.color_scheme = "solid"
+
+    def _set_color_hue2(self, hue: float) -> None:
+        """Set the second Custom hue (0..1) used by the Stereo color scheme."""
+        self._theme.custom_hue2 = float(np.clip(hue, 0.0, 1.0))
+        if self._theme.color_scheme != "stereo":
+            self._theme.color_scheme = "stereo"
 
     def _toggle_reduce_motion(self) -> None:
         self._reduce_motion = not self._reduce_motion
@@ -1690,6 +1707,7 @@ class App:
         # publish the picked Custom hue so the Solid/Mono schemes see it this frame.
         self._theme.color_phase = (self._theme.color_phase + dt * COLOR_CYCLE_RATE) % 1.0
         set_custom_hue(self._theme.custom_hue)
+        set_custom_hue2(self._theme.custom_hue2)
 
         # Track how long we've been silent so the idle banner only shows after a
         # short delay (brief track gaps shouldn't flash it). Never auto-quits.
@@ -1756,7 +1774,9 @@ class App:
         self._logo_panel.draw(screen, canvas, self._font, self._font_small)
         self._appearance.set_state(self._appearance_values())
         self._appearance.draw(screen, canvas, self._font, self._font_small)
-        self._color_picker.set_state(self._theme.custom_hue, self._theme.color_scheme)
+        self._color_picker.set_state(
+            self._theme.custom_hue, self._theme.color_scheme, self._theme.custom_hue2
+        )
         self._color_picker.draw(screen, canvas, self._font, self._font_small)
         self._background_panel.set_state(self._background_values())
         self._background_panel.draw(screen, canvas, self._font, self._font_small)
@@ -1924,6 +1944,7 @@ class App:
             beat_indicator_opacity=self._beat_indicator_opacity,
             beat_fade=self._beat_fade,
             color_hue=self._theme.custom_hue,
+            color_hue2=self._theme.custom_hue2,
         )
 
     def _shutdown(self) -> None:

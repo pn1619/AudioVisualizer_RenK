@@ -15,15 +15,6 @@ _NEW_MODES = ("spectrogram", "radial_spectrum", "plasma", "tunnel", "fireworks",
 _FILLING = {"spectrogram", "plasma"}
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    pygame.display.set_mode((10, 10))
-    registry.discover()
-    yield
-    pygame.quit()
-
-
 def _active_frame() -> AnalysisFrame:
     bands = np.linspace(0.2, 0.9, 48).astype(np.float32)
     wave = np.sin(np.linspace(0, 12, 256)).astype(np.float32) * 0.6

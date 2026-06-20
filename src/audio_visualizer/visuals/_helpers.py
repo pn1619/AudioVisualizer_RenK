@@ -13,6 +13,7 @@ from numpy.typing import NDArray
 
 from audio_visualizer.config import (
     COLOR_ACCENT,
+    COLOR_HUE2_DEFAULT,
     COLOR_HUE_DEFAULT,
     COLOR_PICK_SATURATION,
     PALETTE,
@@ -29,12 +30,19 @@ Color = tuple[int, int, int]
 # Theme's value here once per frame (via :func:`set_custom_hue`) so the many
 # ``themed_color`` call sites need not thread an extra argument through every mode.
 _custom_hue: float = COLOR_HUE_DEFAULT
+_custom_hue2: float = COLOR_HUE2_DEFAULT
 
 
 def set_custom_hue(hue: float) -> None:
     """Set the live Custom hue (0..1, wrapped) used by the Solid/Mono color schemes."""
     global _custom_hue
     _custom_hue = float(hue) % 1.0
+
+
+def set_custom_hue2(hue: float) -> None:
+    """Set the live second Custom hue (0..1) used by the Stereo color scheme."""
+    global _custom_hue2
+    _custom_hue2 = float(hue) % 1.0
 
 
 def _hue_rgb(hue: float, value: float = 1.0) -> Color:
@@ -247,6 +255,8 @@ def themed_color(scheme: str, t: float, palette: tuple[Color, ...], phase: float
         return _hue_rgb(_custom_hue, 1.0)  # one flat user-picked color
     if scheme == "mono":
         return _hue_rgb(_custom_hue, 0.3 + 0.7 * clamp(t))  # light->dark ramp of that hue
+    if scheme == "stereo":  # left hue at t=0 -> right hue at t=1 (two "channels")
+        return lerp_color(_hue_rgb(_custom_hue, 1.0), _hue_rgb(_custom_hue2, 1.0), clamp(t))
     themed = THEME_PALETTES.get(scheme)
     if themed is not None:
         return palette_color(themed, t)

@@ -12,13 +12,6 @@ from audio_visualizer.ui.hotkeys import HotkeysDialog
 from audio_visualizer.ui.looks_panel import LooksActions, LooksPanel
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    yield
-    pygame.quit()
-
-
 @pytest.fixture
 def app() -> App:
     instance = App(load_settings=False)

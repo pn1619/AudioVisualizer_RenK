@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pygame
-import pytest
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import PALETTE
@@ -12,13 +11,6 @@ from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
 from audio_visualizer.visuals._helpers import rainbow_color, themed_color
 from audio_visualizer.visuals.snowfall import Snowfall
 from audio_visualizer.visuals.waveform import Waveform
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    yield
-    pygame.quit()
 
 
 def _loud_frame() -> AnalysisFrame:

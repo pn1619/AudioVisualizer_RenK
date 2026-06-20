@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pygame
-import pytest
 
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.config import (
@@ -18,15 +17,6 @@ from audio_visualizer.ui.about import AboutDialog
 from audio_visualizer.ui.logo_panel import LogoPanel, LogoPanelActions
 from audio_visualizer.visuals.base import Theme
 from audio_visualizer.visuals.logo import RenkLogo, _to_luminance
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _pygame_ready():
-    pygame.init()
-    # A display is needed for convert_alpha (image load); dummy driver keeps it headless.
-    pygame.display.set_mode((320, 240))
-    yield
-    pygame.quit()
 
 
 def _logo_surface(size: int = 32) -> pygame.Surface:
