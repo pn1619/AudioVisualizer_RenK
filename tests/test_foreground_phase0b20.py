@@ -77,12 +77,20 @@ def _make_panel(calls: dict[str, str]) -> ForegroundPanel:
             set_mode=lambda v: calls.__setitem__("mode", v),
             set_intensity=lambda v: calls.__setitem__("intensity", v),
             set_direction=lambda v: calls.__setitem__("direction", v),
+            set_color=lambda v: calls.__setitem__("color", v),
             set_opacity=lambda v: calls.__setitem__("opacity", v),
+            set_flash=lambda v: calls.__setitem__("flash", v),
+            set_reactivity=lambda v: calls.__setitem__("reactivity", v),
+            set_wind=lambda v: calls.__setitem__("wind", v),
         ),
         mode_options=[("off", "Off"), ("lightning", "Lightning")],
         intensity_options=[("1", "x1.00"), ("2", "x2.00")],
         direction_options=[("random", "Random"), ("left", "From left")],
+        color_options=[("auto", "Auto (natural)"), ("blue", "Blue")],
         opacity_options=[("0.5", "50%"), ("1", "100%")],
+        flash_options=[("0", "Off"), ("1", "Full")],
+        reactivity_options=[("1", "Normal"), ("2", "Frantic")],
+        wind_options=[("0", "None"), ("350", "Right")],
     )
 
 

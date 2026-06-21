@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.22"
+APP_VERSION = "00.0B.23"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -406,6 +406,8 @@ FG_MODES: tuple[str, ...] = (
     "sparks",
     "fireworks",
     "edgeglow",
+    "storm",
+    "party",
 )
 FG_MODE_DEFAULT = "off"
 FG_MODE_LABELS: dict[str, str] = {
@@ -418,6 +420,14 @@ FG_MODE_LABELS: dict[str, str] = {
     "sparks": "Spark Shower",
     "fireworks": "Fireworks",
     "edgeglow": "Edge Glow",
+    "storm": "Storm (combo)",
+    "party": "Party (combo)",
+}
+# Combo modes layer several single effects in one frame (they share the same beat,
+# direction, color and knobs). Adding/retuning a combo = one entry here.
+FG_COMBO_MEMBERS: dict[str, tuple[str, ...]] = {
+    "storm": ("rain", "lightning"),  # rain first so bolts read on top
+    "party": ("edgeglow", "fireworks", "sparks"),
 }
 # Direction effects shoot *from* (toward screen center). "random" picks per burst;
 # "all" emits from every edge at once; "center" is the origin for radial effects
@@ -438,6 +448,69 @@ FG_INTENSITY_CHOICES: tuple[float, ...] = (0.5, 0.75, 1.0, 1.5, 2.0)
 FG_INTENSITY_DEFAULT = 1.0
 FG_OPACITY_CHOICES: tuple[float, ...] = (0.25, 0.5, 0.75, 1.0)
 FG_OPACITY_DEFAULT = 1.0
+# Foreground color override (schema v23): "auto" keeps each effect's natural palette;
+# "theme" follows the global color scheme; a named key forces a single hue (effects
+# build a white->hue->dark ramp from it). Effects keep their own brightness shaping.
+FG_COLOR_CHOICES: tuple[str, ...] = (
+    "auto",
+    "theme",
+    "white",
+    "blue",
+    "cyan",
+    "green",
+    "yellow",
+    "orange",
+    "red",
+    "pink",
+    "purple",
+)
+FG_COLOR_DEFAULT = "auto"
+FG_COLOR_LABELS: dict[str, str] = {
+    "auto": "Auto (natural)",
+    "theme": "Match theme",
+    "white": "White",
+    "blue": "Blue",
+    "cyan": "Cyan",
+    "green": "Green",
+    "yellow": "Yellow",
+    "orange": "Orange",
+    "red": "Red",
+    "pink": "Pink",
+    "purple": "Purple",
+}
+FG_COLOR_RGB: dict[str, tuple[int, int, int]] = {
+    "white": (235, 240, 255),
+    "blue": (90, 140, 255),
+    "cyan": (90, 220, 255),
+    "green": (110, 235, 130),
+    "yellow": (255, 225, 90),
+    "orange": (255, 150, 50),
+    "red": (255, 80, 60),
+    "pink": (255, 120, 200),
+    "purple": (190, 120, 255),
+}
+# Lightning flash strength, independent of opacity: lets the user turn the white
+# flash down or fully off (it can be too bright at full strength). 0.0 == no flash.
+FG_FLASH_CHOICES: tuple[float, ...] = (0.0, 0.35, 0.7, 1.0)
+FG_FLASH_DEFAULT = 0.7
+FG_FLASH_LABELS: dict[float, str] = {0.0: "Off", 0.35: "Low", 0.7: "Medium", 1.0: "Full"}
+# Reactivity scales how readily the foreground fires on the beat (independent of the
+# global beat system): it lowers the effective onset threshold and the spawn cooldown,
+# so a higher value reacts to softer/denser onsets.
+FG_REACTIVITY_CHOICES: tuple[float, ...] = (0.5, 1.0, 1.5, 2.0)
+FG_REACTIVITY_DEFAULT = 1.0
+FG_REACTIVITY_LABELS: dict[float, str] = {0.5: "Calm", 1.0: "Normal", 1.5: "Lively", 2.0: "Frantic"}
+# Wind: a steady horizontal acceleration (px/s^2) applied to free-flying particle
+# effects (rain, meteors, sparks, fireworks, meteor embers). 0.0 == still air.
+FG_WIND_CHOICES: tuple[float, ...] = (-900.0, -350.0, 0.0, 350.0, 900.0)
+FG_WIND_DEFAULT = 0.0
+FG_WIND_LABELS: dict[float, str] = {
+    -900.0: "Strong left",
+    -350.0: "Left",
+    0.0: "None",
+    350.0: "Right",
+    900.0: "Strong right",
+}
 # Minimum seconds between beat-triggered spawns (so a dense onset stream can't
 # spawn every frame). A beat needs onset >= ONSET_THRESHOLD (below) to fire.
 FG_TRIGGER_COOLDOWN = 0.11
@@ -447,28 +520,38 @@ FG_TRIGGER_COOLDOWN = 0.11
 FG_LIGHTNING_BOLTS = 2  # bolts per beat at intensity 1.0
 FG_LIGHTNING_SUBDIV = 5  # midpoint-displacement passes (2**5 segments)
 FG_LIGHTNING_JITTER = 0.22  # initial wander as a fraction of the bolt span
-FG_LIGHTNING_LIFE = 0.18  # seconds a bolt stays before it has fully faded
-FG_LIGHTNING_FORK_CHANCE = 0.5  # chance a bolt grows one branch
+FG_LIGHTNING_LIFE = 0.2  # seconds a bolt stays before it has fully faded
+FG_LIGHTNING_FORK_CHANCE = 0.85  # chance a bolt grows branches (Lightning+)
+FG_LIGHTNING_FORKS = 3  # up to this many forks per bolt (Lightning+)
+FG_LIGHTNING_WIDTH = 4  # trunk core width (px); tapers to 1 toward the sharp tip
 FG_LIGHTNING_CORE = (235, 245, 255)
 FG_LIGHTNING_GLOW = (120, 170, 255)
-FG_FLASH_ALPHA = 60  # full-screen flash alpha at intensity 1.0 (hard-capped below)
-FG_FLASH_ALPHA_CAP = 110  # never exceed this, regardless of intensity
-FG_FLASH_DECAY = 7.0  # flash envelope decay per second
+FG_FLASH_ALPHA = 56  # full-screen flash alpha at intensity 1.0 (hard-capped below)
+FG_FLASH_ALPHA_CAP = 95  # never exceed this, regardless of intensity
+FG_FLASH_DECAY = 7.5  # flash envelope decay per second
+# Ground strike: when a bolt reaches the far edge it leaves a brief impact burst.
+FG_IMPACT_LIFE = 0.22  # seconds the impact flash/debris lasts
+FG_IMPACT_RADIUS = 30  # impact glow radius (px) at peak (× intensity)
+FG_IMPACT_SPARKS = 8  # debris spark lines kicked up at a strike
 
-# Flames: hot particles shot inward from the chosen edge(s); additive glow.
-FG_FLAME_BURST = 16  # particles per beat at intensity 1.0
-FG_FLAME_AMBIENT = 26.0  # ambient particles/sec (keeps the fire alive between beats)
-FG_FLAME_SPEED = 340.0  # px/s inward launch speed
-FG_FLAME_SPREAD = 0.45  # lateral velocity spread (fraction of launch speed)
-FG_FLAME_DRAG = 1.7  # per-second velocity damping
-FG_FLAME_LIFE = 0.7  # seconds a flame particle lives
-FG_FLAME_MAX = 240  # hard cap on live flame particles
-FG_FLAME_SIZE = 14.0  # base particle radius (px) at birth
+# Flames: hot particles that rise, flicker (turbulence) and cool — a licking fire.
+FG_FLAME_BURST = 18  # particles per beat at intensity 1.0
+FG_FLAME_AMBIENT = 44.0  # ambient particles/sec (keeps the fire alive between beats)
+FG_FLAME_SPEED = 250.0  # px/s inward launch speed
+FG_FLAME_SPREAD = 0.4  # lateral velocity spread (fraction of launch speed)
+FG_FLAME_DRAG = 1.5  # per-second velocity damping
+FG_FLAME_LIFE = 0.95  # seconds a flame particle lives
+FG_FLAME_MAX = 320  # hard cap on live flame particles
+FG_FLAME_SIZE = 15.0  # base particle radius (px) at birth
+FG_FLAME_BUOYANCY = 90.0  # acceleration away from the source edge (rise/lick)
+FG_FLAME_WANDER = 130.0  # horizontal flicker acceleration amplitude (px/s^2)
+FG_FLAME_WANDER_FREQ = 11.0  # flicker frequency (rad/s)
 FG_FLAME_PALETTE: tuple[tuple[int, int, int], ...] = (
-    (255, 255, 235),
-    (255, 214, 90),
-    (255, 120, 30),
-    (190, 36, 18),
+    (255, 255, 240),
+    (255, 226, 130),
+    (255, 150, 40),
+    (215, 60, 20),
+    (90, 18, 12),
 )
 
 # Rain / storm: a continuously maintained field of directional streaks (so the
@@ -482,17 +565,22 @@ FG_RAIN_WIND = 0.08  # lateral wander as a fraction of fall speed
 FG_RAIN_MAX = 420  # hard cap on live streaks
 FG_RAIN_COLOR = (170, 200, 255)
 
-# Meteors / shooting stars: a few fast streaks per beat that arc across from an
-# edge, each leaving a tapered glowing trail.
+# Meteors / shooting stars: fast streaks that arc from an edge with a fading,
+# age-based tail + shed ember particles; some cross fully, some burn out mid-flight.
 FG_METEOR_BURST = 3  # meteors per beat at intensity 1.0
-FG_METEOR_SPEED = 1100.0  # px/s launch speed
+FG_METEOR_SPEED = 1000.0  # px/s launch speed
 FG_METEOR_TANGENT = 0.6  # sideways velocity spread (fraction of launch speed)
-FG_METEOR_LIFE = 0.9  # seconds before a meteor is culled
-FG_METEOR_TRAIL = 12  # trail points retained per meteor
-FG_METEOR_SIZE = 3.0  # head radius (px)
+FG_METEOR_LIFE = 1.7  # max seconds a meteor lives (long enough to cross)
+FG_METEOR_LIFE_MIN = 0.55  # some meteors burn out this early (fade mid-flight)
+FG_METEOR_TRAIL = 18  # trail points retained per meteor
+FG_METEOR_FADE = 0.3  # last fraction of life over which the head fades out
+FG_METEOR_SIZE = 3.2  # head radius (px)
 FG_METEOR_MAX = 60  # hard cap on live meteors
 FG_METEOR_CORE = (255, 248, 220)
 FG_METEOR_GLOW = (255, 170, 80)
+FG_METEOR_EMBER_RATE = 70.0  # embers shed per second along a meteor's path
+FG_METEOR_EMBER_LIFE = 0.45  # seconds an ember lives
+FG_METEOR_EMBER_MAX = 300  # hard cap on live embers
 
 # Shockwave: expanding ring(s) on each beat; radius grows while alpha + thickness
 # fade. Origin is screen-center (random/all) or the chosen edge's midpoint.
@@ -541,11 +629,12 @@ FG_FW_PALETTE: tuple[tuple[int, int, int], ...] = (
 
 # Edge glow pulse: a soft border bloom that throbs on each beat then decays. The
 # safest effect (no strobing); alpha is capped and reduce-motion lowers the cap.
-FG_GLOW_DECAY = 3.2  # envelope decay per second
-FG_GLOW_DEPTH = 0.16  # band depth as a fraction of min(width, height)
-FG_GLOW_ALPHA = 150  # peak band alpha at intensity 1.0 (pre-opacity)
-FG_GLOW_ALPHA_CAP = 170  # never exceed this, regardless of intensity
-FG_GLOW_COLOR = (120, 180, 255)
+FG_GLOW_DECAY = 2.6  # envelope decay per second (gentle throb)
+FG_GLOW_DEPTH = 0.22  # band depth as a fraction of min(width, height) (soft bloom)
+FG_GLOW_ALPHA = 120  # peak band alpha at intensity 1.0 (pre-opacity)
+FG_GLOW_ALPHA_CAP = 140  # never exceed this, regardless of intensity
+FG_GLOW_COLOR = (150, 200, 235)  # soft, low-saturation cyan-white (elegant default)
+FG_GLOW_LEVEL_FLOOR = 0.45  # continuous breathing: glow tracks this fraction of RMS level
 
 # Onset (beat) detection: spectral flux is normalized to 0..1 via this gain;
 # a frame is treated as an onset when its strength clears the threshold.
@@ -717,7 +806,8 @@ SETTINGS_FILENAME = "settings.json"
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
 # v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
-SETTINGS_SCHEMA_VERSION = 22
+# v23 added foreground color override + lightning flash level (fg_color, fg_flash).
+SETTINGS_SCHEMA_VERSION = 23
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad

@@ -93,8 +93,17 @@ def test_shockwave_spawns_on_beat_and_fades(make_frame) -> None:
 def test_shockwave_origin_follows_direction() -> None:
     fg = _fg("shockwave", direction="top")
     assert fg._origin((200, 100)) == (100.0, 0.0)
-    fg.direction = "random"
-    assert fg._origin((200, 100)) == (100.0, 50.0)  # center
+    fg.direction = "center"
+    assert fg._origin((200, 100)) == (100.0, 50.0)
+
+
+def test_shockwave_random_origin_actually_scatters() -> None:
+    """Random direction must re-roll the origin (not collapse to screen center)."""
+    fg = _fg("shockwave", direction="random")
+    points = {fg._origin((400, 300)) for _ in range(40)}
+    assert len(points) > 5  # many distinct points, not a single fixed spot
+    for x, y in points:
+        assert 0 <= x <= 400 and 0 <= y <= 300
 
 
 def test_shockwave_stays_bounded(make_frame) -> None:

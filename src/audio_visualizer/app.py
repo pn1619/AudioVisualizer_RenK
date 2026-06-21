@@ -52,12 +52,20 @@ from audio_visualizer.config import (
     CURSOR_SHAPES,
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
+    FG_COLOR_CHOICES,
+    FG_COLOR_LABELS,
     FG_DIRECTION_LABELS,
     FG_DIRECTIONS,
+    FG_FLASH_CHOICES,
+    FG_FLASH_LABELS,
     FG_INTENSITY_CHOICES,
     FG_MODE_LABELS,
     FG_MODES,
     FG_OPACITY_CHOICES,
+    FG_REACTIVITY_CHOICES,
+    FG_REACTIVITY_LABELS,
+    FG_WIND_CHOICES,
+    FG_WIND_LABELS,
     HISTORY_MAX,
     IDLE_BANNER_DELAY,
     LOGO_COLOR_LABELS,
@@ -271,6 +279,10 @@ class App:
         self._foreground.intensity = self._settings.fg_intensity
         self._foreground.direction = self._settings.fg_direction
         self._foreground.opacity = self._settings.fg_opacity
+        self._foreground.color = self._settings.fg_color
+        self._foreground.flash = self._settings.fg_flash
+        self._foreground.reactivity = self._settings.fg_reactivity
+        self._foreground.wind = self._settings.fg_wind
 
         self._logo = RenkLogo(reduce_motion=self._reduce_motion, theme=self._theme)
         self._apply_logo_settings()
@@ -305,7 +317,17 @@ class App:
             mode_options=[(key, FG_MODE_LABELS.get(key, key)) for key in FG_MODES],
             intensity_options=[(_bg_num_key(v), f"x{v:.2f}") for v in FG_INTENSITY_CHOICES],
             direction_options=[(key, FG_DIRECTION_LABELS.get(key, key)) for key in FG_DIRECTIONS],
+            color_options=[(key, FG_COLOR_LABELS.get(key, key)) for key in FG_COLOR_CHOICES],
             opacity_options=[(_bg_num_key(v), f"{int(v * 100)}%") for v in FG_OPACITY_CHOICES],
+            flash_options=[
+                (_bg_num_key(v), FG_FLASH_LABELS.get(v, f"{int(v * 100)}%"))
+                for v in FG_FLASH_CHOICES
+            ],
+            reactivity_options=[
+                (_bg_num_key(v), FG_REACTIVITY_LABELS.get(v, f"x{v:.2f}"))
+                for v in FG_REACTIVITY_CHOICES
+            ],
+            wind_options=[(_bg_num_key(v), FG_WIND_LABELS.get(v, str(v))) for v in FG_WIND_CHOICES],
         )
         self._source_panel = SourcePanel(SourceActions(select=self._select_source))
         self._about = AboutDialog()
@@ -517,7 +539,11 @@ class App:
             set_mode=self._set_foreground,
             set_intensity=self._set_fg_intensity,
             set_direction=self._set_fg_direction,
+            set_color=self._set_fg_color,
             set_opacity=self._set_fg_opacity,
+            set_flash=self._set_fg_flash,
+            set_reactivity=self._set_fg_reactivity,
+            set_wind=self._set_fg_wind,
         )
 
     def _build_logo_panel_actions(self) -> LogoPanelActions:
@@ -657,7 +683,11 @@ class App:
                     "fg_mode": self._foreground.mode,
                     "fg_intensity": self._foreground.intensity,
                     "fg_direction": self._foreground.direction,
+                    "fg_color": self._foreground.color,
                     "fg_opacity": self._foreground.opacity,
+                    "fg_flash": self._foreground.flash,
+                    "fg_reactivity": self._foreground.reactivity,
+                    "fg_wind": self._foreground.wind,
                 },
             },
             logo={
@@ -742,11 +772,22 @@ class App:
             self._foreground.mode = value["fg_mode"]
         if value.get("fg_direction") in FG_DIRECTIONS:
             self._foreground.direction = value["fg_direction"]
+        if value.get("fg_color") in FG_COLOR_CHOICES:
+            self._foreground.color = value["fg_color"]
         self._foreground.intensity = _nearest(
             value.get("fg_intensity"), FG_INTENSITY_CHOICES, self._foreground.intensity
         )
         self._foreground.opacity = _nearest(
             value.get("fg_opacity"), FG_OPACITY_CHOICES, self._foreground.opacity
+        )
+        self._foreground.flash = _nearest(
+            value.get("fg_flash"), FG_FLASH_CHOICES, self._foreground.flash
+        )
+        self._foreground.reactivity = _nearest(
+            value.get("fg_reactivity"), FG_REACTIVITY_CHOICES, self._foreground.reactivity
+        )
+        self._foreground.wind = _nearest(
+            value.get("fg_wind"), FG_WIND_CHOICES, self._foreground.wind
         )
 
     def _apply_logo_value(self, value: object) -> None:
@@ -1586,13 +1627,36 @@ class App:
         )
         logger.debug("Foreground opacity = %s", self._foreground.opacity)
 
+    def _set_fg_color(self, key: str) -> None:
+        if key in FG_COLOR_CHOICES:
+            self._foreground.color = key
+            logger.debug("Foreground color = %s", self._foreground.color)
+
+    def _set_fg_flash(self, key: str) -> None:
+        self._foreground.flash = _nearest(float(key), FG_FLASH_CHOICES, self._foreground.flash)
+        logger.debug("Foreground flash = %s", self._foreground.flash)
+
+    def _set_fg_reactivity(self, key: str) -> None:
+        self._foreground.reactivity = _nearest(
+            float(key), FG_REACTIVITY_CHOICES, self._foreground.reactivity
+        )
+        logger.debug("Foreground reactivity = %s", self._foreground.reactivity)
+
+    def _set_fg_wind(self, key: str) -> None:
+        self._foreground.wind = _nearest(float(key), FG_WIND_CHOICES, self._foreground.wind)
+        logger.debug("Foreground wind = %s", self._foreground.wind)
+
     def _foreground_values(self) -> dict[str, str]:
         """Current selected dropdown keys for each Foreground panel row."""
         return {
             "mode": self._foreground.mode,
             "intensity": _bg_num_key(self._foreground.intensity),
             "direction": self._foreground.direction,
+            "color": self._foreground.color,
             "opacity": _bg_num_key(self._foreground.opacity),
+            "flash": _bg_num_key(self._foreground.flash),
+            "reactivity": _bg_num_key(self._foreground.reactivity),
+            "wind": _bg_num_key(self._foreground.wind),
         }
 
     def _notice_visible(self) -> bool:
@@ -2027,7 +2091,11 @@ class App:
             fg_mode=self._foreground.mode,
             fg_intensity=self._foreground.intensity,
             fg_direction=self._foreground.direction,
+            fg_color=self._foreground.color,
             fg_opacity=self._foreground.opacity,
+            fg_flash=self._foreground.flash,
+            fg_reactivity=self._foreground.reactivity,
+            fg_wind=self._foreground.wind,
             source_id=self._source_id,
             active_look=self._active_look_id,
             random_pool=self._ordered_pool_tags(),

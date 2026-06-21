@@ -17,12 +17,25 @@ from audio_visualizer.config import COLOR_BG, COLOR_TEXT
 from audio_visualizer.ui.dropdown import Dropdown
 from audio_visualizer.ui.style import STYLE, draw_panel
 
-_ROW_KEYS: tuple[str, ...] = ("mode", "intensity", "direction", "opacity")
+_ROW_KEYS: tuple[str, ...] = (
+    "mode",
+    "intensity",
+    "direction",
+    "color",
+    "opacity",
+    "flash",
+    "reactivity",
+    "wind",
+)
 _ROW_LABELS: dict[str, str] = {
     "mode": "Foreground",
     "intensity": "Intensity",
     "direction": "Direction",
+    "color": "Color",
     "opacity": "Opacity",
+    "flash": "Flash (Lightning)",
+    "reactivity": "Reactivity",
+    "wind": "Wind",
 }
 
 _PANEL_W = 400
@@ -39,7 +52,11 @@ class ForegroundActions:
     set_mode: Callable[[str], None]
     set_intensity: Callable[[str], None]
     set_direction: Callable[[str], None]
+    set_color: Callable[[str], None]
     set_opacity: Callable[[str], None]
+    set_flash: Callable[[str], None]
+    set_reactivity: Callable[[str], None]
+    set_wind: Callable[[str], None]
 
 
 class ForegroundPanel:
@@ -51,7 +68,11 @@ class ForegroundPanel:
         mode_options: list[tuple[str, str]],
         intensity_options: list[tuple[str, str]],
         direction_options: list[tuple[str, str]],
+        color_options: list[tuple[str, str]],
         opacity_options: list[tuple[str, str]],
+        flash_options: list[tuple[str, str]],
+        reactivity_options: list[tuple[str, str]],
+        wind_options: list[tuple[str, str]],
     ) -> None:
         self.open = False
         self._hover_close = False
@@ -59,12 +80,20 @@ class ForegroundPanel:
             "mode": Dropdown(actions.set_mode),
             "intensity": Dropdown(actions.set_intensity),
             "direction": Dropdown(actions.set_direction),
+            "color": Dropdown(actions.set_color),
             "opacity": Dropdown(actions.set_opacity),
+            "flash": Dropdown(actions.set_flash),
+            "reactivity": Dropdown(actions.set_reactivity),
+            "wind": Dropdown(actions.set_wind),
         }
         self._dd["mode"].set_options(mode_options)
         self._dd["intensity"].set_options(intensity_options)
         self._dd["direction"].set_options(direction_options)
+        self._dd["color"].set_options(color_options)
         self._dd["opacity"].set_options(opacity_options)
+        self._dd["flash"].set_options(flash_options)
+        self._dd["reactivity"].set_options(reactivity_options)
+        self._dd["wind"].set_options(wind_options)
 
     def set_state(self, values: dict[str, str]) -> None:
         """Select each dropdown's current option by key."""

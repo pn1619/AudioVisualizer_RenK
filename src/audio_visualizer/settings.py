@@ -44,14 +44,22 @@ from audio_visualizer.config import (
     CURSOR_SHAPE_DEFAULT,
     CURSOR_SHAPES,
     DEFAULT_WINDOW_SIZE,
+    FG_COLOR_CHOICES,
+    FG_COLOR_DEFAULT,
     FG_DIRECTION_DEFAULT,
     FG_DIRECTIONS,
+    FG_FLASH_CHOICES,
+    FG_FLASH_DEFAULT,
     FG_INTENSITY_CHOICES,
     FG_INTENSITY_DEFAULT,
     FG_MODE_DEFAULT,
     FG_MODES,
     FG_OPACITY_CHOICES,
     FG_OPACITY_DEFAULT,
+    FG_REACTIVITY_CHOICES,
+    FG_REACTIVITY_DEFAULT,
+    FG_WIND_CHOICES,
+    FG_WIND_DEFAULT,
     LOGO_COLOR_DEFAULT,
     LOGO_COLOR_MODES,
     LOGO_EMIT_DEFAULT,
@@ -139,11 +147,15 @@ class Settings:
     # Per-backdrop reactivity + opacity (Phase 10.01 / schema v5).
     bg_sensitivity: float = BG_SENSITIVITY_DEFAULT
     bg_opacity: float = BG_OPACITY_DEFAULT
-    # Global foreground overlay layer (schema v22).
+    # Global foreground overlay layer (schema v22; color + flash added in v23).
     fg_mode: str = FG_MODE_DEFAULT
     fg_intensity: float = FG_INTENSITY_DEFAULT
     fg_direction: str = FG_DIRECTION_DEFAULT
     fg_opacity: float = FG_OPACITY_DEFAULT
+    fg_color: str = FG_COLOR_DEFAULT
+    fg_flash: float = FG_FLASH_DEFAULT
+    fg_reactivity: float = FG_REACTIVITY_DEFAULT
+    fg_wind: float = FG_WIND_DEFAULT
     # Selectable capture source (Phase 0B-a / schema v8). "" -> default render
     # device loopback; otherwise a device *name* from audio.devices.
     source_id: str = ""
@@ -287,7 +299,13 @@ def _from_dict(raw: dict) -> Settings:
         fg_mode=_choice(raw.get("fg_mode"), FG_MODES, defaults.fg_mode),
         fg_intensity=_snap(raw.get("fg_intensity"), FG_INTENSITY_CHOICES, defaults.fg_intensity),
         fg_direction=_choice(raw.get("fg_direction"), FG_DIRECTIONS, defaults.fg_direction),
+        fg_color=_choice(raw.get("fg_color"), FG_COLOR_CHOICES, defaults.fg_color),
         fg_opacity=_snap(raw.get("fg_opacity"), FG_OPACITY_CHOICES, defaults.fg_opacity),
+        fg_flash=_snap(raw.get("fg_flash"), FG_FLASH_CHOICES, defaults.fg_flash),
+        fg_reactivity=_snap(
+            raw.get("fg_reactivity"), FG_REACTIVITY_CHOICES, defaults.fg_reactivity
+        ),
+        fg_wind=_snap(raw.get("fg_wind"), FG_WIND_CHOICES, defaults.fg_wind),
         source_id=_str(raw.get("source_id"), defaults.source_id),
         active_look=_str(raw.get("active_look"), defaults.active_look),
         random_pool=_str_list(raw.get("random_pool"), defaults.random_pool),

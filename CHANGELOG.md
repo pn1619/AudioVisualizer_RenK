@@ -17,6 +17,53 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.23` — Phase 0B-c (build 27): Foreground polish — color, flash level, Lightning+/Flames+/Meteors+
+
+A round of quality/feel upgrades to the foreground layer, plus two new global controls (settings
+**schema v23**, `fg_color` + `fg_flash`; old files migrate forward, defaults are unchanged behavior):
+
+- **Foreground Color** (new dropdown) — `Auto (natural)` keeps each effect's own palette; `Match
+  theme` follows the global color scheme; or pick a fixed hue (Blue, Cyan, Green, Yellow, Orange,
+  Red, Pink, Purple, White). Particle effects build a *white → hue → ash* ramp so flames/sparks
+  still read as cooling embers in the chosen color; fireworks paint each shell one hue (Auto keeps
+  the multi-color confetti). Applies across lightning, flames, meteors, rain, shockwave, sparks,
+  fireworks and edge glow.
+- **Lightning — Flash level** (new dropdown: Off / Low / Medium / Full, default Medium) — the
+  full-screen white flash is now independent of opacity, **dimmer by default** (lower
+  `FG_FLASH_ALPHA`/cap) and can be turned **fully off**.
+- **Lightning+** — bolts now taper from a thick trunk to a **sharp tip**, grow **multiple branching
+  forks**, and a strike that reaches the **bottom ("ground")** kicks up a brief **impact burst**
+  (expanding glow + upward debris streaks).
+- **Flames+** — particles **rise and flicker** (per-particle turbulence + buoyancy along the source
+  axis) with a layered soft outer glow + **white-hot core**, for a more fire-like look.
+- **Meteors+** — **age-faded tails** that shed a trail of **ember particles**, **variable life**
+  (some cross the whole screen, some burn out mid-flight), and a **graceful head fade-out** (shrinks
+  + dims) instead of popping. Bounded by `FG_METEOR_EMBER_MAX`.
+- **Shockwave — Random** is now **actually random**: each ring re-rolls a scattered origin instead
+  of collapsing to screen-center.
+- **Edge Glow** — softer, more elegant **smoothstep** falloff with a deeper, low-saturation default
+  color (and it honors the color override). It now also **breathes continuously** with the live RMS
+  level (a soft floor) instead of only popping on discrete beats.
+
+Plus a batch of new capabilities for the layer:
+
+- **Combo modes** — **`storm`** (rain + lightning) and **`party`** (edge glow + fireworks + sparks)
+  layer several effects in one frame (shared beat/direction/color/knobs). `FG_COMBO_MEMBERS` is the
+  single source of truth; adding/retuning a combo is one entry.
+- **Reactivity** (new dropdown: Calm / Normal / Lively / Frantic) — a foreground-only multiplier
+  that lowers the effective onset threshold **and** the spawn cooldown, so the layer can react to
+  softer/denser onsets without touching the global beat system.
+- **Wind** (new dropdown: Strong left … None … Strong right) — a steady horizontal acceleration
+  applied to free-flying particles (rain, meteors + their embers, sparks, fireworks).
+
+New settings: `fg_color`, `fg_flash`, `fg_reactivity`, `fg_wind` (all under **schema v23**; old files
+migrate forward, defaults preserve prior behavior). Persisted + captured in Look snapshots. Tests:
+`test_foreground_phase0b23.py` (color resolution, flash on/off, ground impact, meteor life variance +
+embers + head fade, glow falloff + continuous floor, storm/party combos, reactivity, wind). Verified:
+442 pytest green, ruff clean, `--selftest` OK (schema migrate 8 → 23).
+
+---
+
 ## `00.0B.22` — Phase 0B-c (build 26): Foreground effects — sparks, fireworks, edge glow
 
 Completes the foreground effect set from the plan (each is one drop-in `_draw_<mode>` method + a

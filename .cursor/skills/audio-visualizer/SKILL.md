@@ -231,11 +231,23 @@ directional streak field + per-beat gust), **`meteors`** (fast per-beat streaks 
 **`edgeglow`** (border bloom that throbs on the beat; safest, no strobing — build 26 / v00.0B.22).
 Global knobs: `intensity`, `opacity`,
 `direction` (`random/top/bottom/left/right/all/center`; `center` = radial origin for shockwave/
-fireworks + all-borders for edgeglow, treated as random by directional effects). Add an effect = one `_draw_<mode>` method + a
-`config.py` `FG_*` block + one line in `FG_MODES`/`FG_MODE_LABELS` (the `ForegroundPanel` auto-lists
-it). Control-bar **`FG`** button opens `ui/foreground_panel.py` (mirrors `background_panel`; dropdowns
-mode/intensity/direction/opacity). Persisted as `fg_*` (settings **schema v22**) + in Look snapshots.
-Reduce-motion halves the flash and caps counts. Tests: `test_foreground_phase0b20.py`.
+fireworks + all-borders for edgeglow, treated as random by directional effects), plus (build 27 /
+v00.0B.23) **`color`** (`auto`/`theme`/named hue via `FG_COLOR_RGB`; resolved per effect by
+`Foreground._base_color` for line effects and `_ramp_color` for particle ramps) and **`flash`** (the
+lightning white-flash level 0..1, independent of opacity; Off/Low/Medium/Full). Add an effect = one
+`_draw_<mode>` method + a `config.py` `FG_*` block + one line in `FG_MODES`/`FG_MODE_LABELS` (the
+`ForegroundPanel` auto-lists it). Control-bar **`FG`** button opens `ui/foreground_panel.py` (mirrors
+`background_panel`; dropdowns mode/intensity/direction/color/opacity/flash/reactivity/wind). Also
+**combo modes** (`storm` = rain+lightning, `party` = edgeglow+fireworks+sparks) defined once in
+`FG_COMBO_MEMBERS` and dispatched by `draw()` (one shared beat → several `_draw_<mode>` handlers);
+**`reactivity`** scales the effective onset threshold + spawn cooldown (FG-only sensitivity); **`wind`**
+is a steady horizontal accel applied to free-flying particles (rain/meteors/embers/sparks/fireworks).
+Persisted as `fg_*` (settings **schema v23**: `fg_color`, `fg_flash`, `fg_reactivity`, `fg_wind`) + in
+Look snapshots. **v00.0B.23 polish:** Lightning+ (tapered sharp tips, multiple branching forks,
+bottom-strike impact burst), Flames+ (turbulence/buoyancy + white-hot core), Meteors+ (age-faded tails
++ shed embers + variable life + graceful head fade), Shockwave `random` re-rolls origin per ring (was
+center), Edge Glow smoothstep falloff + continuous RMS-level floor. Reduce-motion halves the flash and
+caps counts. Tests: `test_foreground_phase0b20.py` … `test_foreground_phase0b23.py`.
 
 ### Test conventions (Phase 0B.19+)
 - `tests/conftest.py` owns the **headless SDL env** + a **module-scoped autouse `_pygame_ready`**
