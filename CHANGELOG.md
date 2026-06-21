@@ -17,6 +17,25 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.21` — Phase 0B-c (build 25): Foreground effects — rain, meteors, shockwave
+
+Three new beat-reactive **Foreground** effects (each is one drop-in `_draw_<mode>` method + a
+`config.py` `FG_*` block; the panel auto-lists them — no schema change):
+
+- **`rain` (Rain / Storm)** — a *continuously maintained* field of directional streaks so the storm
+  reads even between beats; each beat injects a heavier **gust**. Falls from the chosen edge
+  (Random / All / From top → downward, or sideways for left/right). Pairs naturally with `lightning`.
+- **`meteors`** — a few fast streaks per beat that arc in from an edge, each trailing a tapered,
+  additive glow; bounded and culled by life/off-screen.
+- **`shockwave`** — expanding ring(s) on each beat from screen-center (or the chosen edge's midpoint),
+  growing while alpha + thickness fade.
+
+All three honor **intensity**, **opacity**, **direction**, **reduce-motion** (counts capped / halved),
+and stay bounded (`FG_RAIN_MAX` / `FG_METEOR_MAX` / `FG_SHOCK_MAX`). Tests:
+`test_foreground_phase0b21.py` (field sustain, bounded counts, fade-to-empty, direction mapping).
+
+---
+
 ## `00.0B.20` — Phase 0B-c (build 24): Foreground layer (lightning + flames)
 
 - **New global Foreground layer** — the counterpart to the Background: a process-wide overlay drawn as

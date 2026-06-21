@@ -223,8 +223,10 @@ added a `make_frame` `AnalysisFrame` factory fixture; ~25 local fixtures removed
 **last** canvas layer (above mode + logo, below UI chrome). `visuals/foreground.py::Foreground` is a
 read-only render helper (`draw(surface, frame, dt)`), fail-soft, bounded. Effects are **beat-triggered**
 (onset ≥ `ONSET_THRESHOLD` past `FG_TRIGGER_COOLDOWN`): **`lightning`** (jagged forked
-midpoint-displacement bolts + a brightness-capped flash, `FG_FLASH_ALPHA_CAP`) and **`flames`**
-(additive particles shot inward from edge(s) + ambient trickle). Global knobs: `intensity`, `opacity`,
+midpoint-displacement bolts + a brightness-capped flash, `FG_FLASH_ALPHA_CAP`), **`flames`**
+(additive particles shot inward from edge(s) + ambient trickle), **`rain`** (continuously maintained
+directional streak field + per-beat gust), **`meteors`** (fast per-beat streaks with tapered trails),
+and **`shockwave`** (expanding rings from center / edge midpoint, build 25 / v00.0B.21). Global knobs: `intensity`, `opacity`,
 `direction` (`random/top/bottom/left/right/all`). Add an effect = one `_draw_<mode>` method + a
 `config.py` `FG_*` block + one line in `FG_MODES`/`FG_MODE_LABELS` (the `ForegroundPanel` auto-lists
 it). Control-bar **`FG`** button opens `ui/foreground_panel.py` (mirrors `background_panel`; dropdowns
