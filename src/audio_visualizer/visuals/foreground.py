@@ -17,6 +17,12 @@ the scene. Effects:
                   tapered glow.
 * ``shockwave`` - expanding ring(s) on each beat from screen-center (or the chosen
                   edge's midpoint).
+* ``sparks``    - a snappy burst of small, gravity-pulled embers shot inward from the
+                  chosen edge(s) on each beat (faster + shorter-lived than flames).
+* ``fireworks`` - each beat detonates shell(s) into a radial burst of gravity-pulled,
+                  fading particles in a vivid per-shell color.
+* ``edgeglow``  - a soft border bloom that throbs on each beat then decays (the safest
+                  effect; no strobing, reduce-motion lowers the cap).
 
 Two global knobs apply to every effect: ``intensity`` (burst size/count/brightness)
 and ``opacity`` (overall strength). ``direction`` aims the directional effects.
@@ -49,6 +55,20 @@ from audio_visualizer.config import (
     FG_FLASH_ALPHA,
     FG_FLASH_ALPHA_CAP,
     FG_FLASH_DECAY,
+    FG_FW_DRAG,
+    FG_FW_GRAVITY,
+    FG_FW_LIFE,
+    FG_FW_MAX,
+    FG_FW_PALETTE,
+    FG_FW_PARTICLES,
+    FG_FW_SHELLS,
+    FG_FW_SIZE,
+    FG_FW_SPEED,
+    FG_GLOW_ALPHA,
+    FG_GLOW_ALPHA_CAP,
+    FG_GLOW_COLOR,
+    FG_GLOW_DECAY,
+    FG_GLOW_DEPTH,
     FG_INTENSITY_DEFAULT,
     FG_LIGHTNING_BOLTS,
     FG_LIGHTNING_CORE,
@@ -81,6 +101,15 @@ from audio_visualizer.config import (
     FG_SHOCK_REACH,
     FG_SHOCK_RINGS,
     FG_SHOCK_WIDTH,
+    FG_SPARK_BURST,
+    FG_SPARK_DRAG,
+    FG_SPARK_GRAVITY,
+    FG_SPARK_LIFE,
+    FG_SPARK_MAX,
+    FG_SPARK_PALETTE,
+    FG_SPARK_SIZE,
+    FG_SPARK_SPEED,
+    FG_SPARK_SPREAD,
     FG_TRIGGER_COOLDOWN,
     ONSET_THRESHOLD,
 )
@@ -112,6 +141,9 @@ class Foreground:
         self._rain: list[dict[str, float]] = []  # {x,y,vx,vy}
         self._meteors: list[dict[str, object]] = []  # {x,y,vx,vy,age,trail}
         self._shocks: list[dict[str, float]] = []  # {cx,cy,age}
+        self._spark_ps: list[dict[str, float]] = []  # {x,y,vx,vy,age,life,size}
+        self._fireworks: list[dict[str, object]] = []  # {x,y,vx,vy,age,life,color}
+        self._glow = 0.0  # edge-glow envelope (0..1), jumps on beat then decays
 
     # -- public ----------------------------------------------------------------
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
@@ -481,3 +513,198 @@ class Foreground:
             return
         center = (int(s["cx"]), int(s["cy"]))
         pygame.draw.circle(layer, (*FG_SHOCK_COLOR, alpha), center, radius, width)
+
+    # -- spark shower / embers -------------------------------------------------
+    def _draw_sparks(
+        self, surface: pygame.Surface, frame: AnalysisFrame | None, beat: float
+    ) -> None:
+        size = surface.get_size()
+        if beat > 0.0:
+            self._emit_sparks(size, beat)
+        self._step_sparks()
+        if not self._spark_ps:
+            return
+        layer = self._add_layer(surface)
+        for p in self._spark_ps:
+            self._draw_spark(layer, p)
+        surface.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+    def _emit_sparks(self, size: tuple[int, int], beat: float) -> None:
+        n = int(FG_SPARK_BURST * self.intensity * (0.5 + beat))
+        if self.reduce_motion:
+            n //= 2
+        edges = _EDGES if self.direction == "all" else None
+        for k in range(n):
+            edge = edges[k % len(edges)] if edges else self._pick_edge()
+            self._spark_ps.append(self._spawn_spark(size, edge))
+        if len(self._spark_ps) > FG_SPARK_MAX:
+            del self._spark_ps[: len(self._spark_ps) - FG_SPARK_MAX]
+
+    def _spawn_spark(self, size: tuple[int, int], edge: str) -> dict[str, float]:
+        w, h = size
+        r = self._rng
+        speed = FG_SPARK_SPEED * (0.5 + 0.8 * r.random())
+        spread = FG_SPARK_SPEED * FG_SPARK_SPREAD
+        if edge in ("top", "bottom"):
+            x, vx = r.uniform(0, w), r.uniform(-spread, spread)
+            y, vy = (0.0, speed) if edge == "top" else (float(h), -speed)
+        else:
+            y, vy = r.uniform(0, h), r.uniform(-spread, spread)
+            x, vx = (0.0, speed) if edge == "left" else (float(w), -speed)
+        return {
+            "x": x,
+            "y": y,
+            "vx": vx,
+            "vy": vy,
+            "age": 0.0,
+            "life": FG_SPARK_LIFE * (0.6 + 0.7 * r.random()),
+            "size": FG_SPARK_SIZE * (0.6 + 0.8 * r.random()),
+        }
+
+    def _step_sparks(self) -> None:
+        drag = math.exp(-FG_SPARK_DRAG * self._dt)
+        alive: list[dict[str, float]] = []
+        for p in self._spark_ps:
+            p["age"] += self._dt
+            if p["age"] >= p["life"]:
+                continue
+            p["vy"] += FG_SPARK_GRAVITY * self._dt  # gravity pulls embers down
+            p["x"] += p["vx"] * self._dt
+            p["y"] += p["vy"] * self._dt
+            p["vx"] *= drag
+            p["vy"] *= drag
+            alive.append(p)
+        self._spark_ps = alive
+
+    def _draw_spark(self, layer: pygame.Surface, p: dict[str, float]) -> None:
+        frac = clamp(p["age"] / p["life"])
+        color = palette_color(FG_SPARK_PALETTE, frac)
+        radius = max(1, int(p["size"] * (1.0 - 0.5 * frac)))
+        alpha = int(220 * (1.0 - frac) * self.opacity)
+        if alpha <= 0:
+            return
+        pygame.draw.circle(layer, (*color, alpha), (int(p["x"]), int(p["y"])), radius)
+
+    # -- fireworks / confetti --------------------------------------------------
+    def _draw_fireworks(
+        self, surface: pygame.Surface, frame: AnalysisFrame | None, beat: float
+    ) -> None:
+        size = surface.get_size()
+        if beat > 0.0:
+            self._detonate(size, beat)
+        self._step_fireworks()
+        if not self._fireworks:
+            return
+        layer = self._add_layer(surface)
+        for p in self._fireworks:
+            self._draw_firework(layer, p)
+        surface.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+    def _detonate(self, size: tuple[int, int], beat: float) -> None:
+        shells = max(1, int(round(FG_FW_SHELLS * self.intensity * beat)))
+        if self.reduce_motion:
+            shells = 1
+        count = max(8, int(FG_FW_PARTICLES * (0.7 if self.reduce_motion else 1.0)))
+        for _ in range(shells):
+            cx, cy = self._burst_origin(size)
+            color = self._rng.choice(FG_FW_PALETTE)
+            for i in range(count):
+                ang = (i / count) * math.tau + self._rng.uniform(-0.1, 0.1)
+                speed = FG_FW_SPEED * (0.4 + 0.8 * self._rng.random())
+                self._fireworks.append(
+                    {
+                        "x": cx,
+                        "y": cy,
+                        "vx": math.cos(ang) * speed,
+                        "vy": math.sin(ang) * speed,
+                        "age": 0.0,
+                        "life": FG_FW_LIFE * (0.7 + 0.5 * self._rng.random()),
+                        "color": color,
+                    }
+                )
+        if len(self._fireworks) > FG_FW_MAX:
+            del self._fireworks[: len(self._fireworks) - FG_FW_MAX]
+
+    def _burst_origin(self, size: tuple[int, int]) -> tuple[float, float]:
+        """Where a shell detonates: chosen edge, screen center, or a random point."""
+        w, h = size
+        r = self._rng
+        if self.direction in _EDGES:
+            cx, cy = self._origin(size)
+            if self.direction in ("left", "right"):
+                return (cx, cy)
+            return (r.uniform(0.2 * w, 0.8 * w), cy)  # spread top/bottom shells across
+        if self.direction == "center":
+            return (w / 2, h / 2)
+        return (r.uniform(0.2 * w, 0.8 * w), r.uniform(0.2 * h, 0.55 * h))
+
+    def _step_fireworks(self) -> None:
+        drag = math.exp(-FG_FW_DRAG * self._dt)
+        alive: list[dict[str, object]] = []
+        for p in self._fireworks:
+            age = float(p["age"]) + self._dt  # type: ignore[arg-type]
+            if age >= float(p["life"]):  # type: ignore[arg-type]
+                continue
+            vx = float(p["vx"]) * drag  # type: ignore[arg-type]
+            vy = float(p["vy"]) * drag + FG_FW_GRAVITY * self._dt  # type: ignore[arg-type]
+            p["age"] = age
+            p["vx"], p["vy"] = vx, vy
+            p["x"] = float(p["x"]) + vx * self._dt  # type: ignore[arg-type]
+            p["y"] = float(p["y"]) + vy * self._dt  # type: ignore[arg-type]
+            alive.append(p)
+        self._fireworks = alive
+
+    def _draw_firework(self, layer: pygame.Surface, p: dict[str, object]) -> None:
+        frac = clamp(float(p["age"]) / float(p["life"]))  # type: ignore[arg-type]
+        color = p["color"]
+        if not isinstance(color, tuple):
+            return
+        radius = max(1, int(FG_FW_SIZE * (1.0 - 0.6 * frac)))
+        alpha = int(230 * (1.0 - frac) * self.opacity)
+        if alpha <= 0:
+            return
+        pos = (int(float(p["x"])), int(float(p["y"])))  # type: ignore[arg-type]
+        pygame.draw.circle(layer, (*color, alpha), pos, radius)
+
+    # -- edge glow pulse -------------------------------------------------------
+    def _draw_edgeglow(
+        self, surface: pygame.Surface, frame: AnalysisFrame | None, beat: float
+    ) -> None:
+        if beat > 0.0:
+            self._glow = min(1.0, max(self._glow, 0.4 + 0.6 * beat))
+        self._glow = max(0.0, self._glow - self._dt * FG_GLOW_DECAY)
+        if self._glow <= 0.01:
+            return
+        size = surface.get_size()
+        depth = max(2, int(min(size) * FG_GLOW_DEPTH))
+        cap = FG_GLOW_ALPHA_CAP * (0.5 if self.reduce_motion else 1.0)
+        peak = min(FG_GLOW_ALPHA * self.intensity, cap) * self._glow * self.opacity
+        if peak <= 0:
+            return
+        layer = self._add_layer(surface)
+        for edge in self._glow_edges():
+            self._draw_glow_edge(layer, size, edge, depth, peak)
+        surface.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+    def _glow_edges(self) -> tuple[str, ...]:
+        """Which borders glow: a single chosen edge, else all four."""
+        return (self.direction,) if self.direction in _EDGES else _EDGES
+
+    def _draw_glow_edge(
+        self, layer: pygame.Surface, size: tuple[int, int], edge: str, depth: int, peak: float
+    ) -> None:
+        w, h = size
+        for i in range(depth):
+            f = 1.0 - i / depth  # brightest at the very border, fading inward
+            a = int(peak * f * f)
+            if a <= 0:
+                continue
+            col = (*FG_GLOW_COLOR, a)
+            if edge == "top":
+                pygame.draw.line(layer, col, (0, i), (w, i))
+            elif edge == "bottom":
+                pygame.draw.line(layer, col, (0, h - 1 - i), (w, h - 1 - i))
+            elif edge == "left":
+                pygame.draw.line(layer, col, (i, 0), (i, h))
+            else:
+                pygame.draw.line(layer, col, (w - 1 - i, 0), (w - 1 - i, h))
