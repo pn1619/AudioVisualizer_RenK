@@ -60,6 +60,8 @@ class ControlActions:
     open_appearance: Callable[[], None] = lambda: None
     # Opens the Background panel (backdrop + reactivity + opacity). Defaulted likewise.
     open_background: Callable[[], None] = lambda: None
+    # Opens the Foreground panel (overlay effects + intensity + direction). Defaulted likewise.
+    open_foreground: Callable[[], None] = lambda: None
     # Opens the Source panel (selectable capture device). Defaulted likewise.
     open_source: Callable[[], None] = lambda: None
     # Selects a user look by id ("" -> None/Live). Defaulted likewise.
@@ -183,6 +185,7 @@ class ControlBar:
         self._reduce = Button("Motion+", actions.toggle_reduce_motion)
         self._src = Button("Src", actions.open_source)
         self._bg = Button("BG", actions.open_background)
+        self._fg = Button("FG", actions.open_foreground)
         self._logo = Button("RenK", actions.open_logo_panel)
         self._about = Button("About", actions.open_about)
 
@@ -225,6 +228,7 @@ class ControlBar:
             (self._reduce, 90),
             (self._src, 50),
             (self._bg, 48),
+            (self._fg, 48),
             (self._logo, 60),
             (self._about, 68),
         ]

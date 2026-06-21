@@ -52,6 +52,12 @@ from audio_visualizer.config import (
     CURSOR_SHAPES,
     DEVICE_RECOVER_INTERVAL,
     FFT_SIZE,
+    FG_DIRECTION_LABELS,
+    FG_DIRECTIONS,
+    FG_INTENSITY_CHOICES,
+    FG_MODE_LABELS,
+    FG_MODES,
+    FG_OPACITY_CHOICES,
     HISTORY_MAX,
     IDLE_BANNER_DELAY,
     LOGO_COLOR_LABELS,
@@ -107,6 +113,7 @@ from audio_visualizer.ui.color_picker import ColorPicker, ColorPickerActions
 from audio_visualizer.ui.controls import ControlActions, ControlBar, OptionSpec
 from audio_visualizer.ui.cursor import Cursor
 from audio_visualizer.ui.fonts import get_ui_fonts
+from audio_visualizer.ui.foreground_panel import ForegroundActions, ForegroundPanel
 from audio_visualizer.ui.hotkeys import HotkeysDialog
 from audio_visualizer.ui.hud import Hud, HudState
 from audio_visualizer.ui.layout import Layout
@@ -120,6 +127,7 @@ from audio_visualizer.visuals._helpers import set_custom_hue, set_custom_hue2
 from audio_visualizer.visuals._transition import ModeTransition
 from audio_visualizer.visuals.background import Background
 from audio_visualizer.visuals.base import BaseVisualizer, Theme
+from audio_visualizer.visuals.foreground import Foreground
 from audio_visualizer.visuals.logo import RenkLogo
 
 logger = logging.getLogger(__name__)
@@ -258,6 +266,12 @@ class App:
         self._background.sensitivity = self._settings.bg_sensitivity
         self._background.opacity = self._settings.bg_opacity
 
+        self._foreground = Foreground(theme=self._theme, reduce_motion=self._reduce_motion)
+        self._foreground.mode = self._settings.fg_mode
+        self._foreground.intensity = self._settings.fg_intensity
+        self._foreground.direction = self._settings.fg_direction
+        self._foreground.opacity = self._settings.fg_opacity
+
         self._logo = RenkLogo(reduce_motion=self._reduce_motion, theme=self._theme)
         self._apply_logo_settings()
         self._cursor = Cursor(theme=self._theme, reduce_motion=self._reduce_motion)
@@ -285,6 +299,13 @@ class App:
             sensitivity_options=[(_bg_num_key(v), f"x{v:.2f}") for v in BG_SENSITIVITY_CHOICES],
             opacity_options=[(_bg_num_key(v), f"{int(v * 100)}%") for v in BG_OPACITY_CHOICES],
             height_options=[(key, BG_HEIGHT_LABELS.get(key, key)) for key in BG_HEIGHTS],
+        )
+        self._foreground_panel = ForegroundPanel(
+            self._build_foreground_actions(),
+            mode_options=[(key, FG_MODE_LABELS.get(key, key)) for key in FG_MODES],
+            intensity_options=[(_bg_num_key(v), f"x{v:.2f}") for v in FG_INTENSITY_CHOICES],
+            direction_options=[(key, FG_DIRECTION_LABELS.get(key, key)) for key in FG_DIRECTIONS],
+            opacity_options=[(_bg_num_key(v), f"{int(v * 100)}%") for v in FG_OPACITY_CHOICES],
         )
         self._source_panel = SourcePanel(SourceActions(select=self._select_source))
         self._about = AboutDialog()
@@ -421,6 +442,7 @@ class App:
             quit=self._request_quit,
             open_appearance=lambda: self._appearance.toggle(),
             open_background=lambda: self._background_panel.toggle(),
+            open_foreground=lambda: self._foreground_panel.toggle(),
             open_source=self._open_source_panel,
             select_look=self._select_look,
             open_looks=self._open_looks_panel,
@@ -488,6 +510,14 @@ class App:
             set_sensitivity=self._set_bg_sensitivity,
             set_opacity=self._set_bg_opacity,
             set_height=self._set_bg_height,
+        )
+
+    def _build_foreground_actions(self) -> ForegroundActions:
+        return ForegroundActions(
+            set_mode=self._set_foreground,
+            set_intensity=self._set_fg_intensity,
+            set_direction=self._set_fg_direction,
+            set_opacity=self._set_fg_opacity,
         )
 
     def _build_logo_panel_actions(self) -> LogoPanelActions:
@@ -621,6 +651,15 @@ class App:
                     "bg_opacity": self._background.opacity,
                 },
             },
+            foreground={
+                "link": LINK_LOCAL,
+                "value": {
+                    "fg_mode": self._foreground.mode,
+                    "fg_intensity": self._foreground.intensity,
+                    "fg_direction": self._foreground.direction,
+                    "fg_opacity": self._foreground.opacity,
+                },
+            },
             logo={
                 "link": LINK_LOCAL,
                 "value": {
@@ -660,6 +699,8 @@ class App:
         self._analyzer.set_smoothing(*_smoothing_to_coeffs(self._smoothing))
         if look.background.get("link") == LINK_LOCAL:
             self._apply_bg_value(look.background.get("value"))
+        if look.foreground.get("link") == LINK_LOCAL:
+            self._apply_fg_value(look.foreground.get("value"))
         if look.logo.get("link") == LINK_LOCAL:
             self._apply_logo_value(look.logo.get("value"))
 
@@ -692,6 +733,20 @@ class App:
         )
         self._background.opacity = _nearest(
             value.get("bg_opacity"), BG_OPACITY_CHOICES, self._background.opacity
+        )
+
+    def _apply_fg_value(self, value: object) -> None:
+        if not isinstance(value, dict):
+            return
+        if value.get("fg_mode") in FG_MODES:
+            self._foreground.mode = value["fg_mode"]
+        if value.get("fg_direction") in FG_DIRECTIONS:
+            self._foreground.direction = value["fg_direction"]
+        self._foreground.intensity = _nearest(
+            value.get("fg_intensity"), FG_INTENSITY_CHOICES, self._foreground.intensity
+        )
+        self._foreground.opacity = _nearest(
+            value.get("fg_opacity"), FG_OPACITY_CHOICES, self._foreground.opacity
         )
 
     def _apply_logo_value(self, value: object) -> None:
@@ -1379,6 +1434,7 @@ class App:
         self._visual.reduce_motion = self._reduce_motion
         self._logo.reduce_motion = self._reduce_motion
         self._background.reduce_motion = self._reduce_motion
+        self._foreground.reduce_motion = self._reduce_motion
         self._cursor.reduce_motion = self._reduce_motion
         logger.debug("Reduce motion = %s", self._reduce_motion)
 
@@ -1508,6 +1564,37 @@ class App:
             "height": self._background.height_key,
         }
 
+    def _set_foreground(self, mode: str) -> None:
+        if mode in FG_MODES:
+            self._foreground.mode = mode
+            logger.debug("Foreground = %s", self._foreground.mode)
+
+    def _set_fg_direction(self, key: str) -> None:
+        if key in FG_DIRECTIONS:
+            self._foreground.direction = key
+            logger.debug("Foreground direction = %s", self._foreground.direction)
+
+    def _set_fg_intensity(self, key: str) -> None:
+        self._foreground.intensity = _nearest(
+            float(key), FG_INTENSITY_CHOICES, self._foreground.intensity
+        )
+        logger.debug("Foreground intensity = %s", self._foreground.intensity)
+
+    def _set_fg_opacity(self, key: str) -> None:
+        self._foreground.opacity = _nearest(
+            float(key), FG_OPACITY_CHOICES, self._foreground.opacity
+        )
+        logger.debug("Foreground opacity = %s", self._foreground.opacity)
+
+    def _foreground_values(self) -> dict[str, str]:
+        """Current selected dropdown keys for each Foreground panel row."""
+        return {
+            "mode": self._foreground.mode,
+            "intensity": _bg_num_key(self._foreground.intensity),
+            "direction": self._foreground.direction,
+            "opacity": _bg_num_key(self._foreground.opacity),
+        }
+
     def _notice_visible(self) -> bool:
         """The one-time photosensitivity notice shows before strobing modes."""
         return not self._notice_acknowledged and self._visual.STROBES
@@ -1534,6 +1621,7 @@ class App:
             or self._appearance.open
             or self._color_picker.open
             or self._background_panel.open
+            or self._foreground_panel.open
             or self._source_panel.open
             or self._looks_panel.open
             or self._shuffle_panel.open
@@ -1547,6 +1635,7 @@ class App:
         self._appearance.open = False
         self._color_picker.open = False
         self._background_panel.open = False
+        self._foreground_panel.open = False
         self._source_panel.open = False
         self._looks_panel.open = False
         self._shuffle_panel.open = False
@@ -1576,6 +1665,7 @@ class App:
                     self._appearance.handle_event(event, canvas)
                     self._color_picker.handle_event(event, canvas)
                     self._background_panel.handle_event(event, canvas)
+                    self._foreground_panel.handle_event(event, canvas)
                     self._source_panel.handle_event(event, canvas)
                     self._looks_panel.handle_event(event, canvas)
                     self._shuffle_panel.handle_event(event, canvas)
@@ -1731,6 +1821,9 @@ class App:
             # A shuffle switch fades the outgoing scene out over the live one.
             if self._transition is not None:
                 self._draw_transition(sub, dt, bg_copy)
+            # The foreground layer is the last canvas paint: beat-triggered effects
+            # (lightning, flames, ...) punctuate the whole scene, above the logo.
+            self._foreground.draw(sub, self._frame, dt)
         except Exception:  # fail-soft: a broken mode must not crash the app
             logger.exception("Visual %r failed to draw", self._visual.KEY)
 
@@ -1780,6 +1873,8 @@ class App:
         self._color_picker.draw(screen, canvas, self._font, self._font_small)
         self._background_panel.set_state(self._background_values())
         self._background_panel.draw(screen, canvas, self._font, self._font_small)
+        self._foreground_panel.set_state(self._foreground_values())
+        self._foreground_panel.draw(screen, canvas, self._font, self._font_small)
         self._source_panel.draw(screen, canvas, self._font, self._font_small)
         self._looks_panel.update(dt)
         self._looks_panel.draw(screen, canvas, self._font, self._font_small)
@@ -1929,6 +2024,10 @@ class App:
             bg_height=self._background.height_key,
             bg_sensitivity=self._background.sensitivity,
             bg_opacity=self._background.opacity,
+            fg_mode=self._foreground.mode,
+            fg_intensity=self._foreground.intensity,
+            fg_direction=self._foreground.direction,
+            fg_opacity=self._foreground.opacity,
             source_id=self._source_id,
             active_look=self._active_look_id,
             random_pool=self._ordered_pool_tags(),

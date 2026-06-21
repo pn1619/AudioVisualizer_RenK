@@ -17,6 +17,28 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.20` — Phase 0B-c (build 24): Foreground layer (lightning + flames)
+
+- **New global Foreground layer** — the counterpart to the Background: a process-wide overlay drawn as
+  the **last** canvas layer (above the active visual mode + logo, below the UI chrome) so dramatic,
+  **beat-triggered** effects punctuate the scene. Owned by `App`, rendered read-only
+  (`frame + surface + dt + Theme`), fail-soft, and bounded.
+- **Effects:**
+  - **`lightning`** — jagged, forked midpoint-displacement bolt(s) strike from an edge on each beat,
+    plus a brief, brightness-**capped** full-screen flash; both fade within ~0.18s.
+  - **`flames`** — hot particles shot inward from the chosen edge(s) on each beat (with a low ambient
+    trickle between beats), rendered with additive glow.
+- **Controls** — a new **`FG`** button opens a centered Foreground panel (mirrors the Background
+  panel) with four dropdowns: **mode** (Off / Lightning / Flames), **intensity** (0.5–2.0),
+  **direction** (Random / From top / bottom / left / right / all sides), and **opacity** (0.25–1.0).
+- **Persistence & looks** — `fg_mode` / `fg_intensity` / `fg_direction` / `fg_opacity` persist
+  (settings **schema v22**) and round-trip through Look snapshots.
+- **Photosensitivity** — the lightning flash alpha is hard-capped (`FG_FLASH_ALPHA_CAP`) and
+  `reduce_motion` further halves it and caps bolt/particle counts.
+- Tests: `test_foreground_phase0b20.py`.
+
+---
+
 ## `00.0B.19` — Phase 0B-c (build 23): Stereo color, smoother comet, test cleanup
 
 - **New `Stereo (2-color)` color scheme** — picks **two** hues and blends them across a visual's

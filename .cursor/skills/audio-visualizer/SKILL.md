@@ -219,6 +219,18 @@ now one module-scoped autouse `_pygame_ready` in `tests/conftest.py` (also runs 
 added a `make_frame` `AnalysisFrame` factory fixture; ~25 local fixtures removed. Tests:
 `test_stereo_comet_phase0b19.py`.
 
+**Build 24 (v00.0B.20):** Global **Foreground layer** — counterpart to `Background`, drawn as the
+**last** canvas layer (above mode + logo, below UI chrome). `visuals/foreground.py::Foreground` is a
+read-only render helper (`draw(surface, frame, dt)`), fail-soft, bounded. Effects are **beat-triggered**
+(onset ≥ `ONSET_THRESHOLD` past `FG_TRIGGER_COOLDOWN`): **`lightning`** (jagged forked
+midpoint-displacement bolts + a brightness-capped flash, `FG_FLASH_ALPHA_CAP`) and **`flames`**
+(additive particles shot inward from edge(s) + ambient trickle). Global knobs: `intensity`, `opacity`,
+`direction` (`random/top/bottom/left/right/all`). Add an effect = one `_draw_<mode>` method + a
+`config.py` `FG_*` block + one line in `FG_MODES`/`FG_MODE_LABELS` (the `ForegroundPanel` auto-lists
+it). Control-bar **`FG`** button opens `ui/foreground_panel.py` (mirrors `background_panel`; dropdowns
+mode/intensity/direction/opacity). Persisted as `fg_*` (settings **schema v22**) + in Look snapshots.
+Reduce-motion halves the flash and caps counts. Tests: `test_foreground_phase0b20.py`.
+
 ### Test conventions (Phase 0B.19+)
 - `tests/conftest.py` owns the **headless SDL env** + a **module-scoped autouse `_pygame_ready`**
   fixture (pygame init + dummy display + `registry.discover()`); test modules must **not** redefine

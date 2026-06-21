@@ -44,6 +44,14 @@ from audio_visualizer.config import (
     CURSOR_SHAPE_DEFAULT,
     CURSOR_SHAPES,
     DEFAULT_WINDOW_SIZE,
+    FG_DIRECTION_DEFAULT,
+    FG_DIRECTIONS,
+    FG_INTENSITY_CHOICES,
+    FG_INTENSITY_DEFAULT,
+    FG_MODE_DEFAULT,
+    FG_MODES,
+    FG_OPACITY_CHOICES,
+    FG_OPACITY_DEFAULT,
     LOGO_COLOR_DEFAULT,
     LOGO_COLOR_MODES,
     LOGO_EMIT_DEFAULT,
@@ -131,6 +139,11 @@ class Settings:
     # Per-backdrop reactivity + opacity (Phase 10.01 / schema v5).
     bg_sensitivity: float = BG_SENSITIVITY_DEFAULT
     bg_opacity: float = BG_OPACITY_DEFAULT
+    # Global foreground overlay layer (schema v22).
+    fg_mode: str = FG_MODE_DEFAULT
+    fg_intensity: float = FG_INTENSITY_DEFAULT
+    fg_direction: str = FG_DIRECTION_DEFAULT
+    fg_opacity: float = FG_OPACITY_DEFAULT
     # Selectable capture source (Phase 0B-a / schema v8). "" -> default render
     # device loopback; otherwise a device *name* from audio.devices.
     source_id: str = ""
@@ -271,6 +284,10 @@ def _from_dict(raw: dict) -> Settings:
             raw.get("bg_sensitivity"), BG_SENSITIVITY_CHOICES, defaults.bg_sensitivity
         ),
         bg_opacity=_snap(raw.get("bg_opacity"), BG_OPACITY_CHOICES, defaults.bg_opacity),
+        fg_mode=_choice(raw.get("fg_mode"), FG_MODES, defaults.fg_mode),
+        fg_intensity=_snap(raw.get("fg_intensity"), FG_INTENSITY_CHOICES, defaults.fg_intensity),
+        fg_direction=_choice(raw.get("fg_direction"), FG_DIRECTIONS, defaults.fg_direction),
+        fg_opacity=_snap(raw.get("fg_opacity"), FG_OPACITY_CHOICES, defaults.fg_opacity),
         source_id=_str(raw.get("source_id"), defaults.source_id),
         active_look=_str(raw.get("active_look"), defaults.active_look),
         random_pool=_str_list(raw.get("random_pool"), defaults.random_pool),
