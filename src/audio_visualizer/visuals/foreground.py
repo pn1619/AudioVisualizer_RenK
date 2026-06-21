@@ -11,6 +11,12 @@ the scene. Effects:
                   second.
 * ``flames``    - hot particles shot inward from the chosen edge(s) on each beat
                   (plus a low ambient trickle), rendered with additive glow.
+* ``rain``      - a continuously maintained field of directional streaks (storm);
+                  each beat injects a heavier gust.
+* ``meteors``   - a few fast streaks per beat arcing from an edge, each trailing a
+                  tapered glow.
+* ``shockwave`` - expanding ring(s) on each beat from screen-center (or the chosen
+                  edge's midpoint).
 
 Two global knobs apply to every effect: ``intensity`` (burst size/count/brightness)
 and ``opacity`` (overall strength). ``direction`` aims the directional effects.
@@ -51,8 +57,30 @@ from audio_visualizer.config import (
     FG_LIGHTNING_JITTER,
     FG_LIGHTNING_LIFE,
     FG_LIGHTNING_SUBDIV,
+    FG_METEOR_BURST,
+    FG_METEOR_CORE,
+    FG_METEOR_GLOW,
+    FG_METEOR_LIFE,
+    FG_METEOR_MAX,
+    FG_METEOR_SIZE,
+    FG_METEOR_SPEED,
+    FG_METEOR_TANGENT,
+    FG_METEOR_TRAIL,
     FG_MODE_DEFAULT,
     FG_OPACITY_DEFAULT,
+    FG_RAIN_COLOR,
+    FG_RAIN_GUST,
+    FG_RAIN_MAX,
+    FG_RAIN_SPEED,
+    FG_RAIN_STREAK,
+    FG_RAIN_TARGET,
+    FG_RAIN_WIND,
+    FG_SHOCK_COLOR,
+    FG_SHOCK_LIFE,
+    FG_SHOCK_MAX,
+    FG_SHOCK_REACH,
+    FG_SHOCK_RINGS,
+    FG_SHOCK_WIDTH,
     FG_TRIGGER_COOLDOWN,
     ONSET_THRESHOLD,
 )
@@ -81,6 +109,9 @@ class Foreground:
         self._flash = 0.0  # full-screen flash envelope (0..cap)
         self._flames: list[dict[str, float]] = []  # {x,y,vx,vy,age,life,size}
         self._emit_accum = 0.0  # fractional ambient-emission carry
+        self._rain: list[dict[str, float]] = []  # {x,y,vx,vy}
+        self._meteors: list[dict[str, object]] = []  # {x,y,vx,vy,age,trail}
+        self._shocks: list[dict[str, float]] = []  # {cx,cy,age}
 
     # -- public ----------------------------------------------------------------
     def draw(self, surface: pygame.Surface, frame: AnalysisFrame | None, dt: float) -> None:
@@ -270,3 +301,183 @@ class Foreground:
         pygame.draw.circle(
             layer, (*color, alpha // 2), (int(p["x"]), int(p["y"])), max(1, radius * 2)
         )
+
+    # -- rain / storm ----------------------------------------------------------
+    def _draw_rain(self, surface: pygame.Surface, frame: AnalysisFrame | None, beat: float) -> None:
+        size = surface.get_size()
+        self._step_rain(size, beat)
+        if not self._rain:
+            return
+        layer = self._add_layer(surface)
+        sx, sy = FG_RAIN_STREAK, FG_RAIN_STREAK
+        alpha = int(150 * self.opacity)
+        for d in self._rain:
+            head = (int(d["x"]), int(d["y"]))
+            tail = (int(d["x"] - d["vx"] * sx), int(d["y"] - d["vy"] * sy))
+            pygame.draw.line(layer, (*FG_RAIN_COLOR, alpha), tail, head, 1)
+        surface.blit(layer, (0, 0))
+
+    def _rain_vec(self) -> tuple[float, float]:
+        """Unit fall direction: random/all/top read as downward (classic rain)."""
+        return {
+            "bottom": (0.0, -1.0),
+            "left": (1.0, 0.0),
+            "right": (-1.0, 0.0),
+        }.get(self.direction, (0.0, 1.0))
+
+    def _step_rain(self, size: tuple[int, int], beat: float) -> None:
+        w, h = size
+        alive: list[dict[str, float]] = []
+        for d in self._rain:
+            d["x"] += d["vx"] * self._dt
+            d["y"] += d["vy"] * self._dt
+            if -80 <= d["x"] <= w + 80 and -80 <= d["y"] <= h + 80:
+                alive.append(d)
+        self._rain = alive
+        target = int(FG_RAIN_TARGET * self.intensity)
+        if self.reduce_motion:
+            target //= 2
+        if beat > 0.0:
+            target += int(FG_RAIN_GUST * self.intensity * beat)
+        target = min(target, FG_RAIN_MAX)
+        vec = self._rain_vec()
+        while len(self._rain) < target:
+            self._rain.append(self._spawn_rain(size, vec))
+
+    def _spawn_rain(self, size: tuple[int, int], vec: tuple[float, float]) -> dict[str, float]:
+        w, h = size
+        r = self._rng
+        speed = FG_RAIN_SPEED * (0.85 + 0.4 * r.random())  # depth variation
+        wind = (r.random() - 0.5) * 2 * FG_RAIN_WIND * speed
+        if vec[1] > 0:
+            x, y, vx, vy = r.uniform(0, w), r.uniform(-h, 0), wind, speed
+        elif vec[1] < 0:
+            x, y, vx, vy = r.uniform(0, w), r.uniform(h, 2 * h), wind, -speed
+        elif vec[0] > 0:
+            x, y, vx, vy = r.uniform(-w, 0), r.uniform(0, h), speed, wind
+        else:
+            x, y, vx, vy = r.uniform(w, 2 * w), r.uniform(0, h), -speed, wind
+        return {"x": x, "y": y, "vx": vx, "vy": vy}
+
+    # -- meteors / shooting stars ----------------------------------------------
+    def _draw_meteors(
+        self, surface: pygame.Surface, frame: AnalysisFrame | None, beat: float
+    ) -> None:
+        if beat > 0.0:
+            self._spawn_meteors(surface.get_size(), beat)
+        self._step_meteors(surface.get_size())
+        if not self._meteors:
+            return
+        layer = self._add_layer(surface)
+        for m in self._meteors:
+            self._draw_meteor(layer, m)
+        surface.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+    def _spawn_meteors(self, size: tuple[int, int], beat: float) -> None:
+        count = max(1, int(round(FG_METEOR_BURST * self.intensity * (0.5 + beat))))
+        if self.reduce_motion:
+            count = 1
+        edges = _EDGES if self.direction == "all" else [self._pick_edge() for _ in range(count)]
+        for edge in edges[:count]:
+            self._meteors.append(self._spawn_meteor(size, edge))
+        if len(self._meteors) > FG_METEOR_MAX:
+            del self._meteors[: len(self._meteors) - FG_METEOR_MAX]
+
+    def _spawn_meteor(self, size: tuple[int, int], edge: str) -> dict[str, object]:
+        w, h = size
+        r = self._rng
+        speed = FG_METEOR_SPEED * (0.8 + 0.4 * r.random())
+        tan = r.uniform(-FG_METEOR_TANGENT, FG_METEOR_TANGENT) * speed
+        if edge == "top":
+            x, y, vx, vy = r.uniform(0, w), -20.0, tan, speed
+        elif edge == "bottom":
+            x, y, vx, vy = r.uniform(0, w), h + 20.0, tan, -speed
+        elif edge == "left":
+            x, y, vx, vy = -20.0, r.uniform(0, h), speed, tan
+        else:
+            x, y, vx, vy = w + 20.0, r.uniform(0, h), -speed, tan
+        return {"x": x, "y": y, "vx": vx, "vy": vy, "age": 0.0, "trail": []}
+
+    def _step_meteors(self, size: tuple[int, int]) -> None:
+        w, h = size
+        alive: list[dict[str, object]] = []
+        for m in self._meteors:
+            x = float(m["x"]) + float(m["vx"]) * self._dt  # type: ignore[arg-type]
+            y = float(m["y"]) + float(m["vy"]) * self._dt  # type: ignore[arg-type]
+            age = float(m["age"]) + self._dt  # type: ignore[arg-type]
+            m["x"], m["y"], m["age"] = x, y, age
+            trail = m["trail"]
+            if isinstance(trail, list):
+                trail.append((x, y))
+                if len(trail) > FG_METEOR_TRAIL:
+                    del trail[0]
+            if age < FG_METEOR_LIFE and -60 <= x <= w + 60 and -60 <= y <= h + 60:
+                alive.append(m)
+        self._meteors = alive
+
+    def _draw_meteor(self, layer: pygame.Surface, m: dict[str, object]) -> None:
+        trail = m["trail"]
+        if not isinstance(trail, list) or len(trail) < 2:
+            return
+        n = len(trail)
+        for i in range(1, n):
+            frac = i / n  # tail (dim) -> head (bright)
+            a = int(180 * frac * self.opacity)
+            if a <= 0:
+                continue
+            width = max(1, int(frac * 3))
+            pygame.draw.line(layer, (*FG_METEOR_GLOW, a), trail[i - 1], trail[i], width)
+        head = (int(float(m["x"])), int(float(m["y"])))  # type: ignore[arg-type]
+        core_a = int(255 * self.opacity)
+        pygame.draw.circle(layer, (*FG_METEOR_GLOW, core_a // 2), head, int(FG_METEOR_SIZE * 2))
+        pygame.draw.circle(layer, (*FG_METEOR_CORE, core_a), head, max(1, int(FG_METEOR_SIZE)))
+
+    # -- shockwave -------------------------------------------------------------
+    def _draw_shockwave(
+        self, surface: pygame.Surface, frame: AnalysisFrame | None, beat: float
+    ) -> None:
+        size = surface.get_size()
+        if beat > 0.0:
+            self._spawn_shocks(size, beat)
+        for s in self._shocks:
+            s["age"] += self._dt
+        self._shocks = [s for s in self._shocks if s["age"] < FG_SHOCK_LIFE]
+        if not self._shocks:
+            return
+        max_r = math.hypot(*size) * FG_SHOCK_REACH
+        layer = self._add_layer(surface)
+        for s in self._shocks:
+            self._draw_shock(layer, s, max_r)
+        surface.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+    def _spawn_shocks(self, size: tuple[int, int], beat: float) -> None:
+        count = max(1, int(round(FG_SHOCK_RINGS * self.intensity * beat)))
+        if self.reduce_motion:
+            count = 1
+        cx, cy = self._origin(size)
+        for _ in range(count):
+            self._shocks.append({"cx": cx, "cy": cy, "age": 0.0})
+        if len(self._shocks) > FG_SHOCK_MAX:
+            del self._shocks[: len(self._shocks) - FG_SHOCK_MAX]
+
+    def _origin(self, size: tuple[int, int]) -> tuple[float, float]:
+        """Ring origin: the chosen edge's midpoint, else screen center."""
+        w, h = size
+        return {
+            "top": (w / 2, 0.0),
+            "bottom": (w / 2, float(h)),
+            "left": (0.0, h / 2),
+            "right": (float(w), h / 2),
+        }.get(self.direction, (w / 2, h / 2))
+
+    def _draw_shock(self, layer: pygame.Surface, s: dict[str, float], max_r: float) -> None:
+        frac = clamp(s["age"] / FG_SHOCK_LIFE)
+        radius = int(max_r * frac)
+        if radius < 2:
+            return
+        width = max(1, int(FG_SHOCK_WIDTH * (1.0 - frac)))
+        alpha = int(200 * (1.0 - frac) * self.opacity)
+        if alpha <= 0:
+            return
+        center = (int(s["cx"]), int(s["cy"]))
+        pygame.draw.circle(layer, (*FG_SHOCK_COLOR, alpha), center, radius, width)

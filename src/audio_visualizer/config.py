@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.20"
+APP_VERSION = "00.0B.21"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -400,12 +400,18 @@ FG_MODES: tuple[str, ...] = (
     "off",
     "lightning",
     "flames",
+    "rain",
+    "meteors",
+    "shockwave",
 )
 FG_MODE_DEFAULT = "off"
 FG_MODE_LABELS: dict[str, str] = {
     "off": "Off",
     "lightning": "Lightning",
     "flames": "Flames",
+    "rain": "Rain / Storm",
+    "meteors": "Meteors",
+    "shockwave": "Shockwave",
 }
 # Direction effects shoot *from* (toward screen center). "random" picks per burst;
 # "all" emits from every edge at once.
@@ -456,6 +462,38 @@ FG_FLAME_PALETTE: tuple[tuple[int, int, int], ...] = (
     (255, 120, 30),
     (190, 36, 18),
 )
+
+# Rain / storm: a continuously maintained field of directional streaks (so the
+# storm reads even between beats); each beat injects a heavier gust. Falls from
+# the chosen edge (random/all/top -> downward) toward the opposite side.
+FG_RAIN_TARGET = 90  # streaks kept alive at intensity 1.0
+FG_RAIN_SPEED = 900.0  # px/s along the fall direction
+FG_RAIN_STREAK = 0.045  # streak length as seconds of travel (-> px = speed * this)
+FG_RAIN_GUST = 45  # extra streaks injected on a beat at intensity 1.0
+FG_RAIN_WIND = 0.08  # lateral wander as a fraction of fall speed
+FG_RAIN_MAX = 420  # hard cap on live streaks
+FG_RAIN_COLOR = (170, 200, 255)
+
+# Meteors / shooting stars: a few fast streaks per beat that arc across from an
+# edge, each leaving a tapered glowing trail.
+FG_METEOR_BURST = 3  # meteors per beat at intensity 1.0
+FG_METEOR_SPEED = 1100.0  # px/s launch speed
+FG_METEOR_TANGENT = 0.6  # sideways velocity spread (fraction of launch speed)
+FG_METEOR_LIFE = 0.9  # seconds before a meteor is culled
+FG_METEOR_TRAIL = 12  # trail points retained per meteor
+FG_METEOR_SIZE = 3.0  # head radius (px)
+FG_METEOR_MAX = 60  # hard cap on live meteors
+FG_METEOR_CORE = (255, 248, 220)
+FG_METEOR_GLOW = (255, 170, 80)
+
+# Shockwave: expanding ring(s) on each beat; radius grows while alpha + thickness
+# fade. Origin is screen-center (random/all) or the chosen edge's midpoint.
+FG_SHOCK_RINGS = 1  # rings per beat at intensity 1.0
+FG_SHOCK_LIFE = 0.5  # seconds a ring lives
+FG_SHOCK_REACH = 0.62  # max radius as a fraction of the screen diagonal
+FG_SHOCK_WIDTH = 9.0  # ring thickness (px) at birth
+FG_SHOCK_MAX = 24  # hard cap on live rings
+FG_SHOCK_COLOR = (185, 222, 255)
 
 # Onset (beat) detection: spectral flux is normalized to 0..1 via this gain;
 # a frame is treated as an onset when its strength clears the threshold.
