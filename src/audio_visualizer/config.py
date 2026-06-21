@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.19"
+APP_VERSION = "00.0B.20"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -392,6 +392,71 @@ BG_GRID_COLS = 12
 BG_GRID_HORIZON = 0.5  # horizon line as a fraction of canvas height
 BG_GRID_SCROLL = 0.25  # rows scrolled per second (× speed)
 
+# --- Global foreground layer (drawn on top of every visual mode) --------------
+# A process-wide overlay of dramatic, beat-triggered effects (lightning, fire,
+# ...). "off" is the default no-op. Effects fire on onsets and fade quickly, so
+# the layer reads as punctuation over the scene rather than a constant wash.
+FG_MODES: tuple[str, ...] = (
+    "off",
+    "lightning",
+    "flames",
+)
+FG_MODE_DEFAULT = "off"
+FG_MODE_LABELS: dict[str, str] = {
+    "off": "Off",
+    "lightning": "Lightning",
+    "flames": "Flames",
+}
+# Direction effects shoot *from* (toward screen center). "random" picks per burst;
+# "all" emits from every edge at once.
+FG_DIRECTIONS: tuple[str, ...] = ("random", "top", "bottom", "left", "right", "all")
+FG_DIRECTION_DEFAULT = "random"
+FG_DIRECTION_LABELS: dict[str, str] = {
+    "random": "Random",
+    "top": "From top",
+    "bottom": "From bottom",
+    "left": "From left",
+    "right": "From right",
+    "all": "From all sides",
+}
+# Intensity scales burst size/count/brightness; opacity is overall strength.
+FG_INTENSITY_CHOICES: tuple[float, ...] = (0.5, 0.75, 1.0, 1.5, 2.0)
+FG_INTENSITY_DEFAULT = 1.0
+FG_OPACITY_CHOICES: tuple[float, ...] = (0.25, 0.5, 0.75, 1.0)
+FG_OPACITY_DEFAULT = 1.0
+# Minimum seconds between beat-triggered spawns (so a dense onset stream can't
+# spawn every frame). A beat needs onset >= ONSET_THRESHOLD (below) to fire.
+FG_TRIGGER_COOLDOWN = 0.11
+
+# Lightning: a jagged forked bolt + a brief, *capped* full-screen flash. The flash
+# cap + reduce-motion damping keep it well under seizure-risk strobing at defaults.
+FG_LIGHTNING_BOLTS = 2  # bolts per beat at intensity 1.0
+FG_LIGHTNING_SUBDIV = 5  # midpoint-displacement passes (2**5 segments)
+FG_LIGHTNING_JITTER = 0.22  # initial wander as a fraction of the bolt span
+FG_LIGHTNING_LIFE = 0.18  # seconds a bolt stays before it has fully faded
+FG_LIGHTNING_FORK_CHANCE = 0.5  # chance a bolt grows one branch
+FG_LIGHTNING_CORE = (235, 245, 255)
+FG_LIGHTNING_GLOW = (120, 170, 255)
+FG_FLASH_ALPHA = 60  # full-screen flash alpha at intensity 1.0 (hard-capped below)
+FG_FLASH_ALPHA_CAP = 110  # never exceed this, regardless of intensity
+FG_FLASH_DECAY = 7.0  # flash envelope decay per second
+
+# Flames: hot particles shot inward from the chosen edge(s); additive glow.
+FG_FLAME_BURST = 16  # particles per beat at intensity 1.0
+FG_FLAME_AMBIENT = 26.0  # ambient particles/sec (keeps the fire alive between beats)
+FG_FLAME_SPEED = 340.0  # px/s inward launch speed
+FG_FLAME_SPREAD = 0.45  # lateral velocity spread (fraction of launch speed)
+FG_FLAME_DRAG = 1.7  # per-second velocity damping
+FG_FLAME_LIFE = 0.7  # seconds a flame particle lives
+FG_FLAME_MAX = 240  # hard cap on live flame particles
+FG_FLAME_SIZE = 14.0  # base particle radius (px) at birth
+FG_FLAME_PALETTE: tuple[tuple[int, int, int], ...] = (
+    (255, 255, 235),
+    (255, 214, 90),
+    (255, 120, 30),
+    (190, 36, 18),
+)
+
 # Onset (beat) detection: spectral flux is normalized to 0..1 via this gain;
 # a frame is treated as an onset when its strength clears the threshold.
 ONSET_FLUX_GAIN = 6.0
@@ -562,7 +627,7 @@ SETTINGS_FILENAME = "settings.json"
 # v10 (Phase 0B-c) added the auto-cycle pool + interval (random_pool, random_interval).
 # v11 (Phase 0B-c) added the shuffle "randomize options" toggle (random_options).
 # v12 (Phase 0B-c) added the user-adjustable cross-fade time (random_fade).
-SETTINGS_SCHEMA_VERSION = 21
+SETTINGS_SCHEMA_VERSION = 22
 
 # --- User looks ("My Looks") persistence (Phase 0B-b) -------------------------
 # Saved user looks live in their own file (sibling to settings.json) so a bad

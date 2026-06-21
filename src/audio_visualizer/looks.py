@@ -1,7 +1,7 @@
 """User custom visual looks ("My Looks"), persisted as JSON.
 
 A *look* is a saved snapshot of a complete visual look — the mode and its option
-indices, the theme, sensitivity/smoothing, and the Background/Logo state — that
+indices, the theme, sensitivity/smoothing, and the Background/Foreground/Logo state — that
 the user can re-select later from the ``My Looks`` dropdown.
 
 Storage mirrors :mod:`settings` deliberately: a separate ``looks.json`` under
@@ -54,6 +54,7 @@ _KNOWN_KEYS = frozenset(
         "sensitivity",
         "smoothing",
         "background",
+        "foreground",
         "logo",
         "created_at",
         "updated_at",
@@ -99,6 +100,7 @@ class Look:
     sensitivity: float = 1.0
     smoothing: float = 0.5
     background: dict[str, object] = field(default_factory=lambda: {"link": LINK_LOCAL})
+    foreground: dict[str, object] = field(default_factory=lambda: {"link": LINK_LOCAL})
     logo: dict[str, object] = field(default_factory=lambda: {"link": LINK_LOCAL})
     created_at: str = ""
     updated_at: str = ""
@@ -116,6 +118,7 @@ class Look:
             "sensitivity": self.sensitivity,
             "smoothing": self.smoothing,
             "background": dict(self.background),
+            "foreground": dict(self.foreground),
             "logo": dict(self.logo),
         }
 
@@ -135,6 +138,7 @@ def to_json(look: Look) -> dict[str, object]:
         "sensitivity": look.sensitivity,
         "smoothing": look.smoothing,
         "background": dict(look.background),
+        "foreground": dict(look.foreground),
         "logo": dict(look.logo),
         "created_at": look.created_at,
         "updated_at": look.updated_at,
@@ -191,6 +195,7 @@ def _from_json(raw: object) -> Look | None:
         sensitivity=_num(raw.get("sensitivity"), 1.0),
         smoothing=_num(raw.get("smoothing"), 0.5),
         background=_domain(raw.get("background")),
+        foreground=_domain(raw.get("foreground")),
         logo=_domain(raw.get("logo")),
         created_at=_text(raw.get("created_at")),
         updated_at=_text(raw.get("updated_at")),
@@ -292,6 +297,7 @@ class LooksStore:
             options=dict(src.options),
             theme=dict(src.theme),
             background=dict(src.background),
+            foreground=dict(src.foreground),
             logo=dict(src.logo),
             extra=dict(src.extra),
         )
