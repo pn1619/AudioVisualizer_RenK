@@ -19,7 +19,7 @@ APP_NAME = "AudioVisualizer"
 # Each PP.FF.BB part is HEX (parsed base-16), so BB counts 08, 09, 0A, 0B, … 0F, 10.
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
-APP_VERSION = "00.0B.21"
+APP_VERSION = "00.0B.22"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-06-19"
@@ -403,6 +403,9 @@ FG_MODES: tuple[str, ...] = (
     "rain",
     "meteors",
     "shockwave",
+    "sparks",
+    "fireworks",
+    "edgeglow",
 )
 FG_MODE_DEFAULT = "off"
 FG_MODE_LABELS: dict[str, str] = {
@@ -412,10 +415,14 @@ FG_MODE_LABELS: dict[str, str] = {
     "rain": "Rain / Storm",
     "meteors": "Meteors",
     "shockwave": "Shockwave",
+    "sparks": "Spark Shower",
+    "fireworks": "Fireworks",
+    "edgeglow": "Edge Glow",
 }
 # Direction effects shoot *from* (toward screen center). "random" picks per burst;
-# "all" emits from every edge at once.
-FG_DIRECTIONS: tuple[str, ...] = ("random", "top", "bottom", "left", "right", "all")
+# "all" emits from every edge at once; "center" is the origin for radial effects
+# (shockwave/fireworks) — directional effects treat it as random.
+FG_DIRECTIONS: tuple[str, ...] = ("random", "top", "bottom", "left", "right", "all", "center")
 FG_DIRECTION_DEFAULT = "random"
 FG_DIRECTION_LABELS: dict[str, str] = {
     "random": "Random",
@@ -424,6 +431,7 @@ FG_DIRECTION_LABELS: dict[str, str] = {
     "left": "From left",
     "right": "From right",
     "all": "From all sides",
+    "center": "From center",
 }
 # Intensity scales burst size/count/brightness; opacity is overall strength.
 FG_INTENSITY_CHOICES: tuple[float, ...] = (0.5, 0.75, 1.0, 1.5, 2.0)
@@ -494,6 +502,50 @@ FG_SHOCK_REACH = 0.62  # max radius as a fraction of the screen diagonal
 FG_SHOCK_WIDTH = 9.0  # ring thickness (px) at birth
 FG_SHOCK_MAX = 24  # hard cap on live rings
 FG_SHOCK_COLOR = (185, 222, 255)
+
+# Spark shower / embers: a snappy burst of small, gravity-pulled sparks shot inward
+# from the chosen edge(s) on each beat (faster + shorter-lived than flames).
+FG_SPARK_BURST = 22  # sparks per beat at intensity 1.0
+FG_SPARK_SPEED = 520.0  # px/s inward launch speed
+FG_SPARK_SPREAD = 0.7  # lateral velocity spread (fraction of launch speed)
+FG_SPARK_GRAVITY = 720.0  # downward acceleration (px/s^2)
+FG_SPARK_DRAG = 1.1  # per-second velocity damping
+FG_SPARK_LIFE = 0.55  # seconds a spark lives
+FG_SPARK_SIZE = 3.0  # base spark radius (px)
+FG_SPARK_MAX = 320  # hard cap on live sparks
+FG_SPARK_PALETTE: tuple[tuple[int, int, int], ...] = (
+    (255, 255, 240),
+    (255, 224, 140),
+    (255, 150, 50),
+    (210, 70, 30),
+)
+
+# Fireworks / confetti: each beat detonates shell(s) at an origin point into a radial
+# burst of gravity-pulled, fading particles (a vivid per-shell color).
+FG_FW_SHELLS = 1  # shells per beat at intensity 1.0
+FG_FW_PARTICLES = 46  # particles per shell at intensity 1.0
+FG_FW_SPEED = 360.0  # px/s radial burst speed
+FG_FW_GRAVITY = 240.0  # downward acceleration (px/s^2)
+FG_FW_DRAG = 1.3  # per-second velocity damping
+FG_FW_LIFE = 1.1  # seconds a particle lives
+FG_FW_SIZE = 3.0  # base particle radius (px)
+FG_FW_MAX = 600  # hard cap on live particles
+FG_FW_PALETTE: tuple[tuple[int, int, int], ...] = (
+    (255, 90, 90),
+    (255, 200, 70),
+    (120, 230, 120),
+    (90, 180, 255),
+    (210, 130, 255),
+    (255, 255, 255),
+)
+
+# Edge glow pulse: a soft border bloom that throbs on each beat then decays. The
+# safest effect (no strobing); alpha is capped and reduce-motion lowers the cap.
+FG_GLOW_DECAY = 3.2  # envelope decay per second
+FG_GLOW_DEPTH = 0.16  # band depth as a fraction of min(width, height)
+FG_GLOW_ALPHA = 150  # peak band alpha at intensity 1.0 (pre-opacity)
+FG_GLOW_ALPHA_CAP = 170  # never exceed this, regardless of intensity
+FG_GLOW_COLOR = (120, 180, 255)
 
 # Onset (beat) detection: spectral flux is normalized to 0..1 via this gain;
 # a frame is treated as an onset when its strength clears the threshold.

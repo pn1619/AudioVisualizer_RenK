@@ -75,7 +75,7 @@ The exe bundles the PortAudio DLL and a Windows version resource. Drop an
 | Reduce motion (caps strobing) | `Motion` button | `M` |
 | Appearance (style / accent / font) | `Menu` ▸ Appearance… (modal) | — |
 | Background layer | `BG` button (modal: mode / sensitivity / opacity / height) | — |
-| Foreground layer | `FG` button (modal: mode / intensity / direction / opacity) — beat-triggered Lightning / Flames / Rain / Meteors / Shockwave | — |
+| Foreground layer | `FG` button (modal: mode / intensity / direction / opacity) — beat-triggered Lightning / Flames / Rain / Meteors / Shockwave / Sparks / Fireworks / Edge Glow | — |
 | RenK logo settings | `RenK` button (modal panel) | — |
 | About (owner/license/version) | `About` button | — |
 | Fullscreen | `Menu` ▸ Fullscreen | `F11` (exit with `Esc`) |

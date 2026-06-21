@@ -17,6 +17,26 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.22` — Phase 0B-c (build 26): Foreground effects — sparks, fireworks, edge glow
+
+Completes the foreground effect set from the plan (each is one drop-in `_draw_<mode>` method + a
+`config.py` `FG_*` block; the panel auto-lists them — no schema change):
+
+- **`sparks` (Spark Shower)** — a snappy per-beat burst of small, **gravity-pulled** embers shot
+  inward from the chosen edge(s); faster and shorter-lived than Flames, additive glow.
+- **`fireworks` (Fireworks)** — each beat **detonates** shell(s) into a radial burst of
+  gravity-pulled, fading particles in a vivid per-shell color.
+- **`edgeglow` (Edge Glow)** — a soft **border bloom** that throbs on each beat then decays; the
+  safest effect (no strobing), with a hard alpha cap that `reduce_motion` halves.
+
+Also adds a **`center`** direction value (`From center`): radial effects (Shockwave, Fireworks)
+detonate at screen-center, Edge Glow lights all four borders, and directional effects treat it as
+random — so direction stays meaningful across every mode. All effects honor intensity / opacity /
+direction / reduce-motion and stay bounded (`FG_SPARK_MAX` / `FG_FW_MAX`). Tests:
+`test_foreground_phase0b22.py`.
+
+---
+
 ## `00.0B.21` — Phase 0B-c (build 25): Foreground effects — rain, meteors, shockwave
 
 Three new beat-reactive **Foreground** effects (each is one drop-in `_draw_<mode>` method + a
