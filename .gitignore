@@ -15,6 +15,9 @@ dist/
 build/
 *.spec.bak
 
+# Dev-only preview renders (tools/preview_mode.py). Concept art in assets/concept-art/ IS tracked.
+assets/previews/
+
 # Frozen lockfile is optional output of `pip freeze`
 requirements.lock.txt
 

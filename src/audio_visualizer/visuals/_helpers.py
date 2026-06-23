@@ -153,6 +153,44 @@ PARTICLES_OPTION = ModeOption(
     default_index=0,
 )
 
+# Curated multi-stop palettes shared across modes that color a field/figure by a
+# scalar (``0..1``). Index ``-1`` (the ``Theme`` choice) means "defer to the global
+# color scheme" — resolve with :func:`palette_or_theme`. Kept as ordered stops so
+# :func:`palette_color` can interpolate between them.
+SHARED_PALETTES: tuple[tuple[Color, ...], ...] = (
+    ((8, 30, 24), (30, 200, 140), (60, 230, 255), (150, 90, 230), (235, 205, 255)),  # 0 Polar
+    ((40, 8, 30), (255, 120, 40), (255, 200, 80), (255, 90, 160), (255, 240, 200)),  # 1 Solar
+    ((4, 10, 40), (10, 90, 160), (20, 170, 215), (120, 220, 240), (240, 255, 255)),  # 2 Ocean
+    ((4, 2, 2), (120, 20, 10), (240, 80, 20), (255, 180, 40), (255, 240, 160)),  # 3 Ember
+    ((10, 4, 30), (190, 30, 160), (40, 90, 230), (60, 230, 255), (255, 255, 255)),  # 4 Neon
+    ((40, 0, 60), (180, 30, 140), (60, 40, 200), (40, 180, 200), (255, 220, 90)),  # 5 Jewel
+)
+
+# Shared palette selector. ``Theme`` (value ``-1``) follows the global color scheme;
+# the rest index :data:`SHARED_PALETTES`. Modes resolve with :func:`palette_or_theme`.
+PALETTE_OPTION = ModeOption(
+    "palette",
+    "Palette",
+    (
+        OptionChoice("Theme", -1),
+        OptionChoice("Polar", 0),
+        OptionChoice("Solar", 1),
+        OptionChoice("Ocean", 2),
+        OptionChoice("Ember", 3),
+        OptionChoice("Neon", 4),
+        OptionChoice("Jewel", 5),
+    ),
+    default_index=0,
+)
+
+# Shared rotational-symmetry (fold count) selector for radial/kaleidoscopic modes.
+SYMMETRY_OPTION = ModeOption(
+    "symmetry",
+    "Symmetry",
+    (OptionChoice("4", 4), OptionChoice("6", 6), OptionChoice("8", 8), OptionChoice("12", 12)),
+    default_index=1,
+)
+
 
 def mode_color(
     color_opt: int, scheme: str, t: float, phase: float = 0.0, palette: tuple[Color, ...] = PALETTE
@@ -167,6 +205,19 @@ def mode_color(
     if color_opt == 2:
         return COLOR_ACCENT
     return themed_color(scheme, t, palette, phase)
+
+
+def palette_or_theme(palette_idx: int, scheme: str, t: float, phase: float = 0.0) -> Color:
+    """Resolve a color for ``t`` (0..1) honoring :data:`PALETTE_OPTION`.
+
+    ``palette_idx < 0`` (the ``Theme`` choice) defers to the global color scheme;
+    otherwise sample the matching :data:`SHARED_PALETTES` entry. Lets a mode swap
+    between curated palettes and the user's live theme with one option.
+    """
+    if palette_idx < 0:
+        return themed_color(scheme, t, PALETTE, phase)
+    idx = int(palette_idx) % len(SHARED_PALETTES)
+    return palette_color(SHARED_PALETTES[idx], clamp(t))
 
 
 def mirror_points(

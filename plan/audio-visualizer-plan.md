@@ -184,6 +184,16 @@ is added or removed.
 | **Dot Matrix** | `matrix` | 115 | Falling glyph columns; **Glow** | bands | Phase 10.06 |
 | **Pulse Rings** | `pulse_rings` | 120 | Onset-spawned expanding rings; **Color** + **Thickness** | onset / RMS | Phase 10.06 |
 | **Ripples** | `ripples` | 125 | Water-like ripples; **Color** + **Speed** | onset / RMS | Phase 10.06 |
+| **Test_Frequency Skyline** | `test_skyline` | 24 | Neon EQ city; lit floors + water reflection (eval `Test_`) | band energies | Phase 0B-d |
+| **Test_Flow Field** | `test_flowfield` | 42 | Curl-field particle streams + silky trails; onset vortex (eval `Test_`) | RMS / bass / onset | Phase 0B-d |
+| **Test_Aurora Veil** | `test_aurora_veil` | 70 | Band-reactive aurora curtains over stars, low-res field (eval `Test_`) | bands / onset | Phase 0B-d |
+| **Test_Hyperspace** | `test_hyperspace` | 78 | Radial warp-streak starfield; `STROBES` (eval `Test_`) | RMS / onset | Phase 0B-d |
+| **Test_Lava Lamp** | `test_metaballs` | 83 | Gooey bass-driven metaballs, low-res field (eval `Test_`) | bass / onset | Phase 0B-d |
+| **Test_DNA Helix** | `test_dna` | 84 | Beaded double-helix; spectrum rungs + onset pulses (eval `Test_`) | bands / RMS / onset | Phase 0B-d |
+| **Test_Constellation** | `test_constellation` | 88 | Drifting node graph + proximity links + ripples (eval `Test_`) | RMS / bands / onset | Phase 0B-d |
+| **Test_Mandala Bloom** | `test_mandala` | 91 | k-fold petal flower; rings breathe with the spectrum (eval `Test_`) | bands / onset | Phase 0B-d |
+| **Test_Fractal Tree** | `test_tree` | 95 | L-system tree; sway (bass) + blossoms (onset) (eval `Test_`) | bass / treble / onset | Phase 0B-d |
+| **Test_Harmonograph** | `test_harmonograph` | 106 | Damped-Lissajous pen plotter + phosphor (eval `Test_`) | bands / RMS / onset | Phase 0B-d |
 | *Shader-ish field* (stretch) | — | — | Fullscreen palette field reacting to spectrum | FFT texture | Stretch |
 
 > **Phase 10.07** merged the `*_2` "+particles" pairs and the four circle modes into the
@@ -350,6 +360,8 @@ Whenever code is added or a decision changes, update the relevant doc in the sam
 | 22 | **`Esc` no longer quits** — it only closes a modal or exits fullscreen; quit stays on the `Quit` button + `Ctrl+Q` | Accidental `Esc` quitting was hostile; modal/fullscreen dismissal is the expected behavior (Phase 9) |
 | 23 | **Mode consolidation (26 → 19)**: merged the `*_2` "+particles" pairs and the four circle modes into their base modes behind a shared `PARTICLES_OPTION` axis + a `Rings` count; added per-mode **`PRESETS`** (handled in `BaseVisualizer.on_option_change`/`_apply_preset`) and retrofitted shared **Mirror**/**Glow**. Since per-mode option indices are never persisted, only the saved `mode` key migrates via `MERGED_MODE_KEYS` (schema v6→v7) | Many modes differed only by "+ particles" or ring count, cluttering the picker; folding them into options (with one-click presets for the old looks) is more flexible and removes ~7 near-duplicate files, while the key-only migration keeps upgrades crash-free (Phase 10.07) |
 | 24 | **Auto-cycle split into builds — build 1 (`v00.0B.03`) is built-in modes only** (`random_pool` of `mode:<key>` ids, schema v10), cross-fading via offscreen-composited `ModeTransition` (reduce-motion = hard cut); **saved looks join the rotation in build 2, after the 0B-b overlay resolver** | A modes-only shuffle touches **no global state** (a mode swap leaves Background/Logo/theme alone), so it ships immediately with no resolver dependency; looks mutate live global per tick and need a clean pre-shuffle snapshot/restore, so they wait for the resolver to avoid clobbering the user's global state (Phase 0B-c) |
+| 25 | **Phase 0B-d adds 10 new visual modes in one build** (`aurora_veil`, `hyperspace`, `skyline`, `dna`, `harmonograph`, `metaballs`, `tree`, `flowfield`, `constellation`, `mandala`): each one file/`@register`, **6 `OPTIONS` + 2–3 `PRESETS`**; implementation order geometric → particle → field/organic; add shared `PALETTE_OPTION` + `SYMMETRY_OPTION` to `_helpers.py`; **mode** Aurora/Hyperspace renamed **"Aurora Veil"/"Hyperspace"** to disambiguate from the background layers of the same name | Keeps the one-file-per-mode contract while maximizing per-mode customization (user goal); field modes reuse the Plasma low-res→`smoothscale` trick to stay within the ~3 ms/1080p budget; distinct names avoid confusing the mode with the backdrop. Full spec in `plan/phase-0b-d-visual-modes.md` (Phase 0B-d) |
+| 26 | **D25 shipped in `v00.0B.24` under temporary `Test_` names** (`test_<key>` / `Test_<Name>` for all 10). Each mode was cross-checked against concept art with `tools/preview_mode.py` (headless PNG render); art preserved in `assets/concept-art/`. Prefixes stay until the user approves the look, then are removed in a follow-up (pure rename, no settings migration) | The user asked to evaluate the looks before finalizing names; the `Test_` prefix makes the eval modes obvious in the picker and trivially reversible. No schema change (still v23) |
 
 **Open questions** (record answers as they're decided):
 

@@ -17,6 +17,51 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.24` — Phase 0B-d (build 28): ten new visual modes (shipping as `Test_*`)
+
+A large batch of **10 new visual modes**, each one file with `@register`, deeply customizable
+(6 `OPTIONS` + 3 curated `PRESETS`), within the render budget, and cross-checked against concept
+art (kept in `assets/concept-art/`). They ship under temporary **`Test_`** display names / `test_`
+keys for evaluation — once approved the prefixes are removed in a follow-up. No settings schema
+change (still v23); new modes simply appear in the picker and random pool.
+
+- **Test_Aurora Veil** (`test_aurora_veil`) — full-screen, band-reactive aurora curtains over a
+  starfield (low-res tinted field + smoothscale). Options: Curtains 2–5 · Style (Curtains/Ribbons/
+  Veil) · Drift · Turbulence · Palette (Polar/Solar/Theme) · Stars. Distinct from the background
+  aurora layer.
+- **Test_Hyperspace** (`test_hyperspace`) — radial warp-streak starfield; level→speed, beat→punch
+  (flashes, so `STROBES`). Options: Density · Warp (Cruise/Jump/Punch) · Trails · Center · Color ·
+  Roll.
+- **Test_Frequency Skyline** (`test_skyline`) — neon EQ city; bands→buildings with lit floors, bass
+  ground pulse, onset roof flash, water/mirror reflection. Options: View · Reflection · Windows ·
+  Skyline · Palette (Synthwave/Mono/Theme) · Bars.
+- **Test_DNA Helix** (`test_dna`) — rotating beaded double-helix with spectrum rungs and travelling
+  onset pulses. Options: Strands · Twist · Rungs (Bars/Beads/Lightning) · Orientation · Color · Glow.
+- **Test_Harmonograph** (`test_harmonograph`) — band-driven damped Lissajous pen plotter with
+  phosphor persistence. Options: Pens · Persistence · Damping · Symmetry · Line · Color.
+- **Test_Lava Lamp** (`test_metaballs`) — gooey metaballs merging/splitting on a low-res scalar
+  field, driven by bass. Options: Blobs · Viscosity · Surface · Gravity · Palette (Lava/Plasma/
+  Theme) · Reactivity.
+- **Test_Fractal Tree** (`test_tree`) — recursive L-system tree that sways with bass and blossoms on
+  beats. Options: Species (Oak/Willow/Coral/Fern) · Depth 5–9 · Wind · Foliage · Symmetry · Palette.
+- **Test_Flow Field** (`test_flowfield`) — particles streaming along a curl field with silky
+  persistent trails; onset vortex. Options: Particles · Field (Curl/Swirl/Grid/Radial) · Trail ·
+  Color By · Vortex Beat · Speed.
+- **Test_Constellation** (`test_constellation`) — drifting cyan/gold nodes with proximity links and
+  onset ripples. Options: Nodes · Link Dist · Motion · Links · Color · Depth.
+- **Test_Mandala Bloom** (`test_mandala`) — k-fold symmetric petal flower whose rings breathe with
+  the spectrum. Options: Symmetry (4/6/8/12) · Layers · Bloom · Petal · Palette · Spin.
+
+Shared infra:
+- New reusable presets in `visuals/_helpers.py`: **`PALETTE_OPTION`** (Theme + 6 curated
+  `SHARED_PALETTES`) + **`palette_or_theme()`**, and **`SYMMETRY_OPTION`** (4/6/8/12-fold).
+- Dev tool `tools/preview_mode.py` — headless renderer that saves a mode's frame(s) to PNG for
+  cross-checking against concept art (not shipped in the exe).
+
+Verification: ruff clean, black formatted, full pytest suite green (incl. `tests/test_modes_phase0bd.py`
+covering registration, idle/active render under both motion settings, every option choice, preset
+application, and field thresholds), `--selftest` OK.
+
 ## `00.0B.23` — Phase 0B-c (build 27): Foreground polish — color, flash level, Lightning+/Flames+/Meteors+
 
 A round of quality/feel upgrades to the foreground layer, plus two new global controls (settings
