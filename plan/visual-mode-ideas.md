@@ -39,6 +39,16 @@ numpy. Flashing modes set `STROBES = True`. Respect `reduce_motion`. **One mode 
 | `matrix` | Dot Matrix | LED dot panel: columns equalizer or scrolling dot-spectrogram. |
 | `pulse_rings` | Pulse Rings | Concentric per-band breathing rings + outward beat pulses. |
 | `ripples` | Ripples | Beat-born expanding water-ripple shockwaves. |
+| `test_aurora_veil` | Test_Aurora Veil | Band-reactive aurora curtains over a starfield (low-res field). *(eval `Test_`)* |
+| `test_hyperspace` | Test_Hyperspace | Radial warp-streak starfield; level→speed, beat→punch. `STROBES`. *(eval `Test_`)* |
+| `test_skyline` | Test_Frequency Skyline | Neon EQ city: bands=buildings, lit floors, water reflection. *(eval `Test_`)* |
+| `test_dna` | Test_DNA Helix | Beaded double-helix; spectrum rungs; onset pulses travel strands. *(eval `Test_`)* |
+| `test_harmonograph` | Test_Harmonograph | Band-driven damped-Lissajous pen plotter with phosphor. *(eval `Test_`)* |
+| `test_metaballs` | Test_Lava Lamp | Gooey bass-driven metaballs merging/splitting (low-res field). *(eval `Test_`)* |
+| `test_tree` | Test_Fractal Tree | L-system tree that sways (bass) and blossoms (onset). *(eval `Test_`)* |
+| `test_flowfield` | Test_Flow Field | Particles on an audio-bent curl field; silky trails; onset vortex. *(eval `Test_`)* |
+| `test_constellation` | Test_Constellation | Drifting cyan/gold nodes + proximity links; beat ripples. *(eval `Test_`)* |
+| `test_mandala` | Test_Mandala Bloom | k-fold symmetric petal flower; rings breathe with the spectrum. *(eval `Test_`)* |
 
 **Also not modes (global layers):** RenK logo overlay (`visuals/logo.py`) and the Background
 layer (`visuals/background.py`: black, spectrum line, filaments, mirror, ribbon, gradient,
@@ -48,8 +58,11 @@ aurora, starfield, vignette). Don't propose a *mode* that merely duplicates a ba
 
 ## Proposed (not yet built — fair game for future versions)
 
-- **DNA double-helix** — two intertwined sine strands modulated by the waveform; rungs flash.
-- **Galaxy / vortex** — rotating spiral arms whose length/brightness follow bands.
+**Phase 0B-d batch — BUILT in `v00.0B.24`** under temporary `Test_` names (full specs in
+`plan/phase-0b-d-visual-modes.md`, concept art in `assets/concept-art/`). They live in the Shipped
+table above as `test_*`; once the look is approved, drop the `Test_`/`test_` prefixes (display name +
+`@register` key) in a follow-up build. Final keys will be: `aurora_veil`, `hyperspace`, `skyline`,
+`dna`, `harmonograph`, `metaballs`, `tree`, `flowfield`, `constellation`, `mandala`.
 
 _(Shipped in `v00.0A.06`: VU meters, dot-matrix, scrolling terrain, pulse rings, XY
 vectorscope, bloom ripples — see the Shipped table above.)_

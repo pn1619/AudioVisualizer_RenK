@@ -38,7 +38,7 @@ AudioVisualizer/
 │     │  ├─ __init__.py
 │     │  ├─ base.py             # BaseVisualizer + lifecycle hooks; Theme + ModeOption/OptionChoice (per-mode options)
 │     │  ├─ registry.py         # @register decorator + discover() auto-import; ordered mode list
-│     │  ├─ _helpers.py         # shared draw utils (color lerp, ring_points/draw_ring, RingPops, SparkField); skipped by discovery
+│     │  ├─ _helpers.py         # shared draw utils + reusable ModeOptions (COLOR/MIRROR/GLOW/SIZE/SPEED/PALETTE/SYMMETRY...), SHARED_PALETTES, palette_or_theme, RingPops/SparkField; skipped by discovery
 │     │  ├─ _transition.py       # Phase 0B-c: ModeTransition (auto-cycle cross-fade clock/alpha); skipped by discovery
 │     │  ├─ logo.py             # Phase 9: RenkLogo global overlay (NOT a mode; drawn by app over every mode)
 │     │  ├─ background.py       # Phase 10: Background layer (NOT a mode; drawn by app BEHIND every mode): black/spectrum/filaments/mirror/ribbon/gradient/aurora/starfield/vignette + sensitivity/opacity
@@ -60,8 +60,19 @@ AudioVisualizer/
 │     │  ├─ meters.py           # Phase 10.06 ("VU Meters": per-band VU bars; Glow)
 │     │  ├─ matrix.py           # Phase 10.06 ("Dot Matrix": falling glyph columns; Glow)
 │     │  ├─ pulse_rings.py      # Phase 10.06 (onset-spawned expanding rings; Color + Thickness)
-│     │  └─ ripples.py          # Phase 10.06 (water-like ripples; Color + Speed)
+│     │  ├─ ripples.py          # Phase 10.06 (water-like ripples; Color + Speed)
+│     │  ├─ test_aurora_veil.py # Phase 0B-d (Test_): band-reactive aurora curtains over stars (low-res field)
+│     │  ├─ test_hyperspace.py  # Phase 0B-d (Test_): radial warp-streak starfield; STROBES
+│     │  ├─ test_skyline.py     # Phase 0B-d (Test_): neon EQ city; lit floors + water reflection
+│     │  ├─ test_dna.py         # Phase 0B-d (Test_): beaded double-helix; spectrum rungs + onset pulses
+│     │  ├─ test_harmonograph.py# Phase 0B-d (Test_): damped-Lissajous pen plotter + phosphor
+│     │  ├─ test_metaballs.py   # Phase 0B-d (Test_): "Lava Lamp" gooey metaballs (low-res field)
+│     │  ├─ test_tree.py        # Phase 0B-d (Test_): L-system tree; sway (bass) + blossoms (onset)
+│     │  ├─ test_flowfield.py   # Phase 0B-d (Test_): curl-field particle streams + silky trails
+│     │  ├─ test_constellation.py # Phase 0B-d (Test_): drifting node graph + proximity links + ripples
+│     │  └─ test_mandala.py     # Phase 0B-d (Test_): k-fold symmetric petal bloom; rings breathe
 │     │      # add a mode = drop one new file here (subclass + @register); no other edits
+│     │      # NOTE: the 10 test_*.py modes ship under temporary Test_ names (0B-d); drop the prefix once approved
 │     │
 │     └─ ui/
 │        ├─ __init__.py
@@ -114,6 +125,7 @@ AudioVisualizer/
 │  ├─ format.ps1      / .cmd
 │  ├─ build-exe.ps1   / .cmd
 │  ├─ spike-loopback.py         # Phase 0.5 throwaway: prove pyaudiowpatch delivers samples
+│  ├─ preview_mode.py           # Phase 0B-d dev aid: headless-render a mode to PNG (cross-check vs concept art); not shipped
 │  └─ README.md
 │
 ├─ .vscode/                     # shared editor config (used by Cursor too)
@@ -124,6 +136,9 @@ AudioVisualizer/
 ├─ .github/
 │  └─ workflows/
 │     └─ ci.yml                 # CI: setup, check-deps, lint, test, build-exe + selftest, upload artifact
+├─ assets/                      # repo-root dev assets (NOT bundled in the exe)
+│  ├─ concept-art/              # Phase 0B-d concept art for the 10 new modes (cross-check reference)
+│  └─ previews/                 # tools/preview_mode.py PNG renders (gitignored scratch)
 ├─ logs/                        # rotating app.log (gitignored)
 ├─ dist/                        # PyInstaller output (gitignored)
 ├─ build/                       # PyInstaller temp (gitignored)

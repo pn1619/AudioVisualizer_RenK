@@ -249,6 +249,22 @@ bottom-strike impact burst), Flames+ (turbulence/buoyancy + white-hot core), Met
 center), Edge Glow smoothstep falloff + continuous RMS-level floor. Reduce-motion halves the flash and
 caps counts. Tests: `test_foreground_phase0b20.py` … `test_foreground_phase0b23.py`.
 
+**Build 28 (v00.0B.24):** **Ten new visual modes** (Phase 0B-d), each a single `@register` file, 6
+`OPTIONS` + 3 `PRESETS`, within budget, cross-checked against concept art via the new headless dev
+tool `tools/preview_mode.py` (renders a mode to PNG; not shipped). They ship under **temporary
+`Test_` display names / `test_` keys** pending visual approval — removing the prefix later is a pure
+rename (no schema change; settings stay **v23**). The modes: `test_aurora_veil` (band-reactive aurora
+curtains over stars, low-res field), `test_hyperspace` (radial warp streaks; `STROBES`),
+`test_skyline` (neon EQ city + water reflection), `test_dna` (beaded double-helix + spectrum rungs),
+`test_harmonograph` (damped-Lissajous pen plotter + phosphor), `test_metaballs` ("Lava Lamp" gooey
+blobs, low-res field), `test_tree` (L-system tree; sway + blossoms), `test_flowfield` (curl-field
+particle streams + silky trails), `test_constellation` (node graph + proximity links + ripples),
+`test_mandala` (k-fold petal bloom). New shared `_helpers.py` presets used across them:
+**`PALETTE_OPTION`** (Theme + 6 `SHARED_PALETTES`) + **`palette_or_theme()`**, and
+**`SYMMETRY_OPTION`** (4/6/8/12-fold). Concept art lives in `assets/concept-art/`. Tests:
+`test_modes_phase0bd.py` (registration, idle/active render × both motion settings, every option
+choice, preset application, metaball field threshold). **30 modes total** (20 + 10 `Test_`).
+
 ### Test conventions (Phase 0B.19+)
 - `tests/conftest.py` owns the **headless SDL env** + a **module-scoped autouse `_pygame_ready`**
   fixture (pygame init + dummy display + `registry.discover()`); test modules must **not** redefine
