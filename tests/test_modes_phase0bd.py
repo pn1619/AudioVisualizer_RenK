@@ -23,6 +23,7 @@ _NEW_MODES = (
     "test_harmonograph",
     "test_metaballs",
     "test_tree",
+    "test_tree2",
     "test_flowfield",
     "test_constellation",
     "test_mandala",
@@ -131,3 +132,47 @@ def test_hyperspace_strobes_flag() -> None:
     from audio_visualizer.visuals.test_hyperspace import TestHyperspace
 
     assert TestHyperspace.STROBES is True  # Punch warp flashes; needs the notice
+
+
+def test_tree2_geometry_independent_of_audio_and_size() -> None:
+    """v2's tree shape must not depend on loudness or the Size control.
+
+    This is the whole point of v2 (v1 grew off-screen / thrashed at high sensitivity).
+    With sway off, the tip set is identical for a silent vs a loud frame, and a huge
+    Size only thickens strokes -- never moves the geometry.
+    """
+    from audio_visualizer.visuals.test_tree2 import TestTree2
+
+    quiet = TestTree2()
+    quiet.theme = Theme()
+    quiet.set_option_index("tsway", 0)  # Still -> no sway, geometry is static
+    quiet.on_enter()
+    surface = pygame.Surface((640, 400))
+    quiet.draw(surface, _silent_frame(), 0.05)
+    tips_silent = list(quiet._tips)
+    quiet.draw(surface, _active_frame(), 0.05)
+    tips_loud = list(quiet._tips)
+    assert tips_silent == tips_loud and tips_silent, "tree geometry must ignore audio"
+
+    big = TestTree2()
+    big.theme = Theme(size_scale=3.2)  # XXXL: must not push the tree off-screen
+    big.set_option_index("tsway", 0)
+    big.on_enter()
+    big.draw(surface, _active_frame(), 0.05)
+    assert big._tips == tips_silent, "Size must not change the tree geometry"
+
+
+def test_tree2_paints_and_stays_in_bounds() -> None:
+    """The tree must draw something and keep every tip inside the canvas."""
+    from audio_visualizer.visuals.test_tree2 import TestTree2
+
+    visual = TestTree2()
+    visual.theme = Theme(size_scale=2.5)
+    visual.on_enter()
+    w, h = 480, 320
+    surface = pygame.Surface((w, h))
+    for _ in range(6):
+        visual.draw(surface, _active_frame(), 0.05)
+    assert sum(pygame.transform.average_color(surface)[:3]) > 0, "tree drew nothing"
+    for tx, ty in visual._tips:
+        assert -2 <= tx <= w + 2 and -2 <= ty <= h + 2, f"tip {(tx, ty)} left the canvas"

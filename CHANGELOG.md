@@ -17,6 +17,31 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.25` — Phase 0B-d (build 29): Fractal Tree v2 (concept-faithful, stable)
+
+A second take on the fractal tree, added as a separate mode **`Test_Fractal Tree v2`**
+(`test_tree2`) that stays close to the concept art and fixes v1's instability.
+
+- **The tree shape no longer depends on the audio or the Size control.** v1 grew the tree
+  off-screen or made it thrash at high sensitivity / large Size; v2 builds its geometry from
+  fixed canvas fractions every frame, so it always fits the window. Audio only drives the
+  *life* of the scene — bass makes the canopy **breathe** (glow), treble + onsets **bloom**
+  the blossoms and twinkle the stars, and a gentle wind sways the branches. Size only thickens
+  strokes/blossoms; it can never move the geometry. (Encoded as a regression test.)
+- **Faithful look:** a teal→magenta bioluminescent canopy, grown as a balanced, bilaterally
+  symmetric binary fractal that fills a rounded dome (with short interior twigs so the canopy
+  isn't a bare rim), pink blossom clusters at the tips, glowing roots, and a twinkling
+  starfield — matching `assets/concept-art/concept-07-fractaltree.png`.
+- **Options (6 + 3 presets):** Branches (Sparse/Full/Dense) · Spread · Bloom (Bare/Soft/Lush) ·
+  Glow (Dim/Soft/Bright) · Sway (Still/Calm/Breezy) · Palette (Bioluminescent/Ocean/Neon/Theme).
+  Presets: **Cherry Blossom** (default), **Coral Reef**, **Aurora Bonsai** (bare glowing tree).
+- v1 (`test_tree`) is kept for comparison; both ship under `Test_` names pending approval.
+
+Verification: `ruff` clean, `black`-formatted, full `pytest` suite green (new bounds + audio/Size
+independence tests in `tests/test_modes_phase0bd.py`), `--selftest` OK.
+
+---
+
 ## `00.0B.24` — Phase 0B-d (build 28): ten new visual modes (shipping as `Test_*`)
 
 A large batch of **10 new visual modes**, each one file with `@register`, deeply customizable

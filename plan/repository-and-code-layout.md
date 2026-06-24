@@ -68,6 +68,8 @@ AudioVisualizer/
 │     │  ├─ test_harmonograph.py# Phase 0B-d (Test_): damped-Lissajous pen plotter + phosphor
 │     │  ├─ test_metaballs.py   # Phase 0B-d (Test_): "Lava Lamp" gooey metaballs (low-res field)
 │     │  ├─ test_tree.py        # Phase 0B-d (Test_): L-system tree; sway (bass) + blossoms (onset)
+│     │  ├─ test_tree2.py       # Phase 0B-d (Test_): concept-faithful glowing symmetric tree;
+│     │  │                      #   geometry is audio/Size-independent (always fits), glow+bloom react
 │     │  ├─ test_flowfield.py   # Phase 0B-d (Test_): curl-field particle streams + silky trails
 │     │  ├─ test_constellation.py # Phase 0B-d (Test_): drifting node graph + proximity links + ripples
 │     │  └─ test_mandala.py     # Phase 0B-d (Test_): k-fold symmetric petal bloom; rings breathe
