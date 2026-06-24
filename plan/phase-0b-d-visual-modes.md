@@ -147,6 +147,24 @@ strobe/reduce-motion. `order` values slot them sensibly among existing modes (lo
 - **Perf:** depth ≤ 9 → ≤ ~1000 segments via batched lines; regenerate geometry only on
   option/resize, not per frame ≈ 1–2 ms. **Strobe:** no. **Reduce-motion:** gentle sway, no bloom bursts.
 
+### 7b. `tree2` — "Fractal Tree v2"  (order ~96, build 29)
+- **Why:** v1's tree grew off-screen / thrashed at high sensitivity or large Size because geometry
+  was scaled by `bass` and `size_scale`. v2 is a separate mode that stays close to the concept art
+  (`concept-07-fractaltree.png`) and is **stable by construction**.
+- **Concept:** a glowing teal→magenta bioluminescent tree — a balanced, bilaterally-symmetric binary
+  fractal that fills a rounded dome (plus short interior twigs so it isn't a bare rim), pink blossom
+  clusters at the tips, glowing roots, twinkling starfield.
+- **Key rule:** the **tree shape is decoupled from the audio and the Size control** — geometry is
+  built from fixed canvas fractions each frame, so it always fits. Audio only drives *life*: `bass`/
+  `rms` breathe the glow, `treble`+`onset` bloom blossoms / twinkle stars, wind sways tips. `size_scale`
+  only thickens strokes/blossoms. (Encoded as regression tests: tip set is identical for silent vs loud
+  frames and across `size_scale`, and every tip stays inside the canvas.)
+- **OPTIONS (6):** Branches (Sparse/Full/Dense) · Spread · Bloom (Bare/Soft/Lush) · Glow (Dim/Soft/Bright)
+  · Sway (Still/Calm/Breezy) · Palette (Bioluminescent/Ocean/Neon/Theme).
+- **PRESETS:** Cherry Blossom (default) · Coral Reef · Aurora Bonsai (bare glowing tree).
+- **Perf:** balanced binary depth ≤ 9 + short interior twigs, segment-capped, drawn via `draw.lines`
+  on a crisp + additive glow surface ≈ 2–4 ms. **Strobe:** no. **Reduce-motion:** no bloom bursts, weaker sway.
+
 ### 8. `flowfield` — "Flow Field"  (order ~42)
 - **Concept:** particles streaming along a curl-noise vector field that the audio bends.
 - **Inputs:** `rms` (flow speed), `bass` (turbulence), `onset` (vortex impulse), `treble` (sparkle).

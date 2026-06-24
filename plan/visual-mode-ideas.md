@@ -46,6 +46,7 @@ numpy. Flashing modes set `STROBES = True`. Respect `reduce_motion`. **One mode 
 | `test_harmonograph` | Test_Harmonograph | Band-driven damped-Lissajous pen plotter with phosphor. *(eval `Test_`)* |
 | `test_metaballs` | Test_Lava Lamp | Gooey bass-driven metaballs merging/splitting (low-res field). *(eval `Test_`)* |
 | `test_tree` | Test_Fractal Tree | L-system tree that sways (bass) and blossoms (onset). *(eval `Test_`)* |
+| `test_tree2` | Test_Fractal Tree v2 | Concept-faithful glowing symmetric tree; shape is audio/Size-independent (always fits), bass breathes the glow, onsets bloom the blossoms. *(eval `Test_`)* |
 | `test_flowfield` | Test_Flow Field | Particles on an audio-bent curl field; silky trails; onset vortex. *(eval `Test_`)* |
 | `test_constellation` | Test_Constellation | Drifting cyan/gold nodes + proximity links; beat ripples. *(eval `Test_`)* |
 | `test_mandala` | Test_Mandala Bloom | k-fold symmetric petal flower; rings breathe with the spectrum. *(eval `Test_`)* |

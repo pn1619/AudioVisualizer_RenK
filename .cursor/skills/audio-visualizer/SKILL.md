@@ -257,7 +257,10 @@ rename (no schema change; settings stay **v23**). The modes: `test_aurora_veil` 
 curtains over stars, low-res field), `test_hyperspace` (radial warp streaks; `STROBES`),
 `test_skyline` (neon EQ city + water reflection), `test_dna` (beaded double-helix + spectrum rungs),
 `test_harmonograph` (damped-Lissajous pen plotter + phosphor), `test_metaballs` ("Lava Lamp" gooey
-blobs, low-res field), `test_tree` (L-system tree; sway + blossoms), `test_flowfield` (curl-field
+blobs, low-res field), `test_tree` (L-system tree; sway + blossoms), `test_tree2` (concept-faithful
+glowing symmetric tree whose **shape is decoupled from audio/Size** so it always fits — audio only
+drives glow/bloom/sway; this is the pattern to copy when a "size/sensitivity makes it overflow or
+thrash" bug appears), `test_flowfield` (curl-field
 particle streams + silky trails), `test_constellation` (node graph + proximity links + ripples),
 `test_mandala` (k-fold petal bloom). New shared `_helpers.py` presets used across them:
 **`PALETTE_OPTION`** (Theme + 6 `SHARED_PALETTES`) + **`palette_or_theme()`**, and
