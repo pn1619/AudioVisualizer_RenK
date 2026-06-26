@@ -192,8 +192,7 @@ is added or removed.
 | **Test_DNA Helix** | `test_dna` | 84 | Beaded double-helix; spectrum rungs + onset pulses (eval `Test_`) | bands / RMS / onset | Phase 0B-d |
 | **Test_Constellation** | `test_constellation` | 88 | Drifting node graph + proximity links + ripples (eval `Test_`) | RMS / bands / onset | Phase 0B-d |
 | **Test_Mandala Bloom** | `test_mandala` | 91 | k-fold petal flower; rings breathe with the spectrum (eval `Test_`) | bands / onset | Phase 0B-d |
-| **Test_Fractal Tree** | `test_tree` | 95 | L-system tree; sway (bass) + blossoms (onset) (eval `Test_`) | bass / treble / onset | Phase 0B-d |
-| **Test_Fractal Tree v2** | `test_tree2` | 96 | Concept-faithful glowing symmetric tree; geometry is audio/Size-independent (always fits); bass breathes glow, onset blooms blossoms (eval `Test_`) | bass / treble / onset / rms | Phase 0B-d |
+| **Fractal Tree** | `fractal_tree` | 95 | Renders the concept artwork **itself** (bundled PNG, fit + cached, black bg keyed transparent) as the static tree; lights only the tree — shape-matched flower glow, frequency body glow, and energy running up the branches (earlier procedural `test_tree`/`test_tree2` dropped) | bass / treble / onset / rms | Phase 0B-d |
 | **Test_Harmonograph** | `test_harmonograph` | 106 | Damped-Lissajous pen plotter + phosphor (eval `Test_`) | bands / RMS / onset | Phase 0B-d |
 | *Shader-ish field* (stretch) | — | — | Fullscreen palette field reacting to spectrum | FFT texture | Stretch |
 

@@ -135,35 +135,50 @@ strobe/reduce-motion. `order` values slot them sensibly among existing modes (lo
 - **PRESETS:** Classic Lava · Plasma Goo · Zero-G.
 - **Perf:** low-res grid (e.g. 160×90) field + smoothscale ≈ 2–3 ms. **Strobe:** no. **Reduce-motion:** slower drift, fewer spawns.
 
-### 7. `tree` — "Fractal Tree"  (order ~95)
-- **Concept:** an L-system tree that sways and blossoms on beats.
-- **Inputs:** `bass` (sway), `onset` (growth/bloom burst), `treble` (leaf shimmer), `rms` (glow).
-- **Sketch:** recursive branch generation (angle, length·decay, depth); sway = global angle offset
-  from bass via a damped spring; tips emit blossom sprites on onset; cache static geometry, animate
-  sway + tip glow.
-- **OPTIONS (6):** Species (Oak/Willow/Coral/Fern) · Depth (5/6/7/8/9) · Wind (Calm/Breezy/Gale) ·
-  Foliage (Bare/Leaves/Blossoms) · Symmetry (Natural/Mirrored) · Palette (Seasons/Bioluminescent/Theme).
-- **PRESETS:** Cherry Blossom · Coral Reef · Winter Bare.
-- **Perf:** depth ≤ 9 → ≤ ~1000 segments via batched lines; regenerate geometry only on
-  option/resize, not per frame ≈ 1–2 ms. **Strobe:** no. **Reduce-motion:** gentle sway, no bloom bursts.
+### 7 (dropped). `tree` / `tree2` — procedural Fractal Tree attempts
+- The procedural L-system tree (`test_tree`) and the concept-faithful symmetric fractal (`test_tree2`),
+  plus interim `v3-realistic`/`v4` experiments, never read like the concept art and were **deleted**.
+  The single official tree is `fractal_tree` below, which renders the artwork itself.
 
-### 7b. `tree2` — "Fractal Tree v2"  (order ~96, build 29)
-- **Why:** v1's tree grew off-screen / thrashed at high sensitivity or large Size because geometry
-  was scaled by `bass` and `size_scale`. v2 is a separate mode that stays close to the concept art
-  (`concept-07-fractaltree.png`) and is **stable by construction**.
-- **Concept:** a glowing teal→magenta bioluminescent tree — a balanced, bilaterally-symmetric binary
-  fractal that fills a rounded dome (plus short interior twigs so it isn't a bare rim), pink blossom
-  clusters at the tips, glowing roots, twinkling starfield.
-- **Key rule:** the **tree shape is decoupled from the audio and the Size control** — geometry is
-  built from fixed canvas fractions each frame, so it always fits. Audio only drives *life*: `bass`/
-  `rms` breathe the glow, `treble`+`onset` bloom blossoms / twinkle stars, wind sways tips. `size_scale`
-  only thickens strokes/blossoms. (Encoded as regression tests: tip set is identical for silent vs loud
-  frames and across `size_scale`, and every tip stays inside the canvas.)
-- **OPTIONS (6):** Branches (Sparse/Full/Dense) · Spread · Bloom (Bare/Soft/Lush) · Glow (Dim/Soft/Bright)
-  · Sway (Still/Calm/Breezy) · Palette (Bioluminescent/Ocean/Neon/Theme).
-- **PRESETS:** Cherry Blossom (default) · Coral Reef · Aurora Bonsai (bare glowing tree).
-- **Perf:** balanced binary depth ≤ 9 + short interior twigs, segment-capped, drawn via `draw.lines`
-  on a crisp + additive glow surface ≈ 2–4 ms. **Strobe:** no. **Reduce-motion:** no bloom bursts, weaker sway.
+### 7. `fractal_tree` — "Fractal Tree"  (official; order 95)
+- **Why:** several procedural attempts never read like the concept art. The official mode takes the
+  literal route: **render the concept art itself**, keep the tree **completely static**, and put the
+  only effects on the **flowers** and the **glow** of the body.
+- **The tree (static):** the artwork `concept-07-fractaltree.png` is bundled as
+  `audio_visualizer/assets/fractal_tree.png`, loaded once via `asset_path()`, fit to the canvas
+  (contain → letterboxed so the whole tree is always visible), scaled-and-**cached per size**
+  (converted to the target pixel format), and simply blitted each frame. Its near-black background
+  is **luminance-keyed to transparent** (`SRCALPHA`, alpha from luma with a gentle ramp) and the
+  mode **does not fill the canvas**, so it **composites over the app's background layer** rather
+  than overwriting it — the dark gaps show the background through. The bundled PNG is
+  the concept art with its **"FRACTAL TREE" title/legend/equalizer corner inpainted out** (feathered
+  dark fill + faint stars), regenerated from the pristine concept art so it stays reproducible.
+- **Flower detection (once):** a small image scan downsamples the art and finds **bright-magenta
+  blobs** (R high, B high, G low) via grid-pooling + non-max suppression → ~15 bloom centres in
+  image-normalised coords. Each bloom's particle tint is **sampled from the art** beneath it.
+- **Shape-matched flower glow:** for each bloom a **masked patch of its own pixels** (non-petal
+  pixels zeroed) is extracted at build; per frame it's brightened (treble/rms baseline + onset pops)
+  and added back over itself, so the glow **overlays the flower exactly** (no circular blob) and
+  swells slightly on the beat. Onsets also **emit drifting particles** (mostly pink, some teal) with
+  Float/Burst/Swirl motion.
+- **Frequency tree-body glow:** precomputed **cool (teal) and warm (pink) colour masks** of the
+  image are modulated by **bass → trunk/roots** and **treble → foliage** and added back, so the body
+  reacts to the spectrum.
+- **Energy flow (running light):** the tree is only an image, so a **multi-source BFS over the bright
+  pixels seeded at the trunk base** recovers a normalised **distance-from-roots** field once per size
+  (coarse grid + 1px dilation, cached). Per frame, narrow `cos^8` bands ride that field and sweep
+  **root → tips**, tinted by the brightened local tree colour, so light **runs up the real branches
+  to the blooms**. Brightness scales with RMS and the bands run **faster when louder**.
+- **Compositing:** glow + flow are summed into a **reused low-res accumulator** and applied in **one**
+  upscale + additive blit (phase terms precomputed); ~19 ms/frame at 1280×800, ~26 ms at 1080p.
+  Missing-artwork is fail-soft. Tree Glow / Energy Flow / Particles all have an Off for max FPS.
+- **OPTIONS (6):** Flower Glow (Soft/Normal/Bright) · Tree Glow (Off/Subtle/Pulse) · Energy Flow
+  (Off/Stream/Surge) · Particles (Off/Soft/Lush) · Reactivity (Calm/Normal/Punch) · Drift
+  (Float/Burst/Swirl).
+- **PRESETS:** Bloom (default) · Sparkle · Calm.
+- **Strobe:** no. **Reduce-motion:** steady baseline glow, no onset bursts or particles.
+- **Packaging:** the PNG ships automatically (the `.spec` bundles all of
+  `src/audio_visualizer/assets/`).
 
 ### 8. `flowfield` — "Flow Field"  (order ~42)
 - **Concept:** particles streaming along a curl-noise vector field that the audio bends.
