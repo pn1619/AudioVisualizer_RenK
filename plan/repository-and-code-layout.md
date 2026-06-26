@@ -67,9 +67,9 @@ AudioVisualizer/
 │     │  ├─ test_dna.py         # Phase 0B-d (Test_): beaded double-helix; spectrum rungs + onset pulses
 │     │  ├─ test_harmonograph.py# Phase 0B-d (Test_): damped-Lissajous pen plotter + phosphor
 │     │  ├─ test_metaballs.py   # Phase 0B-d (Test_): "Lava Lamp" gooey metaballs (low-res field)
-│     │  ├─ test_tree.py        # Phase 0B-d (Test_): L-system tree; sway (bass) + blossoms (onset)
-│     │  ├─ test_tree2.py       # Phase 0B-d (Test_): concept-faithful glowing symmetric tree;
-│     │  │                      #   geometry is audio/Size-independent (always fits), glow+bloom react
+│     │  ├─ fractal_tree.py     # Official: renders the concept artwork PNG itself (fit + cached, black
+│     │  │                      #   bg keyed transparent) as the static tree; shape-matched flower glow,
+│     │  │                      #   frequency body glow + energy running up the branches to the blooms
 │     │  ├─ test_flowfield.py   # Phase 0B-d (Test_): curl-field particle streams + silky trails
 │     │  ├─ test_constellation.py # Phase 0B-d (Test_): drifting node graph + proximity links + ripples
 │     │  └─ test_mandala.py     # Phase 0B-d (Test_): k-fold symmetric petal bloom; rings breathe

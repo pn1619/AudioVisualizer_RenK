@@ -17,6 +17,150 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.2C` — Phase 0B-d (build 36): Fractal Tree is official; procedural trees removed
+
+Promoted the artwork-based tree to a permanent mode and dropped the procedural experiments.
+
+- **Removed** `test_tree` (L-system) and `test_tree2` (symmetric fractal) — neither read like the
+  concept art. Their tests were removed too.
+- **Renamed** `test_tree3` → **`fractal_tree`** (display name **"Fractal Tree"**, class `FractalTree`,
+  file `visuals/fractal_tree.py`, order 95) — no longer a `Test_` mode. Behaviour is unchanged:
+  the bundled artwork rendered as the static tree (black background keyed transparent), with
+  shape-matched flower glow, frequency tree-body glow, and energy running up the branches.
+- Docs (plan, layout, ideas, SKILL) updated; mode tests renamed accordingly. App selftest +
+  full mode suite green.
+
+## `00.0B.2B` — Phase 0B-d (build 35): Fractal Tree v3 — composites over the background layer
+
+**Fix:** `test_tree3` painted the artwork's near-black background as an opaque rectangle, so it
+overwrote the app's background layer. The mode now **luminance-keys the artwork to transparent**
+(black canvas → alpha 0, via a gentle ramp that keeps the soft glow semi-transparent) and **no
+longer fills the canvas**, so the tree floats over whatever background effect is running — its dark
+gaps and corners show the background through. Built once per size into an `SRCALPHA` surface
+(RGB from the art, alpha from luma); the per-frame additive glow/flow/particles are unchanged and
+land only on the tree pixels.
+
+## `00.0B.2A` — Phase 0B-d (build 34): Fractal Tree v3 — energy runs up the branches
+
+Added a tree-**body** motion effect to **Test_Fractal Tree v3** (`test_tree3`): bright bands of
+light that **run up the tree from the roots to the blooms**, tracing the real trunk/branches.
+
+- **Geodesic flow field (built once per size).** Because the tree is just an image, the path
+  structure is recovered by a **multi-source BFS** over the artwork's bright pixels, seeded at
+  the trunk base: every tree pixel gets a normalised **distance-from-roots** (0 at the base → 1
+  at the farthest reachable tip). Computed on a coarse grid (with a 1px dilation to bridge small
+  gaps) and cached.
+- **Running light.** Each frame, narrow bright bands (`cos`-wave raised to the 8th via cheap
+  multiplies) ride that distance field and sweep root→tips, tinted by the brightened local tree
+  colour so the branches themselves light up as energy passes. **Music-reactive:** brightness
+  scales with RMS and the bands **run faster when louder**.
+- Folded into the **same single low-res composite** as the frequency glow (one upscale + additive
+  blit), with precomputed phase terms and a reused accumulator → ~19 ms/frame at 1280×800,
+  ~26 ms at 1080p. New option **Energy Flow (Off/Stream/Surge)**, default **Stream**; honoured by
+  all three presets. Reduce-motion disables the running light. Options now **6 + 3 presets**.
+
+## `00.0B.29` — Phase 0B-d (build 33): Fractal Tree v3 — cleaned art, shape-matched glow, living tree body
+
+Polished **Test_Fractal Tree v3** (`test_tree3`) on three fronts requested after v3 landed:
+
+- **Cleaned artwork.** The bundled `audio_visualizer/assets/fractal_tree.png` is regenerated
+  from the pristine concept art with the unrelated **"FRACTAL TREE" title / legend /
+  equalizer corner inpainted out** (feathered dark fill + matching faint stars), starting
+  from `assets/concept-art/concept-07-fractaltree.png` so it's reproducible. The tree, foliage
+  and roots are untouched.
+- **Shape-matched flower glow.** The old circular halos are gone. Each bloom now lights up
+  **in its own petal shape**: a masked copy of the flower's own pixels (non-petal pixels
+  zeroed) is added back over itself, brightening with the music and swelling slightly on the
+  beat — the glow overlays the flower perfectly instead of a blob.
+- **Living tree body (new "Tree Glow" effect).** The painted body now reacts to the spectrum:
+  **bass brightens the teal trunk/roots** and **treble shimmers the pink foliage**, painted
+  only onto the parts of the image that are already those colours (cool/warm masks). New
+  option **Tree Glow (Off/Subtle/Pulse)**, default **Subtle**.
+- **Performance.** Body glow is modulated at low resolution (numpy combine) and upscaled once;
+  all cached surfaces are converted to the target pixel format and the low-res glow buffer is
+  reused via `blit_array`. ~10 ms/frame at 1280×800, ~20 ms at 1080p; "Tree Glow: Off" and
+  "Particles: Off" stay available for max FPS. Options now **5 + 3 presets**.
+
+## `00.0B.28` — Phase 0B-d (build 32): Fractal Tree v3 (the artwork itself + living flowers)
+
+Dropped **Test_Fractal Tree v4** (`test_tree4`) — the procedural canopy still didn't read
+like the concept art — and rebuilt the slot as **v3** (`test_tree3`) the most direct way:
+**render the concept art itself** and bring its flowers to life.
+
+- **Test_Fractal Tree v3** (`test_tree3`) — looks *exactly* like
+  `assets/concept-art/concept-07-fractaltree.png` because it **draws that artwork directly**
+  as the (static) tree, then animates only the **flowers**:
+  - The artwork is bundled as `audio_visualizer/assets/fractal_tree.png`, loaded once and
+    fit to the canvas (letterboxed on black; whole tree always visible). The scaled image is
+    cached per size and just blitted each frame — the tree never changes.
+  - The big bright-pink blooms are located once by a small image scan (bright-magenta blob
+    detection), so effects land exactly on the painted flowers; each bloom's glow is tinted
+    by the colour sampled from the art beneath it.
+  - **Audio drives only the flowers:** a treble/rms baseline keeps the blooms glowing,
+    onsets pop random blooms brighter and **emit drifting pink particles** (with a few teal
+    ones for the bioluminescent feel).
+  - **Options (4 + 3 presets):** Glow (Soft/Normal/Bright) · Particles (Off/Soft/Lush) ·
+    Reactivity (Calm/Normal/Punch) · Drift (Float/Burst/Swirl). Presets: **Bloom** (default),
+    **Sparkle**, **Calm**. Reduce-motion holds a steady glow and emits no particles.
+  - Fast: one image blit + a handful of additive halos + capped particles. Missing-artwork
+    is fail-soft (logs + dark background).
+
+## `00.0B.27` — Phase 0B-d (build 31): Fractal Tree v4 (concept-art, static + flowers)
+
+Dropped **Test_Fractal Tree v3** (`test_tree3`) — too heavy and not visually right — and
+replaced it with a faithful, performant take on the concept art.
+
+- **Test_Fractal Tree v4** (`test_tree4`) — *the* concept-art tree: a glowing
+  bioluminescent fractal — teal vase-shaped trunk arcing into a dense, feathery,
+  bilaterally-symmetric canopy that fades **teal core → magenta rim**, with glowing pink
+  petal-blooms ringing the canopy over a dense starfield and softly-glowing roots.
+  - **The tree is static and never moves.** The whole tree (background, stars, roots,
+    branches, glow) is generated and rendered **once into a cached surface**; every frame
+    just blits that cache. This is faithful to the still artwork *and* fixes the
+    performance problem from v3 — per-frame cost is **~1.7 ms** (the cache rebuilds only on
+    a size or structural-option change).
+  - **Only the flowers have effects.** The blooms bloom + glow with the music — a treble
+    baseline keeps them lit, onsets pop them bigger (random bursts), and they breathe with
+    `rms`. Blooms are placed evenly around the canopy rim (angle-binned, spaced) so they
+    never clump.
+  - **Options (6 + 3 presets):** Branches (Sparse/Full/Dense) · Flowers (Soft/Full/Lush) ·
+    Reactivity (Calm/Normal/Punch) · Glow (Soft/Bright) · Palette (Bioluminescent/Ocean/
+    Neon/Theme) · Stars (Off/On). Presets: **Bioluminescent** (default), **Ocean Glow**,
+    **Neon Bloom**.
+  - Tested: the cache is built once and reused across frames (rebuilt on resize), and
+    onsets raise the bloom envelope.
+
+## `00.0B.26` — Phase 0B-d (build 30): Fractal Tree v3 (realistic) + v1 blossom fix
+
+A **realistic** tree mode plus a fix to v1's blossoms.
+
+- **Test_Fractal Tree v3** (`test_tree3`) — a believable tree with the music painted *onto*
+  it, instead of a "stick" tree. A thick woody trunk tapers into organic, slightly-curved
+  limbs and twigs (filled tapered **polygons**, not 1px lines), wrapped in a full leafy
+  **crown** of layered leaf puffs. Effects layered on top:
+  - **Lightning** courses along the branches (a faint electric vein at rest that lights up
+    on the beat), and strong onsets fire **jagged bolts** that race from the roots out to a
+    tip.
+  - **Blossoms** bloom on top of the crown, popping bigger on onsets.
+  - Bass sways the canopy, treble shimmers the leaves, `rms` drives the glow.
+  - Like v2, the **geometry is decoupled from loudness and the Size control** (fixed-seed,
+    canvas-fraction sizing), so it always fits and never thrashes; audio only drives the
+    effects. (Regression-tested: limb set is identical for silent vs loud frames and across
+    `size_scale`.)
+  - **Options (6 + 3 presets):** Branches (Sparse/Full/Dense) · Canopy (Bare/Light/Full) ·
+    Blossoms (None/Soft/Lush) · Lightning (Off/Flicker/Storm) · Foliage (Summer/Autumn/
+    Cherry/Theme) · Sway. Presets: **Cherry Storm** (default), **Summer Oak**, **Autumn Glow**.
+- **Fix — Test_Fractal Tree (`test_tree`, v1) blossoms.** The Cherry Blossom preset *was*
+  applying (foliage → Blossoms), but Blossoms only spawned a few tiny falling petals on
+  onsets, so the tree rarely looked like it was flowering. Each tip now carries a persistent
+  pink flower that pops bigger on beats/treble, on top of the drifting petals — so the
+  preset and the Blossoms foliage read clearly.
+
+Verification: `ruff` clean, `black`-formatted, full `pytest` suite green (new v3 + v1 tests
+in `tests/test_modes_phase0bd.py`), `--selftest` OK. No settings schema change.
+
+---
+
 ## `00.0B.25` — Phase 0B-d (build 29): Fractal Tree v2 (concept-faithful, stable)
 
 A second take on the fractal tree, added as a separate mode **`Test_Fractal Tree v2`**

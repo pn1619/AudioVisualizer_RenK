@@ -22,8 +22,7 @@ _NEW_MODES = (
     "test_dna",
     "test_harmonograph",
     "test_metaballs",
-    "test_tree",
-    "test_tree2",
+    "fractal_tree",
     "test_flowfield",
     "test_constellation",
     "test_mandala",
@@ -134,45 +133,60 @@ def test_hyperspace_strobes_flag() -> None:
     assert TestHyperspace.STROBES is True  # Punch warp flashes; needs the notice
 
 
-def test_tree2_geometry_independent_of_audio_and_size() -> None:
-    """v2's tree shape must not depend on loudness or the Size control.
+def test_fractal_tree_renders_artwork_and_detects_flowers() -> None:
+    """The mode paints the concept artwork and finds the bright-pink blooms to animate."""
+    from audio_visualizer.visuals.fractal_tree import FractalTree
 
-    This is the whole point of v2 (v1 grew off-screen / thrashed at high sensitivity).
-    With sway off, the tip set is identical for a silent vs a loud frame, and a huge
-    Size only thickens strokes -- never moves the geometry.
-    """
-    from audio_visualizer.visuals.test_tree2 import TestTree2
-
-    quiet = TestTree2()
-    quiet.theme = Theme()
-    quiet.set_option_index("tsway", 0)  # Still -> no sway, geometry is static
-    quiet.on_enter()
-    surface = pygame.Surface((640, 400))
-    quiet.draw(surface, _silent_frame(), 0.05)
-    tips_silent = list(quiet._tips)
-    quiet.draw(surface, _active_frame(), 0.05)
-    tips_loud = list(quiet._tips)
-    assert tips_silent == tips_loud and tips_silent, "tree geometry must ignore audio"
-
-    big = TestTree2()
-    big.theme = Theme(size_scale=3.2)  # XXXL: must not push the tree off-screen
-    big.set_option_index("tsway", 0)
-    big.on_enter()
-    big.draw(surface, _active_frame(), 0.05)
-    assert big._tips == tips_silent, "Size must not change the tree geometry"
-
-
-def test_tree2_paints_and_stays_in_bounds() -> None:
-    """The tree must draw something and keep every tip inside the canvas."""
-    from audio_visualizer.visuals.test_tree2 import TestTree2
-
-    visual = TestTree2()
-    visual.theme = Theme(size_scale=2.5)
+    visual = FractalTree()
+    visual.theme = Theme()
     visual.on_enter()
-    w, h = 480, 320
-    surface = pygame.Surface((w, h))
-    for _ in range(6):
-        visual.draw(surface, _active_frame(), 0.05)
-    assert sum(pygame.transform.average_color(surface)[:3]) > 0, "tree drew nothing"
-    for tx, ty in visual._tips:
-        assert -2 <= tx <= w + 2 and -2 <= ty <= h + 2, f"tip {(tx, ty)} left the canvas"
+    surface = pygame.Surface((640, 426))
+    visual.draw(surface, _active_frame(), 0.05)
+    assert visual._scaled is not None, "must load + fit the artwork"
+    assert len(visual._flowers) >= 6, "should detect the painted blooms"
+    assert sum(pygame.transform.average_color(surface)[:3]) > 0, "drew nothing"
+
+
+def test_fractal_tree_flowers_glow_and_emit_on_beats() -> None:
+    """The flowers' effects: onsets raise the glow and spawn particles."""
+    from audio_visualizer.visuals.fractal_tree import FractalTree
+
+    visual = FractalTree()
+    visual.theme = Theme()
+    visual.set_option_index("preset", 1)  # Bloom: particles on
+    visual.on_enter()
+    surface = pygame.Surface((640, 426))
+    visual.draw(surface, _silent_frame(), 0.05)
+    calm = float(visual._bloom.max()) if visual._bloom.size else 0.0
+    for _ in range(4):
+        visual.draw(surface, _active_frame(), 0.05)  # active frame has onset = 1.0
+    assert float(visual._bloom.max()) > calm, "onsets should brighten the blooms"
+    assert visual._particles, "onsets should emit flower particles"
+
+
+def test_fractal_tree_energy_flow_traces_the_tree() -> None:
+    """The mode builds a roots->tips distance field and the running light brightens the body."""
+    from audio_visualizer.visuals.fractal_tree import FractalTree
+
+    visual = FractalTree()
+    visual.theme = Theme()
+    visual.set_option_index("t3body", 0)  # isolate the flow effect from the frequency glow
+    visual.set_option_index("t3flow", 2)  # Surge
+    visual.set_option_index("t3particles", 0)
+    visual.on_enter()
+    surface = pygame.Surface((640, 426))
+    visual.draw(surface, _active_frame(), 0.05)
+    phase = visual._phase
+    assert phase is not None and float(phase.max()) > 0.5, "flow needs a roots->tips field"
+    assert (phase >= 0.0).mean() > 0.1, "the tree should be reachable from the roots"
+    lit = sum(pygame.transform.average_color(surface)[:3])
+
+    off = FractalTree()
+    off.theme = Theme()
+    off.set_option_index("t3body", 0)
+    off.set_option_index("t3flow", 0)
+    off.set_option_index("t3particles", 0)
+    off.on_enter()
+    plain = pygame.Surface((640, 426))
+    off.draw(plain, _active_frame(), 0.05)
+    assert lit > sum(pygame.transform.average_color(plain)[:3]), "energy flow should add light"

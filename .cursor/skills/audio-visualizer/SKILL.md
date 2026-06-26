@@ -257,10 +257,29 @@ rename (no schema change; settings stay **v23**). The modes: `test_aurora_veil` 
 curtains over stars, low-res field), `test_hyperspace` (radial warp streaks; `STROBES`),
 `test_skyline` (neon EQ city + water reflection), `test_dna` (beaded double-helix + spectrum rungs),
 `test_harmonograph` (damped-Lissajous pen plotter + phosphor), `test_metaballs` ("Lava Lamp" gooey
-blobs, low-res field), `test_tree` (L-system tree; sway + blossoms), `test_tree2` (concept-faithful
-glowing symmetric tree whose **shape is decoupled from audio/Size** so it always fits — audio only
-drives glow/bloom/sway; this is the pattern to copy when a "size/sensitivity makes it overflow or
-thrash" bug appears), `test_flowfield` (curl-field
+blobs, low-res field), `fractal_tree` (official mode; the earlier procedural `test_tree`/`test_tree2`
+attempts were dropped — when "make it look *exactly* like the concept art" matters more
+than procedural generation, this mode just **renders the concept-art PNG itself** — bundled under
+`audio_visualizer/assets/`, loaded via `asset_path()`, fit + cached per size, and **luminance-keyed
+to transparent** (`SRCALPHA`, alpha from luma) with **no canvas fill** so it composites over the
+app's background layer instead of overwriting it — as the static tree,
+then **scans the image once** for the bright-magenta blooms and animates *only* those. Two effects
+land on the static art: (1) **shape-matched flower glow** — instead of circular halos, a masked copy
+of each bloom's *own* pixels (non-petal pixels zeroed) is added back over itself, so the glow overlays
+the flower exactly and swells on the beat; (2) **frequency tree-body glow** — precomputed cool/teal &
+warm/pink colour masks are modulated by bass & treble and added back, so the trunk/foliage react to
+the spectrum; (3) **energy flow** — because the tree is just an image, a **multi-source BFS over the
+bright pixels (seeded at the trunk base)** recovers a normalised *distance-from-roots* field once per
+size, and per frame narrow `cos^8` bands ride that field root→tips so light **runs up the real
+branches to the blooms**, brighter & faster with the music. All three run cheap and share **one**
+low-res composite (cool/warm/flow summed into a reused accumulator, upscaled once, additively blit),
+every cached
+surface is `.convert(surface)`-ed to the target format, and the low-res glow buffer is reused via
+`pygame.surfarray.blit_array`. The bundled PNG is the concept art with its title/legend corner
+inpainted out (feathered dark fill) — clean the asset rather than masking at runtime. Copy this "ship
+the artwork as the asset + detect features + overlay shape-matched & frequency-driven effects" pattern
+when an exact look beats a procedural approximation), `test_flowfield`
+(curl-field
 particle streams + silky trails), `test_constellation` (node graph + proximity links + ripples),
 `test_mandala` (k-fold petal bloom). New shared `_helpers.py` presets used across them:
 **`PALETTE_OPTION`** (Theme + 6 `SHARED_PALETTES`) + **`palette_or_theme()`**, and
