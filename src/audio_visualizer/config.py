@@ -24,7 +24,7 @@ APP_NAME = "AudioVisualizer"
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
 APP_VERSION = "00.0B.2D"
 # macOS port line (PP = A0–F0). Bump when tagging a mac milestone (e.g. vA0.00.01).
-APP_VERSION_MAC = "A0.00.01"
+APP_VERSION_MAC = "A0.00.03"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-07-07"

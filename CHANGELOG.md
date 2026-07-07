@@ -17,6 +17,30 @@ what each phase delivered and its verification results.
 
 ---
 
+## `A0.00.03` — macOS milestone A: working input capture + device picker
+
+macOS now captures real audio through the shared `AudioSource` pipeline; Windows is
+untouched (`APP_VERSION` stays `00.0B.2D`). Backends are chosen at runtime, so Windows
+never imports `sounddevice` and macOS never imports `pyaudiowpatch`.
+
+- **`audio/capture_mac.py`** (`MacInputSource`) — PortAudio input via `sounddevice`:
+  negotiates the device's native rate/channels, downmixes to mono float32 in a tiny
+  callback, and writes a bounded ring buffer (mirrors `LoopbackSource`). Fail-soft to
+  `ERROR`; missing/gone device falls back to the default input.
+- **`audio/devices_mac.py`** — enumerates macOS inputs; BlackHole / aggregate / loopback
+  devices are tagged `kind="loopback"` and listed first so "what you hear" routing is easy.
+- **`audio/source_factory.py`** — `create_source()` / `list_sources()` dispatch on
+  `sys.platform`; `app.py` now depends on the factory, not a concrete backend.
+- **System audio on macOS:** install **BlackHole** (or make an aggregate device) and pick
+  it in the **Src** modal — the picker already lists it. Native ScreenCaptureKit tap
+  (`A0.00.04`) stays optional.
+- **First run** prompts for **microphone permission** (macOS TCC); grant it once.
+- Tests: `tests/test_mac_capture.py` (11 cases, hardware-free via a fake `sounddevice`).
+  Docs: `plan/macos-port.md` (roadmap `A0.00.02`+`A0.00.03` done, capture strategy).
+
+Verified on macOS (Apple Silicon): **513** pytest passes, ruff + black clean,
+`./tools/mac/run.sh --selftest` exit 0, real device enumeration lists both mics.
+
 ## `A0.00.01` — macOS milestone A: runtime version line + macOS CI job + capture spike
 
 - **`APP_VERSION_MAC`** in `config.py` + **`version_info.app_version()`** — About, window

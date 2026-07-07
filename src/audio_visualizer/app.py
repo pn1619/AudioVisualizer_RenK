@@ -19,10 +19,9 @@ from numpy.typing import NDArray
 from audio_visualizer import looks as looks_mod
 from audio_visualizer import settings as settings_mod
 from audio_visualizer.audio.analysis import Analyzer
-from audio_visualizer.audio.capture import LoopbackSource
-from audio_visualizer.audio.devices import list_sources
 from audio_visualizer.audio.frame import AnalysisFrame
 from audio_visualizer.audio.source import AudioSource, SourceStatus, SyntheticSource
+from audio_visualizer.audio.source_factory import create_source, list_sources
 from audio_visualizer.beat_trigger import BeatTrigger
 from audio_visualizer.config import (
     APP_ICON_FILENAME,
@@ -256,7 +255,7 @@ class App:
         self._clock = pygame.time.Clock()
 
         self._source_id = self._settings.source_id
-        self._source: AudioSource = LoopbackSource(device_id=self._source_id)
+        self._source: AudioSource = create_source(device_id=self._source_id)
         self._analyzer = Analyzer()
         self._analyzer.set_smoothing(*_smoothing_to_coeffs(self._smoothing))
         self._frame: AnalysisFrame | None = None
@@ -645,7 +644,7 @@ class App:
         """Switch the capture device (clean stop/recreate/start) and persist it."""
         self._source_id = source_id
         self._source.stop()
-        self._source = LoopbackSource(device_id=source_id)
+        self._source = create_source(device_id=source_id)
         self._start_capture()
         logger.info("Selected source %r", source_id or "(default)")
 

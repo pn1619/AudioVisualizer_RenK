@@ -45,9 +45,13 @@ When port work touches Python (not just tooling):
 | Full pytest suite | `./tools/mac/test.sh` (498+ tests) |
 | `--selftest` | `./tools/mac/run.sh --selftest` |
 | Settings | `~/.config/AudioVisualizer/` via guarded `platform_win.get_appdata_dir()` |
-| System-audio capture | **Not yet** — `SyntheticSource` / tests only |
+| **Input capture** | `MacInputSource` (PortAudio via `sounddevice`) — mic by default; **grant mic permission on first run** |
+| **Device picker** | Src modal lists mac inputs; BlackHole/aggregate tagged as system-audio |
+| **System-audio ("what you hear")** | Route via **BlackHole** (or an aggregate device) → pick it in Src. Native ScreenCaptureKit tap is optional/later. |
 
 Windows capture (`pyaudiowpatch` / WASAPI) is unchanged and required only on Windows.
+macOS capture is selected at runtime by `audio/source_factory.py` (`sys.platform`), so
+Windows never imports `sounddevice` and macOS never imports `pyaudiowpatch`.
 
 ---
 
@@ -73,10 +77,15 @@ Record decisions in `plan/audio-visualizer-plan.md` §8 as they are made.
 
 | Version | PR | Scope |
 |---------|-----|--------|
-| **`A0.00.01`** | version + CI + **capture spike** | `APP_VERSION_MAC`, `version_info`, mac CI job, `tools/mac/spike-capture.py`, decision #30 |
-| **`A0.00.02`** | capture implementation | `capture_mac.py` + `source_factory`, `sounddevice` ring buffer, mic default |
-| **`A0.00.03`** | device picker + BlackHole | `devices_mac.py`, Src modal, BlackHole docs |
+| **`A0.00.01`** ✅ | version + CI + **capture spike** | `APP_VERSION_MAC`, `version_info`, mac CI job, `tools/mac/spike-capture.py`, decision #30 |
+| **`A0.00.02`** ✅ | capture implementation | `capture_mac.py` + `source_factory`, `sounddevice` ring buffer, mic default |
+| **`A0.00.03`** ✅ | device picker + BlackHole | `devices_mac.py`, Src modal, BlackHole routing |
 | **`A0.00.04`** | native loopback (optional) | ScreenCaptureKit system-audio tap |
+
+> `A0.00.02` + `A0.00.03` landed together (branch `feature/mac-capture-and-picker`): the Src
+> modal is platform-shared, so implementing capture and enumeration in one step avoided a
+> half-wired picker. `A0.00.04` (native tap) stays optional — BlackHole already covers
+> system-audio capture without a kernel/entitlement dependency.
 
 | Workstream | Notes |
 |------------|-------|
