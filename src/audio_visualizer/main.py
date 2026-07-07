@@ -9,7 +9,8 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from audio_visualizer.config import APP_NAME, APP_VERSION, SELFTEST_FRAMES
+from audio_visualizer.config import APP_NAME, SELFTEST_FRAMES
+from audio_visualizer.version_info import app_version
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="render a few headless frames with a synthetic tone, then exit 0",
     )
     parser.add_argument("--mode", default=None, help="start in this visual mode (key)")
-    parser.add_argument("--version", action="version", version=f"{APP_NAME} {APP_VERSION}")
+    parser.add_argument("--version", action="version", version=f"{APP_NAME} {app_version()}")
     return parser.parse_args(argv)
 
 
@@ -79,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     # Import App lazily so the SDL env vars above take effect first.
     from audio_visualizer.app import App
 
-    logger.info("%s %s starting (selftest=%s)", APP_NAME, APP_VERSION, args.selftest)
+    logger.info("%s %s starting (selftest=%s)", APP_NAME, app_version(), args.selftest)
     app = App(start_mode=args.mode)
     if args.selftest:
         return app.run_selftest(SELFTEST_FRAMES)

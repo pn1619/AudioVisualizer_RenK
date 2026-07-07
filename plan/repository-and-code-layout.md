@@ -16,7 +16,8 @@ AudioVisualizer/
 │     ├─ __main__.py            # enables `python -m audio_visualizer`; calls main()
 │     ├─ main.py                # parse args, configure logging, install excepthook, build & run App
 │     ├─ app.py                 # App: window, main loop, input, mode switching (wiring only)
-│     ├─ config.py              # constants & defaults (APP_VERSION, FFT size, FPS, colors, smoothing keys)
+│     ├─ config.py              # APP_VERSION (Windows), APP_VERSION_MAC (macOS), defaults
+│     ├─ version_info.py        # app_version() — runtime platform pick
 │     ├─ settings.py            # load/save JSON settings in %APPDATA% (schema_version=15, migrate-or-default; v7 remaps merged mode keys, v8 adds source_id, v9 adds active_look, v10 adds random_pool+random_interval, v11 adds random_options, v12 adds random_fade, v13 adds beat_levels, v14 adds beat_bands+beat_indicator(+pos), v15 adds sens_band)
 │     ├─ looks.py               # Phase 0B-b: user looks ("My Looks") store — Look dataclass + load/save/CRUD/export/import (own looks.json, schema_version=1)
 │     ├─ beat_trigger.py        # Phase 0B-c: Beat Buttons engine (pure) — onset baseline + per-level cooldown -> fired action keys

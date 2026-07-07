@@ -17,6 +17,15 @@ what each phase delivered and its verification results.
 
 ---
 
+## `A0.00.01` — macOS milestone A: runtime version line + macOS CI job
+
+Enforces separate mac versioning at runtime and adds parallel GitHub Actions testing.
+
+- **`APP_VERSION_MAC`** in `config.py` + **`version_info.app_version()`** — About, window
+  title, `--version`, and saved looks report the mac line on `darwin`; Windows unchanged.
+- **CI job `mac`** (`macos-latest`): `tools/mac/setup` → check-deps → pytest → `--selftest`.
+- Tests: `tests/test_version_info.py`. Docs updated (`plan/testing.md`, `macos-port.md`, …).
+
 ## `A0.00.00` — macOS milestone A: parallel dev environment (tooling + docs)
 
 First macOS port milestone — **no app behavior change**; Windows `APP_VERSION` stays

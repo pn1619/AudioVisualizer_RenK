@@ -10,6 +10,7 @@ import os
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
-from audio_visualizer.config import APP_VERSION  # noqa: E402
+from audio_visualizer.config import APP_VERSION, APP_VERSION_MAC  # noqa: E402
+from audio_visualizer.version_info import app_version  # noqa: E402
 
-__all__ = ["APP_VERSION"]
+__all__ = ["APP_VERSION", "APP_VERSION_MAC", "app_version"]

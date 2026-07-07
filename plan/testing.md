@@ -113,18 +113,33 @@ Keep a short known input so "working" isn't subjective:
 
 ---
 
-## 5. CI outline (GitHub Actions, `windows-latest`)
+## 5. CI outline (GitHub Actions)
+
+### Windows — job `build` (`windows-latest`, **required** for merge)
 
 ```
 setup-python (3.12)
-  → .\tools\check-deps.ps1     # fails fast if Python < 3.12
+  → .\tools\check-deps.ps1
   → .\tools\setup.ps1
-  → .\tools\lint.ps1          # ruff + black --check
-  → .\tools\test.ps1          # pytest headless (dummy SDL drivers)
-  → .\tools\build-exe.ps1     # from Phase 1 onward (validates PortAudio DLL bundling)
+  → .\tools\lint.ps1
+  → .\tools\test.ps1
+  → .\tools\build-exe.ps1
   → .\dist\AudioVisualizer.exe --selftest
-  → (optional) upload dist\AudioVisualizer.exe as artifact
+  → upload dist\AudioVisualizer.exe as artifact
 ```
+
+### macOS — job `mac` (`macos-latest`, parallel)
+
+```
+setup-python (3.12)
+  → ./tools/mac/setup.sh
+  → ./tools/mac/check-deps.sh
+  → ./tools/mac/test.sh
+  → ./tools/mac/run.sh --selftest
+```
+
+Lint runs only on Windows (same `src/`/`tests/`; avoids duplicate CI time). Add `mac`
+to the branch ruleset status checks when mac green should block merge.
 
 Start with lint + tests required. **Add the exe build + `--selftest` to CI from Phase 1** (not Phase 3) so packaging regressions are caught immediately.
 

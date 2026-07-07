@@ -27,7 +27,6 @@ from audio_visualizer.beat_trigger import BeatTrigger
 from audio_visualizer.config import (
     APP_ICON_FILENAME,
     APP_NAME,
-    APP_VERSION,
     BEAT_FADE_CHOICES,
     BEAT_FADE_DEFAULT,
     BEAT_INDICATOR_OPACITY_CHOICES,
@@ -130,6 +129,7 @@ from audio_visualizer.ui.looks_panel import LooksActions, LooksPanel
 from audio_visualizer.ui.shuffle_panel import ShuffleActions, ShufflePanel
 from audio_visualizer.ui.source_panel import SourceActions, SourcePanel
 from audio_visualizer.ui.style import STYLE
+from audio_visualizer.version_info import app_version
 from audio_visualizer.visuals import registry
 from audio_visualizer.visuals._helpers import set_custom_hue, set_custom_hue2
 from audio_visualizer.visuals._transition import ModeTransition
@@ -205,7 +205,7 @@ class App:
 
     def __init__(self, start_mode: str | None = None, load_settings: bool = True) -> None:
         pygame.init()
-        pygame.display.set_caption(f"{APP_NAME} {APP_VERSION}")
+        pygame.display.set_caption(f"{APP_NAME} {app_version()}")
 
         self._settings: Settings = settings_mod.load() if load_settings else Settings()
         self._persist = load_settings
@@ -705,7 +705,7 @@ class App:
                     "logo_spin": self._logo.spin_dir,
                 },
             },
-            app_version=APP_VERSION,
+            app_version=app_version(),
         )
 
     def _apply_look(self, look: Look | None) -> None:
