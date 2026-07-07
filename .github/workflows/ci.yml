@@ -65,3 +65,6 @@ jobs:
 
       - name: Self-test (headless app)
         run: ./tools/mac/run.sh --selftest
+
+      - name: Capture spike (list devices)
+        run: ./.venv/bin/python tools/mac/spike-capture.py --list

@@ -37,6 +37,13 @@ From the repo root:
 | `test.sh` | pytest headless (`SDL_VIDEODRIVER=dummy`) |
 | `lint.sh` | ruff + black --check + mypy (non-blocking) |
 | `format.sh` | black + ruff --fix |
+| `spike-capture.py` | Phase 0.5 spike: list inputs + print RMS (`sounddevice`) |
+
+```bash
+./tools/mac/spike-capture.py --list
+./tools/mac/spike-capture.py --seconds 5
+./tools/mac/spike-capture.py --device BlackHole
+```
 
 ```bash
 ./tools/mac/test.sh

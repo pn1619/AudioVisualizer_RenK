@@ -69,13 +69,22 @@ See `tools/mac/README.md` for the full script table and VS Code notes.
 
 Record decisions in `plan/audio-visualizer-plan.md` §8 as they are made.
 
+### macOS port PR roadmap (`A0` milestone)
+
+| Version | PR | Scope |
+|---------|-----|--------|
+| **`A0.00.01`** | version + CI + **capture spike** | `APP_VERSION_MAC`, `version_info`, mac CI job, `tools/mac/spike-capture.py`, decision #30 |
+| **`A0.00.02`** | capture implementation | `capture_mac.py` + `source_factory`, `sounddevice` ring buffer, mic default |
+| **`A0.00.03`** | device picker + BlackHole | `devices_mac.py`, Src modal, BlackHole docs |
+| **`A0.00.04`** | native loopback (optional) | ScreenCaptureKit system-audio tap |
+
 | Workstream | Notes |
 |------------|-------|
-| **System-audio capture** | Core Audio loopback (ScreenCaptureKit audio tap, BlackHole virtual device, or PortAudio fork). Spike script first (`tools/mac/spike-loopback.sh` TBD). |
+| **System-audio capture** | Decision #30: `sounddevice` → BlackHole → ScreenCaptureKit. Spike: `tools/mac/spike-capture.py`. |
 | **Device enumeration** | mac analogue of `audio/devices.py`; keep Windows path untouched. |
 | **Platform module** | Split/rename `platform_win.py` paths; Retina/windowing polish. |
 | **Packaging** | `.app` bundle (PyInstaller or native); separate from `build-exe.ps1`. |
-| **CI** | Optional macOS GitHub Actions job using `tools/mac/test.sh`. |
+| **CI** | Job `mac` runs `tools/mac/test.sh` + `--selftest`; spike is **manual** (`--list` safe in CI later). |
 
 Open questions (decide before implementation):
 

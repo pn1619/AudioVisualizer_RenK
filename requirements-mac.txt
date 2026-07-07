@@ -5,6 +5,7 @@
 
 numpy>=2.0   # FFT / DSP
 pygame>=2.6  # window + 2D rendering
+sounddevice>=0.5  # PortAudio capture (mac spike + future capture_mac.py)
 
 # macOS system-audio capture (Core Audio / loopback) will be added during the port.
 # Do not add pyaudiowpatch here — it is Windows-only.
