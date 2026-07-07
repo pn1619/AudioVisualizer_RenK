@@ -128,7 +128,16 @@ AudioVisualizer/
 │  ├─ build-exe.ps1   / .cmd
 │  ├─ spike-loopback.py         # Phase 0.5 throwaway: prove pyaudiowpatch delivers samples
 │  ├─ preview_mode.py           # Phase 0B-d dev aid: headless-render a mode to PNG (cross-check vs concept art); not shipped
-│  └─ README.md
+│  ├─ README.md                 # Windows tooling (PowerShell)
+│  └─ mac/                      # macOS dev tooling (parallel — do not mix with *.ps1)
+│     ├─ _common.sh
+│     ├─ check-deps.sh
+│     ├─ setup.sh
+│     ├─ run.sh
+│     ├─ test.sh
+│     ├─ lint.sh
+│     ├─ format.sh
+│     └─ README.md
 │
 ├─ .vscode/                     # shared editor config (used by Cursor too)
 │  ├─ extensions.json           # recommended: python, ruff, black, mypy
@@ -146,8 +155,10 @@ AudioVisualizer/
 ├─ build/                       # PyInstaller temp (gitignored)
 ├─ AudioVisualizer.spec         # PyInstaller spec (committed; bundles PortAudio DLL + icon/version)
 ├─ .python-version              # pins 3.12 for pyenv/tooling
-├─ requirements.txt             # runtime deps (pinned exact versions; Windows-only)
-├─ requirements-dev.txt         # ruff, black, mypy, pytest, pre-commit, pyinstaller
+├─ requirements.txt             # runtime deps (Windows; includes pyaudiowpatch)
+├─ requirements-dev.txt         # Windows dev deps (+ pulls requirements.txt)
+├─ requirements-mac.txt         # macOS runtime deps (numpy, pygame; no pyaudiowpatch)
+├─ requirements-mac-dev.txt     # macOS dev deps (+ pulls requirements-mac.txt)
 ├─ pyproject.toml               # requires-python >=3.12; ruff/black/mypy config + metadata
 ├─ .pre-commit-config.yaml      # ruff + black on commit
 ├─ LICENSE                      # project license (e.g. MIT)

@@ -1,13 +1,11 @@
 ---
 name: audio-visualizer
 description: >-
-  Build and maintain a Windows system-audio visualizer in Python (pygame +
-  numpy + pyaudiowpatch) that captures WASAPI loopback and renders waveform,
-  spectrum, light show, particles, and laser modes, packaged as a single .exe.
+  Build and maintain a cross-platform system-audio visualizer in Python (pygame +
+  numpy) — Windows WASAPI loopback (pyaudiowpatch) shipped; macOS port in parallel.
   Use when implementing or editing this repo, adding audio capture, FFT/DSP,
   visual modes, UI/buttons, tooling scripts, tests, or packaging; or when the
-  user mentions loopback, spectrum, waveform, light show, particles, laser,
-  snowfall, or spiral visuals on Windows.
+  user mentions loopback, spectrum, waveform, macOS port, or Windows/mac parallel dev.
 ---
 
 # Audio Visualizer — Agent Skill
@@ -316,14 +314,24 @@ Pick the control by the shape of its choices — keep this consistent across the
 | **Current mode catalog** (shipped + proposed visuals) | `plan/visual-mode-ideas.md` |
 | Phase 10.06 / 10.07 mode specs (expansion, consolidation) | `plan/phase-0a06-visual-modes.md`, `plan/phase-0a07-mode-consolidation.md` |
 | Git flow, `PP.FF.BB` versioning (`FF` hex from phase 10), per-phase tags | `plan/git-and-versioning.md` |
+| **macOS parallel dev / port** (isolated tooling, capture TBD) | `plan/macos-port.md` |
 | Project conventions (always applied) | `.cursor/rules/python-audio-visualizer.mdc` |
 | Python style (always applied) | `.cursor/rules/python-coding-style.mdc` |
 
 ## Stack
 
-- **Python 3.12+** (3.12 or newer, 64-bit), **pygame**, **numpy**, **pyaudiowpatch** (WASAPI loopback), **PyInstaller** (single `.exe`).
-- Dev in **Cursor + VS Code**; shared config in committed `.vscode/`. `check-deps.ps1` + README enforce/announce Python ≥ 3.12.
+- **Python 3.12+** (3.12 or newer, 64-bit), **pygame**, **numpy**.
+- **Windows:** **pyaudiowpatch** (WASAPI loopback), **PyInstaller** (single `.exe`), `tools/*.ps1`.
+- **macOS (port):** `tools/mac/*.sh`, `requirements-mac*.txt`; capture TBD; tests/selftest green with `SyntheticSource`.
+- Dev in **Cursor + VS Code**; shared config in committed `.vscode/`. Windows: `check-deps.ps1`; macOS: `tools/mac/check-deps.sh`.
 - Lint/format: **ruff** + **black** (pre-commit); tests: **pytest** (headless).
+
+## macOS / Windows parallel dev (read before port work)
+
+1. **Both platforms must keep working** — Windows CI (`build`) and `tools/*.ps1` unchanged unless intentionally fixing Windows too.
+2. **Isolate mac-only pieces:** `requirements-mac.txt`, `requirements-mac-dev.txt`, `tools/mac/*`; never add mac-only pip deps to `requirements.txt`.
+3. **Shared `src/` + `tests/`** — platform capture behind `AudioSource`; lazy/guarded imports in `platform_*` / `audio/capture` modules only.
+4. Full rules: **`plan/macos-port.md`**.
 
 ## Build order (each step ends with something that runs)
 
@@ -377,8 +385,9 @@ Pick the control by the shape of its choices — keep this consistent across the
 
 ## Tooling
 
-- `tools/*.ps1` (+ `.cmd`), each with `-Help`, banner, next steps; shared `tools/_Common.ps1`.
-- `check-deps`, `setup` (.venv + pip), `run`, `test` (headless dummy SDL drivers), `lint` (ruff+black), `format`, `build-exe` (PyInstaller `--onefile`, `-OneDir` option).
+- **Windows:** `tools/*.ps1` (+ `.cmd`), each with `-Help`, banner, next steps; shared `tools/_Common.ps1`.
+- **macOS:** `tools/mac/*.sh` (+ `tools/mac/README.md`); `check-deps`, `setup`, `run`, `test`, `lint`, `format`.
+- Windows also: `build-exe` (PyInstaller `--onefile`, `-OneDir` option).
 
 ## Testing (see `plan/testing.md`)
 
@@ -391,8 +400,8 @@ Pick the control by the shape of its choices — keep this consistent across the
 
 - Develop on `feature/<topic>` branches → **PR into a green `main`** (pytest + ruff + black + `--selftest`). Conventional commit prefixes; body says *why*.
 - **Pull-request-only (enforced by a GitHub ruleset on `main`):** **never commit or push directly to `main`.** Branch `feature/<topic>`, push, open a PR into `main`. **Create commits/pushes/PRs only when the owner explicitly asks**; **never merge or approve** a PR — open it, give the owner (**pn1619**) the link, and stop. CI (`build`) must be green before merge; only pn1619 holds force-merge (bypass). Don't force-push or bypass the ruleset. Details: `plan/git-and-versioning.md` §1.1.
-- One version string `APP_VERSION` in `config.py` (`PP.FF.BB`); bump it + add a `CHANGELOG.md` entry when a phase/build advances. **Tag each completed phase** with an annotated `v<APP_VERSION>` (e.g. `v00.02.00`) and push it. Never edit global git config; use per-command flags (and `http.sslBackend=schannel` behind SSL-inspecting proxies). Full convention: `plan/git-and-versioning.md`.
+- One version string `APP_VERSION` in `config.py` (`PP.FF.BB`); Windows line `00`–`09`, mac line `A0`–`F0` (§3.1 in `git-and-versioning.md`). Bump Windows `APP_VERSION` + `CHANGELOG.md` when advancing Windows builds; tag mac milestones separately (`vA0.00.00`, …).
 
 ## Documentation hygiene
 
-- Update `plan/*` (esp. decisions §8, `audio-visualizer-plan.md` §3.3 modes table, `visual-mode-ideas.md`, and `git-and-versioning.md`) and this skill whenever capture strategy, modes, tooling, packaging, or the git/versioning flow change. Keep the layout doc's tree/diagram accurate and the §3.3 / architecture §6.6 mode tables in sync with the registry (the single source of truth).
+- Update `plan/*` (esp. decisions §8, `audio-visualizer-plan.md` §3.3 modes table, `visual-mode-ideas.md`, `git-and-versioning.md`, **`macos-port.md`**) and this skill whenever capture strategy, modes, tooling, packaging, platform split, or the git/versioning flow change. Keep the layout doc's tree/diagram accurate and the §3.3 / architecture §6.6 mode tables in sync with the registry (the single source of truth).

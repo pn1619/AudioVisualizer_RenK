@@ -70,13 +70,59 @@ in the HUD and `--version`. Format `PP.FF.BB` (zero-padded, two digits each):
 - Examples: `00.00.00` (Phase 0), `00.01.00` (Phase 1), `00.03.00` (Phase 3),
   `00.0A.07` (Phase 10.07), `00.0A.08` (Phase 10.08).
 
+### 3.1 Platform encoding in `PP` (Windows vs macOS)
+
+The **first character of `PP`** (high nibble, hex) identifies the **platform line** so
+git tags and releases never collide across Windows and macOS, while **`FF` and `BB` keep
+the same meaning** (development sub-phase and build, both hex).
+
+| `PP` range | Platform | Rule |
+|------------|----------|------|
+| **`00`–`09`** | **Windows** | Existing shipped line. `00` = pre-ship; bump `PP` at the first public Windows release. Current: `00.0B.2D`. |
+| **`A0`–`F0`** | **macOS** | Port line. **One letter per major mac milestone** — `A0` = first mac milestone (dev env / scaffolding), `B0` = next (e.g. capture), … `F0` = sixth reserved bucket. |
+
+**How to read a mac version:** `A0.FF.BB` — `A0` is the mac milestone; `FF`/`BB` count
+sub-phases and builds **inside** that milestone exactly like Windows.
+
+**Examples**
+
+| Version | Tag | Meaning |
+|---------|-----|---------|
+| `00.0B.2D` | `v00.0B.2D` | Windows build (current `main`) |
+| `A0.00.00` | `vA0.00.00` | macOS milestone A — dev environment ready |
+| `A0.01.00` | `vA0.01.00` | macOS milestone A — next sub-phase (e.g. capture spike) |
+| `B0.00.00` | `vB0.00.00` | macOS milestone B — major next step (e.g. capture shipped) |
+
+**In-app version string**
+
+- `config.py` **`APP_VERSION`** remains the **Windows canonical** version on shared `main`
+  (CI, `.exe` version resource, About modal on Windows builds).
+- When macOS builds ship, add **`APP_VERSION_MAC`** in `config.py` (or select at runtime
+  via `sys.platform`) so the About modal / `--version` on Mac shows the mac line
+  (e.g. `A0.00.00`). Until then, only **git tags** use the `A0`…`F0` range.
+- A single commit may carry **both** tags when a change is platform-neutral (e.g.
+  `v00.0B.2E` + `vA0.00.00` on the mac-dev-env merge).
+
+**CHANGELOG:** Windows entries stay under `00.x.x`; add a **macOS** section (or
+sub-entries) keyed to `A0`/`B0`/… versions when mac milestones land. See
+`plan/macos-port.md`.
+
 ## 4. Tags & releases
+
+### Windows
 
 - Tag a **completed phase** (after its exit criteria + tests/lint/`--selftest` are
   green) with an **annotated** tag named **`v` + the exact `APP_VERSION`**:
   - Phase 2 → `v00.02.00`, Phase 3 → `v00.03.00`, etc.
 - The tag name maps **1:1** to `APP_VERSION` so `git tag` and the in-app version
-  always agree.
+  always agree on Windows builds.
+
+### macOS
+
+- Use the **`A0`–`F0` `PP` line** (§3.1). Tag mac milestones the same way:
+  **`v` + mac version** (e.g. `vA0.00.00` when the dev environment is complete).
+- macOS tags are **independent** of Windows tags — both may point at the same commit.
+- macOS GitHub Releases (when added) attach the `.app` / disk image, not the `.exe`.
 - Create it on the commit that completes the phase, then push the tag:
 
 ```powershell

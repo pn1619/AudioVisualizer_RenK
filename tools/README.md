@@ -4,6 +4,10 @@ Developer scripts for the Audio Visualizer. Each `*.ps1` has a `*.cmd` wrapper
 (so it works from `cmd.exe` or a double-click), supports `-Help`, prints a banner,
 and ends with "next steps". Shared helpers live in `_Common.ps1`.
 
+> **macOS dev** uses a separate parallel folder: **`tools/mac/`** (shell scripts +
+> `requirements-mac*.txt`). See `tools/mac/README.md` and `plan/macos-port.md`.
+> Do not mix mac and Windows tooling in one script.
+
 > Requires **Python 3.12+** (64-bit). On Windows, run from the repo root in
 > PowerShell. If scripts are blocked, the `.cmd` wrappers already pass
 > `-ExecutionPolicy Bypass`.

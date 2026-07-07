@@ -1,0 +1,10 @@
+# Runtime dependencies for macOS development (porting target).
+#
+# Intentionally separate from requirements.txt (Windows / WASAPI).
+# Install via:  ./tools/mac/setup.sh
+
+numpy>=2.0   # FFT / DSP
+pygame>=2.6  # window + 2D rendering
+
+# macOS system-audio capture (Core Audio / loopback) will be added during the port.
+# Do not add pyaudiowpatch here — it is Windows-only.

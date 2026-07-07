@@ -1,5 +1,5 @@
 ---
-description: Conventions for the Windows system-audio visualizer (Python, pygame, numpy, pyaudiowpatch).
+description: Conventions for the cross-platform audio visualizer (Python, pygame, numpy; Windows WASAPI + macOS port in parallel).
 alwaysApply: true
 ---
 
@@ -9,15 +9,27 @@ alwaysApply: true
 
 - **Simple but works beats complicated but broken.** Prefer the approach that gets a reliable, audio-reactive window on screen. Do not add complexity (extra deps, threads, frameworks) without a clear, recorded reason.
 
+## Platforms (parallel — do not break either)
+
+- **Windows (shipped):** WASAPI loopback via `pyaudiowpatch`, PyInstaller `.exe`, `tools/*.ps1`.
+- **macOS (port in progress):** dev env + tests green today; system-audio capture TBD. Use
+  **`tools/mac/*.sh`** and **`requirements-mac*.txt`** only — never fold mac-only deps into
+  `requirements.txt` or Windows scripts.
+- **Both must keep working:** shared code in `src/` and `tests/`; platform-specific capture,
+  packaging, and tooling stay isolated. Full policy: **`plan/macos-port.md`**.
+
 ## Stack (locked)
 
-- **Python 3.12+** (3.12 or newer, 64-bit; `requires-python = ">=3.12"`), **pygame** (window/2D), **numpy** (FFT/DSP), **pyaudiowpatch** (WASAPI loopback), **PyInstaller** (single `.exe`).
+- **Python 3.12+** (3.12 or newer, 64-bit; `requires-python = ">=3.12"`), **pygame** (window/2D), **numpy** (FFT/DSP).
+- **Windows capture:** **pyaudiowpatch** (WASAPI loopback). **macOS capture:** TBD (Core Audio); record the choice in `plan/audio-visualizer-plan.md` §8 before adding a library.
+- **Windows packaging:** **PyInstaller** (single `.exe`). macOS packaging is separate (later).
 - Do **not** introduce a second UI/GPU framework or a different capture library without recording a decision in `plan/audio-visualizer-plan.md` §8.
 
 ## Dev environment
 
 - Developed in **Cursor + VS Code**; shared config lives in committed **`.vscode/`** (`extensions.json`, `settings.json`, `launch.json`). Don't add editor-specific hacks elsewhere.
-- **`check-deps.ps1`** and the **README** must verify/announce **Python ≥ 3.12** and print install steps (winget / python.org) when missing.
+- **Windows:** `tools/check-deps.ps1` and the **README** verify Python ≥ 3.12 and print winget/python.org install steps.
+- **macOS:** `tools/mac/check-deps.sh` and **`tools/mac/README.md`**; setup via `tools/mac/setup.sh` (uses `requirements-mac-dev.txt`).
 
 ## Capture & audio
 
@@ -61,8 +73,9 @@ alwaysApply: true
 
 ## Tooling
 
-- All dev actions are **`tools/*.ps1`** with **`*.cmd`** wrappers, each supporting **`-Help`**, a banner, and "next steps"; shared helpers in `tools/_Common.ps1`.
-- Keep `check-deps`, `setup`, `run`, `test`, `lint`, `format`, `build-exe` working. `test.ps1` sets `SDL_VIDEODRIVER=dummy` / `SDL_AUDIODRIVER=dummy` for headless runs.
+- **Windows:** all dev actions are **`tools/*.ps1`** with **`*.cmd`** wrappers, each supporting **`-Help`**, a banner, and "next steps"; shared helpers in `tools/_Common.ps1`.
+- **macOS:** parallel scripts in **`tools/mac/*.sh`** (+ `tools/mac/README.md`); use **`requirements-mac-dev.txt`**. Do not modify Windows scripts when adding mac tooling.
+- Keep `check-deps`, `setup`, `run`, `test`, `lint`, `format` working on **each** platform via its own script set. `test` sets `SDL_VIDEODRIVER=dummy` / `SDL_AUDIODRIVER=dummy` for headless runs.
 - **pre-commit (ruff + black)** is installed by `setup.ps1`; deps are **pinned** and `.python-version` pins 3.12.
 - **Packaging:** `build-exe.ps1` bundles the **PortAudio DLL** (`collect_dynamic_libs("pyaudiowpatch")`) + icon/version; validate every build with `--selftest`. Build the exe from **Phase 1**, not the end. Ship `LICENSE` + `THIRD-PARTY-NOTICES.md` (pygame is LGPL).
 
@@ -75,7 +88,7 @@ alwaysApply: true
 - **`main` stays releasable/green**; develop on `feature/<topic>` branches and merge via **PR** (green pytest + ruff + black + `--selftest`). Don't commit directly to `main`.
 - **Pull-request-only (enforced):** `main` is protected by a GitHub ruleset. **Never commit or push directly to `main`** — branch `feature/<topic>`, push, open a PR. **AI agents create commits/pushes/PRs only when the owner explicitly asks**, and **never merge or approve** — open the PR, hand over the link, and stop. Only the owner **pn1619** reviews and merges; CI (`build`) must be green first; only pn1619 (bypass) may force-merge. Don't force-push or bypass. Full policy: `plan/git-and-versioning.md` §1.1.
 - Commit messages: imperative with a conventional prefix (`feat:`/`fix:`/`chore:`/`docs:`/`test:`/`refactor:`/`build:`); the body says **why**.
-- **Single version string** `APP_VERSION` in `config.py`, format **`PP.FF.BB`** (`PP` pre-release marker, `FF` development phase, `BB` build within the phase). Bump it in the same change that advances the phase/build and add a `CHANGELOG.md` entry.
+- **Single version string** `APP_VERSION` in `config.py`, format **`PP.FF.BB`** (`PP` platform + pre-release, `FF` development phase, `BB` build). **Windows `PP` = `00`–`09`; macOS `PP` = `A0`–`F0`** (see `plan/git-and-versioning.md` §3.1). Bump Windows `APP_VERSION` in the same change that advances the Windows phase/build; mac milestones tag `vA0.…` / `vB0.…` independently.
 - **Tag every completed phase** with an **annotated** tag `v<APP_VERSION>` (e.g. `v00.02.00`) on the green commit, then push it — the tag maps 1:1 to the in-app version.
 - **Never change global git config** in automated work: pass per-command flags (`git -c user.name=… -c user.email=…`); behind an SSL-inspecting proxy use `git -c http.sslBackend=schannel …` rather than disabling verification.
 - Full convention: **`plan/git-and-versioning.md`**.
@@ -86,4 +99,4 @@ alwaysApply: true
 
 ## Documentation hygiene
 
-- When code or a decision changes, update the matching doc in the same change: `plan/audio-visualizer-plan.md` (esp. §8 decisions **and the §3.3 modes table**), `plan/architecture-and-code-flow.md` (§6.6 modes table), `plan/repository-and-code-layout.md`, `plan/testing.md`, `plan/development-phases.md`, `plan/git-and-versioning.md`, `plan/visual-mode-ideas.md` (current mode catalog), and `.cursor/skills/audio-visualizer/SKILL.md`. The mode tables must match the registry (the single source of truth).
+- When code or a decision changes, update the matching doc in the same change: `plan/audio-visualizer-plan.md` (esp. §8 decisions **and the §3.3 modes table**), `plan/architecture-and-code-flow.md` (§6.6 modes table), `plan/repository-and-code-layout.md`, `plan/testing.md`, `plan/development-phases.md`, `plan/git-and-versioning.md`, `plan/visual-mode-ideas.md` (current mode catalog), `plan/macos-port.md` (mac parallel dev / port), and `.cursor/skills/audio-visualizer/SKILL.md`. The mode tables must match the registry (the single source of truth).

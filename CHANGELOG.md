@@ -1,10 +1,10 @@
 # Changelog
 
-Version scheme `PP.FF.BB` — `PP` pre-release (`00` until ship), `FF` development
-phase, `BB` build within the phase. **Every part is HEX** (parsed base-16), so a build
-counts `… 08, 09, 0A, 0B, … 0F, 10, …`. The string lives once as `APP_VERSION` in
-`config.py`. Each completed phase is tagged with an annotated git tag
-`v<APP_VERSION>` (e.g. `v00.02.00`), so entries below map 1:1 to tags. See
+Version scheme `PP.FF.BB` — **`PP` encodes platform:** Windows `00`–`09`, macOS `A0`–`F0`
+(see `plan/git-and-versioning.md` §3.1). `FF` = development phase, `BB` = build within
+the phase. **Every part is HEX** (parsed base-16), so a build counts `… 08, 09, 0A, 0B,
+… 0F, 10, …`. Windows `APP_VERSION` lives in `config.py`. Each completed phase is tagged
+`v<APP_VERSION>` (e.g. `v00.02.00` Windows, `vA0.00.00` macOS dev env). See
 `plan/development-phases.md` and `plan/git-and-versioning.md`.
 
 All three initial phases were implemented in one pass; the entries below record
@@ -16,6 +16,23 @@ what each phase delivered and its verification results.
 > hex `00.0B.10` (= 16).
 
 ---
+
+## `A0.00.00` — macOS milestone A: parallel dev environment (tooling + docs)
+
+First macOS port milestone — **no app behavior change**; Windows `APP_VERSION` stays
+`00.0B.2D`. Isolated mac dev path so Windows CI and `tools/*.ps1` stay untouched.
+
+- **`tools/mac/`** — `setup`, `check-deps`, `run`, `test`, `lint`, `format` shell scripts
+  (+ `README.md`, `_common.sh`).
+- **`requirements-mac.txt`** / **`requirements-mac-dev.txt`** — numpy + pygame runtime;
+  dev tools; no `pyaudiowpatch`.
+- **`plan/macos-port.md`** — parallel dev rules, port checklist, mac versioning (`A0`–`F0`).
+- **Versioning (decision #29):** Windows `PP` = `00`–`09`; macOS `PP` = `A0`–`F0`; tag
+  **`vA0.00.00`**. Documented in `plan/git-and-versioning.md` §3.1.
+- Rules, skill, layout, testing docs updated for mac/Windows parallel development.
+
+Verified on macOS (Apple Silicon): `./tools/mac/check-deps.sh`, **498** pytest passes,
+`./tools/mac/run.sh --selftest` exit 0.
 
 ## `00.0B.2D` — Phase 0B (build 37): pull-request-only `main` + development-control policy
 

@@ -52,6 +52,16 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 `tools/test.ps1` sets the same env vars, so `pytest` runs headlessly on a dev box or CI.
 
+### macOS (parallel dev)
+
+```bash
+./tools/mac/test.sh
+./tools/mac/run.sh --selftest
+```
+
+Uses `requirements-mac-dev.txt` (no `pyaudiowpatch`). Same `tests/` suite; capture tests that mock
+`pyaudiowpatch` still pass. See `plan/macos-port.md`.
+
 ---
 
 ## 3. Commands
