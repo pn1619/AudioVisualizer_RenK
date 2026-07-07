@@ -390,6 +390,7 @@ Pick the control by the shape of its choices — keep this consistent across the
 ## Version control & releases
 
 - Develop on `feature/<topic>` branches → **PR into a green `main`** (pytest + ruff + black + `--selftest`). Conventional commit prefixes; body says *why*.
+- **Pull-request-only (enforced by a GitHub ruleset on `main`):** **never commit or push directly to `main`.** Branch `feature/<topic>`, push, open a PR into `main`. **Create commits/pushes/PRs only when the owner explicitly asks**; **never merge or approve** a PR — open it, give the owner (**pn1619**) the link, and stop. CI (`build`) must be green before merge; only pn1619 holds force-merge (bypass). Don't force-push or bypass the ruleset. Details: `plan/git-and-versioning.md` §1.1.
 - One version string `APP_VERSION` in `config.py` (`PP.FF.BB`); bump it + add a `CHANGELOG.md` entry when a phase/build advances. **Tag each completed phase** with an annotated `v<APP_VERSION>` (e.g. `v00.02.00`) and push it. Never edit global git config; use per-command flags (and `http.sslBackend=schannel` behind SSL-inspecting proxies). Full convention: `plan/git-and-versioning.md`.
 
 ## Documentation hygiene

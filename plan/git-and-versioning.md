@@ -19,6 +19,32 @@ how we branch, commit, version, and tag. Keep it in sync with `config.py`
   `--selftest`) before merge.
 - Keep one logical change per PR where practical; prefer small, reviewable PRs.
 
+## 1.1 Pull-request-only policy (mandatory — humans and AI agents)
+
+`main` is **protected**: everything lands through a reviewed pull request. This is
+enforced by a GitHub **branch ruleset** on `main` *and* is a hard rule for any AI
+agent working in this repo.
+
+- **Never commit or push directly to `main`.** Always branch `feature/<topic>`,
+  push the branch, and open a PR. Direct pushes to `main` are rejected by the ruleset.
+- **AI agents only create commits / pushes / PRs when the repo owner explicitly asks.**
+  Do not commit or push proactively; make the edits and stop until asked.
+- **AI agents never merge and never approve PRs.** Open the PR, hand the owner the
+  PR link, and stop. The repo owner **pn1619** reviews the diff and merges.
+- **CI (`build`) must be green before merge** (pytest + ruff + black + `--selftest`
+  + exe build). The ruleset requires the `build` status check to pass.
+- **`main` blocks force-pushes and deletion.** The owner (`pn1619`, Repository admin)
+  is on the ruleset **bypass list**, so only they retain force-merge/override for
+  emergencies — agents must not attempt to bypass, force-push, or override.
+- One logical change per PR where practical; prefer small, reviewable PRs.
+
+> Setup reference: repo → Settings → Rules → Rulesets → a ruleset named `Protect main`
+> targeting the default branch, with *Require a pull request before merging*
+> (0 required approvals — a solo owner can't self-approve, so the **merge** is the
+> control gate), *Require status checks to pass* → `build`, *Block force pushes*,
+> *Restrict deletions*, and a **bypass = Repository admin** so `pn1619` keeps
+> force-merge. Recorded in `plan/audio-visualizer-plan.md` §8 (decision 27).
+
 ## 2. Commit messages
 
 - Imperative summary with a conventional prefix:
