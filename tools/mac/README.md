@@ -64,19 +64,35 @@ export PYTHONPATH=src
 2. **PYTHONPATH:** launch configs in `.vscode/launch.json` already set `PYTHONPATH=src`.
 3. Windows-specific `settings.json` paths (`.venv/Scripts/python.exe`) do not apply on macOS — pick the interpreter once per machine.
 
+## Audio capture on macOS
+
+Real capture works via **PortAudio** (`sounddevice`), selected automatically on macOS by
+`audio/source_factory.py`. On first launch macOS prompts for **microphone permission** —
+grant it once (System Settings → Privacy & Security → Microphone).
+
+- **Microphone** — works out of the box; it's the default source.
+- **System audio ("what you hear")** — macOS has no built-in loopback. Install
+  **[BlackHole](https://existential.audio/blackhole/)** (`brew install blackhole-2ch`) or
+  create an *Aggregate/Multi-Output* device, route system audio into it, then choose it in
+  the app's **Src** modal (BlackHole/aggregate devices are listed first).
+
+```bash
+brew install blackhole-2ch     # optional: enables system-audio capture
+./tools/mac/run.sh --debug     # pick the source in the Src modal
+```
+
 ## What works today vs. what the port will add
 
-| Area | Today (macOS dev) | Port work (later) |
-|------|-------------------|-------------------|
+| Area | Today (macOS) | Port work (later) |
+|------|---------------|-------------------|
 | Visual modes / UI | Runs (GUI + headless tests) | Polish, macOS windowing |
 | Tests / lint | Full pytest suite | Same |
-| Audio capture | `SyntheticSource` only | Core Audio system loopback |
+| Mic capture | ✅ `MacInputSource` (PortAudio) | — |
+| System-audio capture | ✅ via BlackHole / aggregate device | Optional native ScreenCaptureKit tap |
 | Settings path | `~/.config/AudioVisualizer` (via `platform_win.py`) | May rename/split platform module |
 | Packaging | N/A | `.app` bundle (PyInstaller or other) |
 
-Audio loopback (`pyaudiowpatch`) is **Windows-only**. The app already runs on macOS for
-development using synthetic audio and headless self-tests; real “what you hear” capture is
-the main porting task.
+Windows loopback (`pyaudiowpatch`) is **Windows-only** and never imported on macOS.
 
 ## Shared helper scripts
 
