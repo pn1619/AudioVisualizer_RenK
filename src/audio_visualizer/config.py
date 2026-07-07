@@ -1,10 +1,13 @@
 """Project-wide constants and defaults (no logic lives here).
 
-Version scheme ``PP.FF.BB``:
-    PP  pre-release marker (stays ``00`` until we ship)
-    FF  development phase (``00`` = Phase 0/0.5, ``01`` = Phase 1, ...)
-    BB  build/iteration within that phase
-So ``00.01.00`` == "Phase 1, build 0". See plan/development-phases.md.
+Version scheme ``PP.FF.BB`` (every part is **hex**):
+    PP  platform + pre-release marker — Windows ``00``–``09``, macOS ``A0``–``F0``
+    FF  development sub-phase within that platform milestone
+    BB  build/iteration within the sub-phase
+
+Windows canonical: ``APP_VERSION`` (CI, ``.exe`` version resource).
+macOS canonical: ``APP_VERSION_MAC`` (About / ``--version`` on darwin).
+Runtime pick: ``version_info.app_version()``.
 
 Magic-number policy (see .cursor/rules/python-coding-style.mdc):
     - **Shared / global / cross-mode** tunables live here as ``UPPER_SNAKE_CASE``.
@@ -20,6 +23,8 @@ APP_NAME = "AudioVisualizer"
 # FF is the development phase ("0A", "0B", …); BB is the build within the phase.
 # (Builds 0A-0F were briefly mis-tagged in decimal as .10-.15; corrected to hex.)
 APP_VERSION = "00.0B.2D"
+# macOS port line (PP = A0–F0). Bump when tagging a mac milestone (e.g. vA0.00.01).
+APP_VERSION_MAC = "A0.00.01"
 # Shown in the About dialog. BUILD_DATE is bumped when a build is cut.
 APP_OWNER = "pn1619"
 APP_BUILD_DATE = "2026-07-07"

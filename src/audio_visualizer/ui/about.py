@@ -10,12 +10,12 @@ from audio_visualizer.config import (
     APP_BUILD_DATE,
     APP_NAME,
     APP_OWNER,
-    APP_VERSION,
     COLOR_BG,
     COLOR_TEXT,
     COLOR_TEXT_DIM,
 )
 from audio_visualizer.ui.style import STYLE, draw_panel
+from audio_visualizer.version_info import app_version
 
 _PANEL_W = 420
 _PAD = 16
@@ -28,7 +28,7 @@ def _info_lines() -> list[tuple[str, str]]:
     return [
         ("Owner", APP_OWNER),
         ("License", "Proprietary - all rights reserved"),
-        ("Version", APP_VERSION),
+        ("Version", app_version()),
         ("Build date", APP_BUILD_DATE),
         ("Python", platform.python_version()),
         ("pygame", getattr(pygame, "version", None) and pygame.version.ver or "?"),

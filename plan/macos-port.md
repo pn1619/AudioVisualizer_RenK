@@ -96,10 +96,22 @@ Uses the shared `PP.FF.BB` scheme with a **platform prefix in `PP`** (decision #
 
 - **First mac milestone (dev env ready):** `A0.00.00` → tag **`vA0.00.00`**
 - **`FF` / `BB`:** same as Windows — hex sub-phase and build within the milestone
-- **`APP_VERSION`** in `config.py` stays Windows-canonical until mac builds need
-  `APP_VERSION_MAC` (or runtime selection)
+- **`APP_VERSION`** / **`APP_VERSION_MAC`** in `config.py`; runtime pick via
+  **`version_info.app_version()`** (About, window title, `--version`, saved looks)
 
 Full convention: `plan/git-and-versioning.md` §3.1–§4.
+
+---
+
+## 7. CI (GitHub Actions)
+
+| Job | Runner | What it proves |
+|-----|--------|----------------|
+| **`build`** | `windows-latest` | lint, pytest, PyInstaller `.exe`, `--selftest` (required for merge) |
+| **`mac`** | `macos-latest` | `tools/mac/setup.sh`, check-deps, pytest, `--selftest` |
+
+The **`mac`** job is additive — it does not replace Windows **`build`**. To require mac
+green before merge, add the `mac` status check to the branch ruleset.
 
 ---
 

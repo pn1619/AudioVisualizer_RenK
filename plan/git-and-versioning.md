@@ -95,11 +95,9 @@ sub-phases and builds **inside** that milestone exactly like Windows.
 
 **In-app version string**
 
-- `config.py` **`APP_VERSION`** remains the **Windows canonical** version on shared `main`
-  (CI, `.exe` version resource, About modal on Windows builds).
-- When macOS builds ship, add **`APP_VERSION_MAC`** in `config.py` (or select at runtime
-  via `sys.platform`) so the About modal / `--version` on Mac shows the mac line
-  (e.g. `A0.00.00`). Until then, only **git tags** use the `A0`…`F0` range.
+- `config.py` **`APP_VERSION`** is the **Windows canonical** version (CI, `.exe`
+  version resource). **`APP_VERSION_MAC`** is the **macOS canonical** version.
+  **`version_info.app_version()`** picks at runtime (`darwin` → mac line).
 - A single commit may carry **both** tags when a change is platform-neutral (e.g.
   `v00.0B.2E` + `vA0.00.00` on the mac-dev-env merge).
 

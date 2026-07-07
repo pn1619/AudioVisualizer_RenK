@@ -25,7 +25,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from audio_visualizer.config import (
-    APP_VERSION,
     LOOK_NAME_MAX,
     LOOKS_EXPORT_FILENAME,
     LOOKS_FILENAME,
@@ -33,6 +32,7 @@ from audio_visualizer.config import (
     LOOKS_SCHEMA_VERSION,
 )
 from audio_visualizer.platform_win import get_app_dir, get_appdata_dir
+from audio_visualizer.version_info import app_version
 
 logger = logging.getLogger(__name__)
 
@@ -255,7 +255,7 @@ class LooksStore:
         look.name = sanitize_name(look.name)
         look.created_at = look.created_at or _now()
         look.updated_at = _now()
-        look.app_version = look.app_version or APP_VERSION
+        look.app_version = look.app_version or app_version()
         self._looks.append(look)
         return look
 
