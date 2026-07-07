@@ -46,12 +46,16 @@ When port work touches Python (not just tooling):
 | `--selftest` | `./tools/mac/run.sh --selftest` |
 | Settings | `~/.config/AudioVisualizer/` via guarded `platform_win.get_appdata_dir()` |
 | **Input capture** | `MacInputSource` (PortAudio via `sounddevice`) — mic by default; **grant mic permission on first run** |
-| **Device picker** | Src modal lists mac inputs; BlackHole/aggregate tagged as system-audio |
-| **System-audio ("what you hear")** | Route via **BlackHole** (or an aggregate device) → pick it in Src. Native ScreenCaptureKit tap is optional/later. |
+| **Native system-audio** | `MacSystemAudioSource` (ScreenCaptureKit) — pick "System Audio (native tap)"; **grant Screen Recording permission**; no driver install |
+| **Device picker** | Src modal lists native tap first, then BlackHole/aggregate, then inputs |
+| **System-audio ("what you hear")** | Native tap **or** route via **BlackHole**/aggregate → pick it in Src |
+| **Packaging** | `./tools/mac/build-app.sh` → `dist/AudioVisualizer.app` (unsigned) |
 
 Windows capture (`pyaudiowpatch` / WASAPI) is unchanged and required only on Windows.
-macOS capture is selected at runtime by `audio/source_factory.py` (`sys.platform`), so
-Windows never imports `sounddevice` and macOS never imports `pyaudiowpatch`.
+macOS capture is selected at runtime by `audio/source_factory.py` (`sys.platform` + the
+`MAC_SYSTEM_AUDIO_SOURCE_ID` sentinel), so Windows never imports `sounddevice`/pyobjc and
+macOS never imports `pyaudiowpatch`. Every backend is **fail-soft** (ERROR banner, no
+crash) — a denied permission falls back cleanly.
 
 ---
 
@@ -80,26 +84,32 @@ Record decisions in `plan/audio-visualizer-plan.md` §8 as they are made.
 | **`A0.00.01`** ✅ | version + CI + **capture spike** | `APP_VERSION_MAC`, `version_info`, mac CI job, `tools/mac/spike-capture.py`, decision #30 |
 | **`A0.00.02`** ✅ | capture implementation | `capture_mac.py` + `source_factory`, `sounddevice` ring buffer, mic default |
 | **`A0.00.03`** ✅ | device picker + BlackHole | `devices_mac.py`, Src modal, BlackHole routing |
-| **`A0.00.04`** | native loopback (optional) | ScreenCaptureKit system-audio tap |
+| **`A0.00.04`** ✅ | native tap + **packaging** | `capture_mac_native.py` (ScreenCaptureKit), `MonoRingBuffer`, `build-app.sh` + `AudioVisualizer-mac.spec` |
 
 > `A0.00.02` + `A0.00.03` landed together (branch `feature/mac-capture-and-picker`): the Src
 > modal is platform-shared, so implementing capture and enumeration in one step avoided a
-> half-wired picker. `A0.00.04` (native tap) stays optional — BlackHole already covers
-> system-audio capture without a kernel/entitlement dependency.
+> half-wired picker. `A0.00.04` adds the driver-free **ScreenCaptureKit** tap (opt-in via
+> the "System Audio (native tap)" source; needs Screen Recording permission) **and** the
+> `.app` build tool. BlackHole remains a fully supported alternative for users who prefer
+> not to grant Screen Recording.
 
-| Workstream | Notes |
-|------------|-------|
-| **System-audio capture** | Decision #30: `sounddevice` → BlackHole → ScreenCaptureKit. Spike: `tools/mac/spike-capture.py`. |
-| **Device enumeration** | mac analogue of `audio/devices.py`; keep Windows path untouched. |
-| **Platform module** | Split/rename `platform_win.py` paths; Retina/windowing polish. |
-| **Packaging** | `.app` bundle (PyInstaller or native); separate from `build-exe.ps1`. |
-| **CI** | Job `mac` runs `tools/mac/test.sh` + `--selftest`; spike is **manual** (`--list` safe in CI later). |
+| Workstream | Status / Notes |
+|------------|----------------|
+| **System-audio capture** | ✅ Decision #30 realized: `sounddevice` (mic/BlackHole) + ScreenCaptureKit native tap (`capture_mac_native.py`). |
+| **Device enumeration** | ✅ `audio/devices_mac.py`; Windows path untouched. |
+| **Packaging** | ✅ `tools/mac/build-app.sh` + `AudioVisualizer-mac.spec` → `dist/AudioVisualizer.app`. |
+| **Platform module** | Split/rename `platform_win.py` paths; Retina/windowing polish. *(pending)* |
+| **Signing / notarization** | Unsigned today (Gatekeeper right-click → Open). Dev ID signing + notarization *(pending)*. |
+| **CI** | Job `mac` runs `tools/mac/test.sh` + `--selftest`. Building the `.app` in CI is *(pending)*. |
 
-Open questions (decide before implementation):
+Resolved:
 
-1. Capture strategy — virtual loopback driver vs system audio tap API?
-2. Minimum macOS version?
-3. Code signing / notarization for distribution?
+1. **Capture strategy** — both: driver-free ScreenCaptureKit tap *and* BlackHole/aggregate.
+2. **Minimum macOS version** — **13.0** (ScreenCaptureKit audio); mic/BlackHole work lower.
+
+Open questions:
+
+3. Code signing / notarization for distribution (Apple Developer ID).
 
 ---
 

@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import logging
 
+from audio_visualizer.audio.capture_mac_native import native_capture_available
 from audio_visualizer.audio.devices import SourceInfo
+from audio_visualizer.config import MAC_SYSTEM_AUDIO_SOURCE_ID
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +35,13 @@ def list_sources() -> list[SourceInfo]:
     Loopback-like devices (BlackHole, aggregates) are listed first so "what you
     hear" routing is easy to find, then real inputs (microphones).
     """
+    native = _native_source_entry()
+
     try:
         import sounddevice as sd
     except Exception:  # pragma: no cover - import guarded for headless/CI
         logger.debug("sounddevice unavailable; no selectable sources", exc_info=True)
-        return []
+        return native
 
     try:
         default_index = -1
@@ -61,10 +65,28 @@ def list_sources() -> list[SourceInfo]:
                 loopbacks.append(SourceInfo(name, name, "loopback", is_default))
             else:
                 inputs.append(SourceInfo(name, name, "input", is_default))
-        return loopbacks + inputs
+        return native + loopbacks + inputs
     except Exception:
         logger.exception("Failed to enumerate macOS audio sources")
+        return native
+
+
+def _native_source_entry() -> list[SourceInfo]:
+    """Return the ScreenCaptureKit tap as a selectable source when available.
+
+    Listed first so the zero-install "what you hear" option is easy to find.
+    Requires macOS 13+ and Screen Recording permission (granted on first use).
+    """
+    if not native_capture_available():
         return []
+    return [
+        SourceInfo(
+            MAC_SYSTEM_AUDIO_SOURCE_ID,
+            "System Audio (native tap)",
+            "loopback",
+            False,
+        )
+    ]
 
 
 def has_loopback_device() -> bool:

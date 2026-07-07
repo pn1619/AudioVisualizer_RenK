@@ -17,6 +17,33 @@ what each phase delivered and its verification results.
 
 ---
 
+## `A0.00.04` — macOS milestone A: native system-audio tap + `.app` packaging
+
+Driver-free "what you hear" capture on macOS, plus a one-command app build. Windows is
+untouched (`APP_VERSION` stays `00.0B.2D`); pyobjc/ScreenCaptureKit are macOS-only deps.
+
+- **`audio/capture_mac_native.py`** (`MacSystemAudioSource`) — system-audio via
+  **ScreenCaptureKit** (`SCStream`, `capturesAudio`); pulls float32 out of each
+  `CMSampleBuffer`, downmixes to mono, feeds the shared ring buffer. Needs macOS 13+ and
+  **Screen Recording** permission; fully **fail-soft** (ERROR banner, never crashes).
+- **`audio/ring_buffer.py`** (`MonoRingBuffer`) — shared bounded ring buffer.
+- **Src picker** now offers **"System Audio (native tap)"** first (sentinel
+  `MAC_SYSTEM_AUDIO_SOURCE_ID`), then BlackHole/aggregate, then inputs. No driver install
+  required for the native option; BlackHole remains supported.
+- **`tools/mac/build-app.sh`** + **`AudioVisualizer-mac.spec`** — PyInstaller
+  `dist/AudioVisualizer.app`: bundles PortAudio + pyobjc frameworks + assets, generates an
+  `.icns`, writes `Info.plist` (`NSMicrophoneUsageDescription`, `LSMinimumSystemVersion
+  13.0`), and self-tests the built app. Unsigned (Gatekeeper right-click → Open).
+- **Deps:** `pyobjc-framework-{ScreenCaptureKit,CoreMedia,AVFoundation}` in
+  `requirements-mac.txt` (`sys_platform == "darwin"`); `pyinstaller` in
+  `requirements-mac-dev.txt`.
+- Tests: `tests/test_mac_native_capture.py` (15 cases — downmix, ring buffer, factory
+  dispatch, picker entry, fail-soft start, CMSampleBuffer extraction with a fake CoreMedia).
+
+Verified on macOS 15.6 (Apple Silicon): **528** pytest passes, ruff + black clean, new
+files pass mypy, `build-app.sh` produced a self-testing `.app`. The native tap reaches the
+Screen-Recording permission gate as expected (fail-soft to ERROR until granted).
+
 ## `A0.00.03` — macOS milestone A: working input capture + device picker
 
 macOS now captures real audio through the shared `AudioSource` pipeline; Windows is

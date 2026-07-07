@@ -59,6 +59,40 @@ Build a single executable, then run it:
 The exe bundles the PortAudio DLL and a Windows version resource. Drop an
 `assets\icon.ico` into the repo before building to brand the exe.
 
+## macOS (port in progress)
+
+The app runs on **macOS 13+** with real audio capture. Tooling is a parallel set of shell
+scripts under `tools/mac/` (do not mix with the Windows `*.ps1`). Full guide:
+`tools/mac/README.md`.
+
+```bash
+./tools/mac/check-deps.sh          # verify Python 3.12+, venv, packages
+./tools/mac/setup.sh               # create .venv + install macOS deps
+./tools/mac/run.sh --debug         # launch; pick a source in the Src modal
+```
+
+**Capturing audio** — choose the source in the app's **Src** modal:
+
+1. **Microphone** (default) — works immediately; first launch prompts for Microphone
+   permission.
+2. **System Audio (native tap)** — driver-free via **ScreenCaptureKit**; first use prompts
+   for **Screen Recording** permission (System Settings → Privacy & Security → Screen
+   Recording), then reopen the app.
+3. **BlackHole / aggregate device** — `brew install blackhole-2ch`, route system audio to
+   it, then select it in **Src**.
+
+**Build a standalone `.app`:**
+
+```bash
+./tools/mac/build-app.sh           # produces dist/AudioVisualizer.app (self-tested)
+open dist/AudioVisualizer.app      # or double-click in Finder
+```
+
+The `.app` bundles PortAudio + the ScreenCaptureKit frameworks and assets, and writes an
+`Info.plist` (mic usage + `LSMinimumSystemVersion 13.0`). It is **unsigned** for now, so
+the first launch may need **right-click → Open** to pass Gatekeeper. Signing +
+notarization are future work; see `plan/macos-port.md`.
+
 ## Controls
 
 | Action | Mouse | Keyboard |

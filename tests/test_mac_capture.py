@@ -44,6 +44,11 @@ _DEVICES = [
 
 @pytest.fixture
 def fake_sd(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
+    from audio_visualizer.audio import devices_mac
+
+    # Isolate the PortAudio enumeration path from the native (ScreenCaptureKit)
+    # entry, which is otherwise prepended on a real macOS host.
+    monkeypatch.setattr(devices_mac, "native_capture_available", lambda: False)
     mod = _fake_sounddevice(_DEVICES, default_input=0)
     monkeypatch.setitem(sys.modules, "sounddevice", mod)
     return mod
@@ -77,6 +82,7 @@ def test_has_loopback_device(fake_sd: types.ModuleType) -> None:
 def test_list_sources_empty_without_sounddevice(monkeypatch: pytest.MonkeyPatch) -> None:
     from audio_visualizer.audio import devices_mac
 
+    monkeypatch.setattr(devices_mac, "native_capture_available", lambda: False)
     monkeypatch.setitem(sys.modules, "sounddevice", None)  # import -> ImportError
     assert devices_mac.list_sources() == []
 

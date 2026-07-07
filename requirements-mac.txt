@@ -1,11 +1,16 @@
-# Runtime dependencies for macOS development (porting target).
+# Runtime dependencies for macOS (porting target).
 #
 # Intentionally separate from requirements.txt (Windows / WASAPI).
 # Install via:  ./tools/mac/setup.sh
 
 numpy>=2.0   # FFT / DSP
 pygame>=2.6  # window + 2D rendering
-sounddevice>=0.5  # PortAudio capture (mac spike + future capture_mac.py)
+sounddevice>=0.5  # PortAudio capture: microphone + BlackHole/aggregate ("what you hear")
 
-# macOS system-audio capture (Core Audio / loopback) will be added during the port.
+# Native system-audio tap (ScreenCaptureKit) — no virtual driver needed, but
+# requires Screen Recording permission. pyobjc bridges the frameworks.
+pyobjc-framework-ScreenCaptureKit>=10.0 ; sys_platform == "darwin"
+pyobjc-framework-CoreMedia>=10.0 ; sys_platform == "darwin"
+pyobjc-framework-AVFoundation>=10.0 ; sys_platform == "darwin"
+
 # Do not add pyaudiowpatch here — it is Windows-only.

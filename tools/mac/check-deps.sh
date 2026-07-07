@@ -44,7 +44,7 @@ else
 fi
 
 write_section "macOS runtime packages"
-MAC_PACKAGES=(numpy pygame)
+MAC_PACKAGES=(numpy pygame sounddevice)
 if [[ "$VENV_OK" -eq 1 ]]; then
   export PYGAME_HIDE_SUPPORT_PROMPT=1
   for pkg in "${MAC_PACKAGES[@]}"; do
@@ -105,9 +105,31 @@ else
   write_info "Skipped (no .venv)."
 fi
 
-write_section "Audio capture (porting note)"
-write_info "System-audio loopback is not implemented on macOS yet (Windows uses pyaudiowpatch)."
-write_info "Porting will add a Core Audio backend; dev/tests use SyntheticSource today."
+write_section "Audio capture backends"
+if [[ "$VENV_OK" -eq 1 ]]; then
+  export_repo_env
+  SRC_SUMMARY="$(SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy "$VENV_PY" -c "
+from audio_visualizer.audio.capture_mac_native import native_capture_available
+print('native', native_capture_available())
+" 2>/dev/null || true)"
+  if [[ "$SRC_SUMMARY" == *"native True"* ]]; then
+    write_ok "Native system-audio tap available (ScreenCaptureKit / pyobjc)."
+    write_info "First use prompts for Screen Recording permission."
+  else
+    write_warn "Native tap unavailable (needs pyobjc-framework-ScreenCaptureKit)."
+    write_info "Mic + BlackHole capture still work; run ./tools/mac/setup.sh to add pyobjc."
+  fi
+  write_info "Mic capture: PortAudio (sounddevice). System audio: native tap or BlackHole."
+else
+  write_info "Skipped (no .venv)."
+fi
+
+write_section "Packaging (optional)"
+if [[ "$VENV_OK" -eq 1 ]] && "$VENV_PY" -c "import PyInstaller" >/dev/null 2>&1; then
+  write_ok "PyInstaller present — ./tools/mac/build-app.sh can build the .app."
+else
+  write_info "PyInstaller not installed (only needed to build the .app; setup.sh adds it)."
+fi
 
 write_section "Summary"
 if [[ "${#PROBLEMS[@]}" -eq 0 ]]; then

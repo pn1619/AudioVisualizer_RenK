@@ -31,8 +31,13 @@ AudioVisualizer/
 │     │  ├─ __init__.py
 │     │  ├─ frame.py            # AnalysisFrame dataclass (immutable snapshot)
 │     │  ├─ source.py           # AudioSource interface + SyntheticSource (test tone)
-│     │  ├─ capture.py          # LoopbackSource(device_id): WASAPI loopback/input via pyaudiowpatch + ring buffer
-│     │  ├─ devices.py          # Phase 0B-a: enumerate selectable sources (list_sources / find_device_info)
+│     │  ├─ capture.py          # [win] LoopbackSource(device_id): WASAPI loopback/input via pyaudiowpatch + ring buffer
+│     │  ├─ devices.py          # [win] Phase 0B-a: enumerate selectable sources (list_sources / find_device_info)
+│     │  ├─ capture_mac.py      # [mac] MacInputSource: PortAudio input (mic/BlackHole) via sounddevice + ring buffer
+│     │  ├─ capture_mac_native.py # [mac] MacSystemAudioSource: ScreenCaptureKit system-audio tap (pyobjc); fail-soft
+│     │  ├─ devices_mac.py      # [mac] enumerate mac inputs + native tap entry (BlackHole/aggregate tagged loopback)
+│     │  ├─ ring_buffer.py      # [mac] MonoRingBuffer: shared bounded circular buffer for mac capture
+│     │  ├─ source_factory.py   # platform picker: create_source()/list_sources() (sys.platform + sentinel)
 │     │  └─ analysis.py         # Analyzer: window + FFT + RMS/peak + log bands -> AnalysisFrame
 │     │
 │     ├─ visuals/
@@ -135,9 +140,11 @@ AudioVisualizer/
 │     ├─ check-deps.sh
 │     ├─ setup.sh
 │     ├─ run.sh
+│     ├─ build-app.sh           # PyInstaller -> dist/AudioVisualizer.app (+ selftest)
 │     ├─ test.sh
 │     ├─ lint.sh
 │     ├─ format.sh
+│     ├─ spike-capture.py       # Phase 0.5 mac capture spike (sounddevice)
 │     └─ README.md
 │
 ├─ .vscode/                     # shared editor config (used by Cursor too)
@@ -154,7 +161,8 @@ AudioVisualizer/
 ├─ logs/                        # rotating app.log (gitignored)
 ├─ dist/                        # PyInstaller output (gitignored)
 ├─ build/                       # PyInstaller temp (gitignored)
-├─ AudioVisualizer.spec         # PyInstaller spec (committed; bundles PortAudio DLL + icon/version)
+├─ AudioVisualizer.spec         # PyInstaller spec — Windows .exe (bundles PortAudio DLL + icon/version)
+├─ AudioVisualizer-mac.spec     # PyInstaller spec — macOS .app (PortAudio + pyobjc frameworks + Info.plist)
 ├─ .python-version              # pins 3.12 for pyenv/tooling
 ├─ requirements.txt             # runtime deps (Windows; includes pyaudiowpatch)
 ├─ requirements-dev.txt         # Windows dev deps (+ pulls requirements.txt)
