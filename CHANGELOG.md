@@ -17,14 +17,18 @@ what each phase delivered and its verification results.
 
 ---
 
-## `A0.00.01` — macOS milestone A: runtime version line + macOS CI job
-
-Enforces separate mac versioning at runtime and adds parallel GitHub Actions testing.
+## `A0.00.01` — macOS milestone A: runtime version line + macOS CI job + capture spike
 
 - **`APP_VERSION_MAC`** in `config.py` + **`version_info.app_version()`** — About, window
   title, `--version`, and saved looks report the mac line on `darwin`; Windows unchanged.
 - **CI job `mac`** (`macos-latest`): `tools/mac/setup` → check-deps → pytest → `--selftest`.
-- Tests: `tests/test_version_info.py`. Docs updated (`plan/testing.md`, `macos-port.md`, …).
+- **`tools/mac/spike-capture.py`** — Phase 0.5 mac capture spike (`sounddevice`); lists
+  inputs and prints RMS/peak. Decision **#30** (PortAudio → BlackHole → ScreenCaptureKit).
+- **`sounddevice`** added to `requirements-mac.txt` only.
+- Tests: `tests/test_version_info.py`. Docs updated (`plan/macos-port.md` PR roadmap, …).
+
+Verified on macOS (Apple Silicon): `./tools/mac/check-deps.sh`, **502** pytest passes,
+`./tools/mac/run.sh --selftest` exit 0, `spike-capture.py --list` OK.
 
 ## `A0.00.00` — macOS milestone A: parallel dev environment (tooling + docs)
 
