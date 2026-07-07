@@ -73,6 +73,7 @@ alwaysApply: true
 ## Version control & releases
 
 - **`main` stays releasable/green**; develop on `feature/<topic>` branches and merge via **PR** (green pytest + ruff + black + `--selftest`). Don't commit directly to `main`.
+- **Pull-request-only (enforced):** `main` is protected by a GitHub ruleset. **Never commit or push directly to `main`** — branch `feature/<topic>`, push, open a PR. **AI agents create commits/pushes/PRs only when the owner explicitly asks**, and **never merge or approve** — open the PR, hand over the link, and stop. Only the owner **pn1619** reviews and merges; CI (`build`) must be green first; only pn1619 (bypass) may force-merge. Don't force-push or bypass. Full policy: `plan/git-and-versioning.md` §1.1.
 - Commit messages: imperative with a conventional prefix (`feat:`/`fix:`/`chore:`/`docs:`/`test:`/`refactor:`/`build:`); the body says **why**.
 - **Single version string** `APP_VERSION` in `config.py`, format **`PP.FF.BB`** (`PP` pre-release marker, `FF` development phase, `BB` build within the phase). Bump it in the same change that advances the phase/build and add a `CHANGELOG.md` entry.
 - **Tag every completed phase** with an **annotated** tag `v<APP_VERSION>` (e.g. `v00.02.00`) on the green commit, then push it — the tag maps 1:1 to the in-app version.

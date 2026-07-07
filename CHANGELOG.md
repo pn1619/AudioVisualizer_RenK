@@ -17,6 +17,22 @@ what each phase delivered and its verification results.
 
 ---
 
+## `00.0B.2D` — Phase 0B (build 37): pull-request-only `main` + development-control policy
+
+Process/governance change (**no app behavior, code, or schema change** — settings stay v23):
+all changes now reach `main` through a reviewed pull request, enforced by a GitHub branch
+**ruleset** (`Protect main`) and codified so future contributors — humans **and AI agents** —
+follow it.
+
+- **Policy written in four places:** a new canonical **§1.1** in `plan/git-and-versioning.md`,
+  the always-applied rule `.cursor/rules/python-audio-visualizer.mdc`, the version-control
+  section of `.cursor/skills/audio-visualizer/SKILL.md`, and **Decision 27** in
+  `plan/audio-visualizer-plan.md` §8.
+- **The rules:** never commit/push directly to `main` — branch `feature/<topic>` → PR. AI
+  agents create commits/pushes/PRs **only when the owner explicitly asks**, and **never merge
+  or approve**. Owner **pn1619** reviews + merges; CI (`build`) must be green before merge; only
+  pn1619 (ruleset bypass) retains force-merge. No force-pushes or bypassing.
+
 ## `00.0B.2C` — Phase 0B-d (build 36): Fractal Tree is official; procedural trees removed
 
 Promoted the artwork-based tree to a permanent mode and dropped the procedural experiments.
